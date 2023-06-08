@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "astro_pi_executor"
+description = "A CLI to execute Mission Space Lab experiments for 2023-2024."
+dynamic = ["version"]
+authors = [
+  { name="Geraint Ballinger", email="geraint.ballinger@raspberrypi.org" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+
+[project.scripts]
+astro-pi = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/astro-pi/astro-pi-executor"
+
+[tool.setuptools.dynamic]
+version = {attr = "astro-pi-executor.__init__.__version__"}
+
+[tools.isort]
+atomic = true
+line_length = 88
+profile = "black"
+skip_gitignore = true
+src_paths = ["src", "test"]
+skip_glob = ["test/resources"]
+
+[tools.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+
