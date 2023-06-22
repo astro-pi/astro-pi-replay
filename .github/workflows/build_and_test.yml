@@ -1,0 +1,38 @@
+name: Build and test workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Midnight every month
+    - cron: "0 0 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nix for dependencies
+        uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+      - name: Download the dependencies into an isolated env and enter it
+        run: nix develop
+      - name: Build and test
+        run: nix develop -c make test build
+      - name: Notify alerts channel of failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        uses: rtCamp/action-slack-notify@v2.2.0
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Failure Message
+          MSG_MINIMAL: actions url, commit, ref
+          SLACK_FOOTER: Build failure
+

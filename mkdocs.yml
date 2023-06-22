@@ -1,0 +1,46 @@
+site_name: Astro Pi Executor
+site_url: https://github.com/astro-pi/astro_pi_executor
+repo_url: https://github.com/astro-pi/astro_pi_executor
+repo_name: astro-pi/astro_pi_executor
+
+nav:
+  - Home: 'index.md'
+  - About: 'about.md'
+  - Explanation: 'explanation.md'
+  - API: 'api.md'
+  - Contributing: 'contributing.md'
+
+theme:
+  font:
+    text: Rubik
+    code: Rubik Mono
+  icon:
+    repo: fontawesome/brands/github
+  name: material
+  language: en
+  logo: assets/rpf_esa_joint_logo.png
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - search.highlight
+    - search.share
+
+plugins:
+  - mkdocstrings
+  - offline:
+      enabled: !ENV [MKDOCS_OFFLINE, false]
+  - search
+
+
+extra:
+  #analytics:
+  #  provider: google
+  #  property: G-XXXXXX
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+

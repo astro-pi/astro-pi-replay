@@ -61,6 +61,7 @@ pytest.ini     text
 
 # Assets
 # ========
+*.xcf     binary
 *.png     binary
 *.jpg     binary
 *.jpeg    binary

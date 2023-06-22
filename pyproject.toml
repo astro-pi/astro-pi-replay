@@ -15,15 +15,18 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent"
 ]
+dependencies = [
+  "pandas > 2"
+]
 
 [project.scripts]
-astro-pi = "main:main"
+astro_pi_executor = "astro_pi_executor.main:main"
 
 [project.urls]
-Homepage = "https://github.com/astro-pi/astro-pi-executor"
+Homepage = "https://github.com/astro-pi/astro_pi_executor"
 
 [tool.setuptools.dynamic]
-version = {attr = "astro-pi-executor.__init__.__version__"}
+version = {attr = "astro_pi_executor.__init__.__version__"}
 
 [tools.isort]
 atomic = true
