@@ -28,16 +28,25 @@ Homepage = "https://github.com/astro-pi/astro_pi_executor"
 [tool.setuptools.dynamic]
 version = {attr = "astro_pi_executor.__init__.__version__"}
 
-[tools.isort]
+[tool.isort]
 atomic = true
 line_length = 88
 profile = "black"
 skip_gitignore = true
 src_paths = ["src", "test"]
-skip_glob = ["test/resources"]
+skip_glob = ["test/resources", "venv"]
 
-[tools.black]
+[tool.black]
 line-length = 88
 target-version = ['py39']
 include = '\.pyi?$'
+extend-exclude = '''
+(
+  ^/test/resources
+)
+'''
+
+[tool.bandit]
+skips = ["B101", "B404"]
+exclude = ["test/resources"]
 

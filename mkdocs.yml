@@ -13,7 +13,7 @@ nav:
 theme:
   font:
     text: Rubik
-    code: Rubik Mono
+    code: Rubik Mono One
   icon:
     repo: fontawesome/brands/github
   name: material

@@ -163,6 +163,7 @@ install: build_python
 
 pre_commit_install: $(VENV_NAME)
 	@echo "Installing pre-commit hooks"
+	. $(VENV_NAME)/bin/activate; \
 	$(PRE_COMMIT) install --install-hooks
 
 pre_commit_run: pre_commit_install

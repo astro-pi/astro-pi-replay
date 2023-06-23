@@ -1,22 +1,22 @@
 #!/usr/bin/python
-from typing import Optional, Callable
-from astro_pi_executor.types import RGBC, RGB, RollPitchYawDict, XYZDict, InputEvent
+from typing import Callable, Optional
+
+from astro_pi_executor.types import RGB, RGBC, InputEvent, RollPitchYawDict, XYZDict
 
 # Type synonyms
 
 # default values
-DEFAULT_ROLL_PITCH_YAW_DICT = { "roll": float(), "pitch": float(), "yaw": float()}
+DEFAULT_ROLL_PITCH_YAW_DICT = {"roll": float(), "pitch": float(), "yaw": float()}
 DEFAULT_RGB_TUPLE = (int(), int(), int())
 DEFAULT_RGBC_TUPLE = (int(), int(), int(), int())
-DEFAULT_X_Y_Z_DICT = { "x": float(), "y": float(), "z": float() }
-DEFAULT_CALLABLE = lambda x: x # TODO could use inspect module to check type annotations at runtime
+DEFAULT_X_Y_Z_DICT = {"x": float(), "y": float(), "z": float()}
+DEFAULT_CALLABLE = (
+    lambda x: x
+)  # TODO could use inspect module to check type annotations at runtime
+
 
 class SenseHatColourSensorAPI:
-
-    def __init__(self, 
-                 gain: int, 
-                 integration_cycles: int, 
-                 interface: object):
+    def __init__(self, gain: int, integration_cycles: int, interface: object):
         self.interface: object = interface
 
     @property
@@ -107,6 +107,7 @@ class SenseHatColourSensorAPI:
     def rgb(self) -> RGB:
         return DEFAULT_RGB_TUPLE
 
+
 class SenseHatStickAPI:
     SENSE_HAT_EVDEV_NAME: str = str()
     EVENT_FORMAT: str = str()
@@ -180,8 +181,8 @@ class SenseHatStickAPI:
     def wait_for_event(self, emptybuffer: bool) -> Optional[InputEvent]:
         pass
 
-class SenseHatAPI:
 
+class SenseHatAPI:
     # Not sure if these belong here really...
     SENSE_HAT_FB_NAME: str = str()
     SENSE_HAT_FB_FBIOGET_GAMMA: int = int()
@@ -192,11 +193,7 @@ class SenseHatAPI:
     SENSE_HAT_FB_GAMMA_USER: int = int()
     SETTINGS_HOME_PATH: str = str()
 
-    def __init__(
-        self,
-        imu_settings_file: str,
-        text_assets: str
-        ):
+    def __init__(self, imu_settings_file: str, text_assets: str):
         pass
 
     @property
@@ -234,10 +231,10 @@ class SenseHatAPI:
     def color(self) -> SenseHatColourSensorAPI:
         return self.colour
 
-    def flip_h(self, redraw:bool) -> None:
+    def flip_h(self, redraw: bool) -> None:
         pass
 
-    def flip_v(self, redraw:bool) -> None:
+    def flip_v(self, redraw: bool) -> None:
         pass
 
     @property
@@ -322,7 +319,7 @@ class SenseHatAPI:
     def has_colour_sensor(self) -> bool:
         return bool()
 
-    def load_image(self, file_path: str, redraw:bool) -> list[list[int]]:
+    def load_image(self, file_path: str, redraw: bool) -> list[list[int]]:
         return list()
 
     @property
@@ -353,32 +350,32 @@ class SenseHatAPI:
     def rotation(self, r: int) -> None:
         pass
 
-    def set_imu_config(self, 
-                       compass_enabled: bool, 
-                       gyro_enabled: bool, 
-                       accel_enabled: bool) -> None:
+    def set_imu_config(
+        self, compass_enabled: bool, gyro_enabled: bool, accel_enabled: bool
+    ) -> None:
         pass
 
-    def set_pixels(self, pixel_list:list[list[int]], intercept:bool) -> None:
+    def set_pixels(self, pixel_list: list[list[int]], intercept: bool) -> None:
         pass
 
     def set_pixel(self, x: int, y: int, *args) -> None:
         pass
 
-    def set_rotation(self, r:int, redraw:bool) -> None:
+    def set_rotation(self, r: int, redraw: bool) -> None:
         pass
 
-    def show_letter(self, 
-                    s: str, 
-                    text_colour: list[int], 
-                    back_colour: list[int]) -> None:
+    def show_letter(
+        self, s: str, text_colour: list[int], back_colour: list[int]
+    ) -> None:
         pass
 
-    def show_message(self, 
-                     text_string:str, 
-                     scroll_speed:float,
-                     text_colour:list[int], 
-                     back_colour:list[int]) -> None:
+    def show_message(
+        self,
+        text_string: str,
+        scroll_speed: float,
+        text_colour: list[int],
+        back_colour: list[int],
+    ) -> None:
         pass
 
     @property
@@ -392,4 +389,3 @@ class SenseHatAPI:
     @property
     def temperature(self) -> float:
         return float()
-

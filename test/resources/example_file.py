@@ -25,7 +25,7 @@ for i in range(300):
     sense.colour.colour
 
     # This is necessarily ignored in data replay
-    sense.set_imu_config() # is ignored
+    sense.set_imu_config()  # is ignored
 
     # Similarly the below have no effect during data-replay:
     sense.colour.gain = 16
@@ -34,10 +34,9 @@ for i in range(300):
     # And finally, there is no data for get_events()
     sense.get_events()
 
-
     # Additionally, the executor should manage the calls to...
     import skyfield
-    # skyfield..
 
+    # skyfield..
     # and...
     from orbit import ISS

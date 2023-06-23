@@ -1,82 +1,33 @@
 #!/usr/bin/python
 from abc import ABC, abstractmethod
-from typing import Protocol, Optional
+from typing import Optional, Protocol
 
-# Type synonyms
-RGBC = tuple[int, int, int, int]
-RGB = tuple[int, int, int]
-RollPitchYawDict = dict[str, float]
-XYZDict = dict[str, float]
-
-# Supporting types
-#class Action(Enum):
-#    pressed = "pressed"
-#    released = "released"
-#    held = "held"
-#
-#class Direction(Enum):
-#    up = "up"
-#    down = "down"
-#    left = "left"
-#    right = "right"
-#    middle = "middle"
-#
-#class InputEvent(NamedTuple):
-#    timestamp: float
-#    direction: Direction
-#    action: Action
-#
-#############
-## Entities #
-#############
-#class ColourSensorABC(ABC):
-#    blue_raw: int
-#    brightness: int
-#    clear_raw: int
-#    colour: RGBC
-#    colour_raw: RGBC
-#    gain: int
-#    green_raw: int
-#    integration_cycles: int
-#    max_raw: int
-#    red_raw: int
-#    rgb: RGB
-#
-#class JoystickABC(ABC):
-#    direction_up: Optional[Callable]
-#    direction_left: Optional[Callable]
-#    direction_right: Optional[Callable]
-#    direction_down: Optional[Callable]
-#    direction_middle: Optional[Callable]
-#    direction_any: Optional[Callable]
-#
-#            return object.__getattribute__(self, name)
 
 class SenseHatPrivateAttributesProtocol(Protocol):
-
     _fb_device: Optional[str]
-    _pix_map: None # dict[int, np.ndarray]
+    _pix_map: None  # dict[int, np.ndarray]
     _rotation: int
     _text_dict: None
-    _imu_settings: object # use object for now because we don't want to import RTIMU.Settings here.
-    _imu: object # similar problem for RTIMU.RTIMU
+    _imu_settings: object  # use object for now because we don't -
+    # want to import RTIMU.Settings here.
+    _imu: object  # similar problem for RTIMU.RTIMU
     _imu_init: bool
-    _pressure: object # RTIMU.RTPressure
+    _pressure: object  # RTIMU.RTPressure
     _pressure_init: bool
-    _humidity: object # RTIMU.RTHumidity
+    _humidity: object  # RTIMU.RTHumidity
     _humidity_init: bool
     _last_orientation: dict[str, float]
     _last_compass_raw: dict[str, float]
-    _last_gyro_raw = dict[str, float]
-    _last_accel_raw = dict[str, float]
+    _last_gyro_raw: dict[str, float]
+    _last_accel_raw: dict[str, float]
     _compass_enabled: bool
     _gyro_enabled: bool
     _accel_enabled: bool
-    _stick: object # SenseStick()
-    _colour: object # ColourSensor()
+    _stick: object  # SenseStick()
+    _colour: object  # ColourSensor()
+
 
 class AbstractSenseHatPrivateMethods(ABC):
-
     @abstractmethod
     def _get_fb_device(self) -> str:
         return str()
@@ -131,6 +82,5 @@ class AbstractSenseHatPrivateMethods(ABC):
 
     @abstractmethod
     # TODO double check this signature
-    def _get_raw_data(self, is_valid_key: bool, data_key: str) -> dict[str,float]:
+    def _get_raw_data(self, is_valid_key: bool, data_key: str) -> dict[str, float]:
         return dict()
-

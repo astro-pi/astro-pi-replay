@@ -1,5 +1,6 @@
-from sense_hat import SenseHat
 import time
+
+from sense_hat import SenseHat
 
 sh = SenseHat()
 print(sh.colour.colour)
