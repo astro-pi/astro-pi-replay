@@ -79,7 +79,7 @@ def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path):
     # captured = capfd.readouterr()
     # captured_out = captured.out
     # assert random_uuid in captured_out
-    expected_regex = r"<Mock name='mock\(\)\.colour\.rgb' id='[0-9]{10}'>"
+    expected_regex = r"<Mock name='mock\(\)\.colour\.rgb' id='[0-9]+'>"
     # assert re.search(expected_regex, captured_out) is not None
     expected_path = tmp_path / (random_uuid + ".txt")
     assert expected_path.exists()
