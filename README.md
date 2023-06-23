@@ -1,3 +1,5 @@
+![Build and test workflow](https://github.com/github/docs/actions/workflows/build_and_test_scheduler.yml/badge.svg?branch=main)
+
 # Astro Pi Executor
 
 A CLI to execute Mission Space Lab experiments for 2023-2024.

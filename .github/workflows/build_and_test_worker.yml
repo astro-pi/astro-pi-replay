@@ -34,6 +34,16 @@ jobs:
             export PYTEST_DEBUG=1
           fi
           make test build_python
+      - name: Notify alerts channel of failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        uses: rtCamp/action-slack-notify@v2.2.0
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Failure Message
+          MSG_MINIMAL: actions url, commit, ref
+          SLACK_FOOTER: Build failure
+
   build_docs:
     runs-on: ${{ inputs.os }}
 

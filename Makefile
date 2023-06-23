@@ -102,6 +102,7 @@ all:
 	@echo "                    the developer environment."
 	@echo "test              - Run all tests using pytest."
 	@echo "uninstall         - Uninstall the Python package from the OS user environment"
+	@echo "version           - Print the package version"
 	@echo ""
 
 analyse: pre_commit_run
@@ -238,5 +239,8 @@ $(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
 	$(TOUCH) $(VENV_NAME)/touchfile
 
 $(VENV_NAME): $(VENV_NAME)/touchfile
+
+version:
+	@echo $(VERSION)
 
 .PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version

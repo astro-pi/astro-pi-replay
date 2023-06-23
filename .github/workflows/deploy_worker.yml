@@ -1,0 +1,108 @@
+name: Deploy worker
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to run on.
+      pytest-debug:
+        required: false
+        type: string
+        description: Set this to make pytest emit debug logs.
+      python-version:
+        required: true
+        type: number
+        description: The python version to run.
+
+permissions:
+  contents: read
+
+jobs:
+  update_semver_tags:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+      - name: Check that the python version in the code matches the tag
+        run: |
+          PYTHON_VERSION=$(make python_version)
+          if [ "$PYTHON_VERSION" != "${{ github.ref }}" ]; then
+            echo "Python version in code does not match ${{ github.ref }}"
+            exit 1
+          fi
+      - run: make publish_git_tags
+  publish_to_test_pypi:
+    runs-on: ${{ inputs.os }}
+    needs: update_semver_tags
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+      - name: Publish to test PyPi
+        run: make publish_test_pypi
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.ASTRO_PI_EXECUTOR_TEST_PYPI_API_KEY }}
+      - name: Notify alerts channel of failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        uses: rtCamp/action-slack-notify@v2.2.0
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Failure Message
+          MSG_MINIMAL: actions url, commit, ref
+          SLACK_FOOTER: Build failure
+  # smoke_tests:
+  #   runs-on: ubuntu-latest
+  #   needs: publish_to_test_pypi
+  #   steps:
+  #     - run: ./tests/smoke-tests/runner.sh
+
+  # publish_to_prod_pypi:
+  #   runs-on: ${{ inputs.os }}
+  #   needs: smoke_tests
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ inputs.python_version }}
+  #         cache: 'pip'
+  #     - name: Publish to test PyPi
+  #       run: make publish_prod_pypi
+  #     - name: Notify alerts channel of failure
+  #       if: ${{ failure() && github.ref == 'refs/heads/main' }}
+  #       uses: rtCamp/action-slack-notify@v2.2.0
+  #       env:
+  #         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  #         SLACK_COLOR: ${{ job.status }}
+  #         SLACK_TITLE: Failure Message
+  #         MSG_MINIMAL: actions url, commit, ref
+  #         SLACK_FOOTER: Build failure
+
+  # publish_docs:
+  #   runs-on: ${{ inputs.os }}
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ inputs.python_version }}
+  #         cache: 'pip'
+  #     - name: Publish to test PyPi
+  #       run: make publish_docs
+  #     - name: Notify alerts channel of failure
+  #       if: ${{ failure() && github.ref == 'refs/heads/main' }}
+  #       uses: rtCamp/action-slack-notify@v2.2.0
+  #       env:
+  #         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  #         SLACK_COLOR: ${{ job.status }}
+  #         SLACK_TITLE: Failure Message
+  #         MSG_MINIMAL: actions url, commit, ref
+  #         SLACK_FOOTER: Build failure
+
