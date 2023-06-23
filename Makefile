@@ -46,7 +46,7 @@ endif
 MAIN_BRANCH:=main
 PYFLAGS=
 PYPROJECT:=pyproject.toml
-REQUIREMENTS_TXT:=requirements-dev.txt
+REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
 VENV_NAME:=venv

@@ -13,19 +13,18 @@ permissions:
   contents: read
 
 jobs:
-  build_and_test:
+  build_and_test_python:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install Nix for dependencies
-        uses: cachix/install-nix-action@v21
+      - uses: actions/setup-python@v4
         with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-      - name: Download the dependencies into an isolated env and enter it
-        run: nix develop
-      - name: Build and test
-        run: nix develop -c make test build
+          python-version: '3.9'
+          cache: 'pip'
+      - name: Build and test python
+        run: |
+          make test build_python
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
         uses: rtCamp/action-slack-notify@v2.2.0
