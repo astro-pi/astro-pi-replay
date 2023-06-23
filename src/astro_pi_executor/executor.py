@@ -218,6 +218,7 @@ class AstroPiExecutor:
 
         if execution_mode is None:
             execution_mode = AstroPiExecutor._detect_execution_mode()
+            logging.debug(f"Detected execution mode: {execution_mode}")
         if not main.exists() or not main.is_file():
             raise AstroPiExecutorException(f"File {main} is not a regular file")
 
@@ -227,6 +228,7 @@ class AstroPiExecutor:
         # Conditionally create the venv
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
+                logging.debug("venv_dirname is None - fetching value from env")
                 venv_dirname = (
                     Path(os.environ.get("HOME", tempfile.gettempdir()))
                     / f".{PROGRAM_NAME}"
@@ -241,6 +243,7 @@ class AstroPiExecutor:
 
             python3 = str(venv_dir / "bin" / "python3")
         else:
+            logging.debug("Running in live mode")
             env = None
             python3 = "python3"
 
@@ -248,8 +251,10 @@ class AstroPiExecutor:
         if platform.system() in ["Linux", "Darwin", "Windows"]:
             # -u is for unbuffered Python, which is what is used on the
             # Astro Pis on the ISS.
+            args: list[str] = [python3, "-u", str(main.resolve())]
+            logging.debug(f"Executing '{' '.join(args)}' in subprocess")
             subprocess.run(
-                [python3, "-u", main], env=env if env is not None else env, check=True
+                args, env=env if env is not None else env, check=True
             )  # nosec B603: runs main as intended
         else:
             raise OSError(f"Unsupported system {os}")

@@ -3,6 +3,7 @@ These tests ensure that data is replayed correctly or
 accessed live correctly
 """
 
+import logging
 import os
 import re
 import sys
@@ -17,6 +18,8 @@ from astro_pi_executor.types import ExecutionMode
 from test_utils import prepare_executor_to_run_in_fake_live_venv
 
 # TODO reuse the venvs so that Pytest doesn't need to keep re-creating them
+
+logger = logging.getLogger(__name__)
 
 
 ###########################################
@@ -82,6 +85,7 @@ def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path):
     assert expected_path.exists()
     with expected_path.open() as f:
         contents = f.read()
+    logger.debug(f"File contents: {contents}")
     assert re.search(expected_regex, contents) is not None
 
 
@@ -109,6 +113,7 @@ def test_executor_replay_mode_should_replay_data(tmp_path: Path, capfd):
     assert expected_path.exists()
     with expected_path.open() as f:
         contents = f.read()
+    logger.debug(f"File contents: {contents}")
     assert re.search(r"(29, 27, 24)", contents) is not None
 
 
