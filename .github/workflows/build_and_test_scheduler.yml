@@ -24,7 +24,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python0version: [3.9]
-    uses: ./.github/workflows/./build_and_test_worker.yml
+    uses: ./.github/workflows/build_and_test_worker.yml
     with:
       os: ${{ matrix.os }}
       pytest-debug: ${{ github.event.inputs.pytest-debug }}
