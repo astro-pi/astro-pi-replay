@@ -1,6 +1,6 @@
-###################
+##################
 # OS Dependencies
-###################
+##################
 CAT:=cat
 CUT:=cut
 DOCKER:=docker
@@ -37,12 +37,8 @@ DOC_DIR:=docs
 DIST_DIR:=dist
 GITHUB_NAMESPACE:=astro-pi
 GITHUB_CONTAINER_REGISTRY_URL:=ghcr.io
-ifdef IN_NIX_SHELL
-GREP_REGEX_ENGINE:=P
-else
-# TODO check if -P is available rather than assuming it's not
-GREP_REGEX_ENGINE:=E
-endif
+
+GREP_REGEX_ENGINE:=$(shell $(GREP) "-P" Makefile &> /dev/null && echo "P" || echo "E")
 MAIN_BRANCH:=main
 PYFLAGS=
 PYPROJECT:=pyproject.toml
@@ -106,6 +102,7 @@ all:
 	@echo ""
 
 analyse: pre_commit_run
+
 
 assert_env_var_set_%:
 	@if [ "${${*}}" = "" ]; then \
@@ -244,3 +241,4 @@ version:
 	@echo $(VERSION)
 
 .PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
+
