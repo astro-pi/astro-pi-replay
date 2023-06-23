@@ -46,33 +46,43 @@ def test_replay_data_should_be_mutually_consistent():
 ###########################################
 
 
-def get_basic_sense_hat_programme(random_uuid: str) -> str:
+def get_basic_sense_hat_programme(random_uuid: str, path: Path) -> str:
     """
     Utility method
     """
+    file_path: Path = path / (random_uuid + ".txt")
     return os.linesep.join(
         [
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
-            f"print('{random_uuid}', sh.colour.rgb)",
+            "rgb = sh.colour.rgb",
+            f"with open('{str(file_path)}', 'w') as f:",
+            "    f.write(repr(rgb))",
+            f"print('{random_uuid}', rgb){os.linesep}",
         ]
     )
 
 
 @prepare_executor_to_run_in_fake_live_venv
-def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path, capfd):
+# def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path, capfd):
+def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path):
     executor: AstroPiExecutor = AstroPiExecutor(replay_mode=False)
     main_path: Path = tmp_path / "main.py"
     random_uuid: str = str(uuid.uuid4())
     with main_path.open("w") as f:
-        f.write(get_basic_sense_hat_programme(random_uuid))
+        f.write(get_basic_sense_hat_programme(random_uuid, tmp_path))
 
     executor.run(ExecutionMode.LIVE, tmp_path, main_path)
-    captured = capfd.readouterr()
-    captured_out = captured.out
-    assert random_uuid in captured_out
+    # captured = capfd.readouterr()
+    # captured_out = captured.out
+    # assert random_uuid in captured_out
     expected_regex = r"<Mock name='mock\(\)\.colour\.rgb' id='[0-9]{10}'>"
-    assert re.search(expected_regex, captured_out) is not None
+    # assert re.search(expected_regex, captured_out) is not None
+    expected_path = tmp_path / (random_uuid + ".txt")
+    assert expected_path.exists()
+    with expected_path.open() as f:
+        contents = f.read()
+    assert re.search(expected_regex, contents) is not None
 
 
 def test_executor_replay_mode_should_replay_data(tmp_path: Path, capfd):
@@ -80,20 +90,26 @@ def test_executor_replay_mode_should_replay_data(tmp_path: Path, capfd):
     main_path: Path = tmp_path / "main.py"
     random_uuid: str = str(uuid.uuid4())
     with main_path.open("w") as f:
-        f.write(get_basic_sense_hat_programme(random_uuid))
+        f.write(get_basic_sense_hat_programme(random_uuid, tmp_path))
 
     executor.run(ExecutionMode.REPLAY, tmp_path, main_path)
-    captured = capfd.readouterr()
-    captured_out = captured.out
-    lines = [
-        line for line in captured_out.split(os.linesep) if line.startswith(random_uuid)
-    ]
-    assert len(lines) == 1
-    split_line = lines[0].split()
-    assert split_line[0] == random_uuid
+    #  captured = capfd.readouterr()
+    #  captured_out = captured.out
+    #  lines = [
+    #     line for line in captured_out.split(os.linesep) \
+    #     if line.startswith(random_uuid)
+    #  ]
+    #  assert len(lines) == 1
+    #  split_line = lines[0].split()
+    #  assert split_line[0] == random_uuid
     # TODO an even better test would be to configure the data that is being read
     # using a mock - then we can be absolutely sure it's reading the file
-    assert " ".join(split_line[1:]) == "(29, 27, 24)"
+    #  assert " ".join(split_line[1:]) == "(29, 27, 24)"
+    expected_path = tmp_path / (random_uuid + ".txt")
+    assert expected_path.exists()
+    with expected_path.open() as f:
+        contents = f.read()
+    assert re.search(r"(29, 27, 24)", contents) is not None
 
 
 ###########################################
