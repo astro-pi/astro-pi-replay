@@ -1,0 +1,48 @@
+name: Build and test worker
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to run on.
+      pytest-debug:
+        required: false
+        type: string
+        description: Set this to make pytest emit debug logs.
+      python-version:
+        required: true
+        type: number
+        description: The python version to run.
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test_python:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+      - name: Build and test python
+        run: |
+          if [ -n "${{ inputs.pytest-debug }}" ]; then
+            export PYTEST_DEBUG=1
+          fi
+          make test build_python
+  build_docs:
+    runs-on: ${{ inputs.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+      - name: Build docs
+        run: make build_docs
+

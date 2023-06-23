@@ -1,0 +1,32 @@
+name: Build and test scheduler
+
+on:
+  workflow_dispatch:
+    inputs:
+      pytest-debug:
+        type: string
+        description: Set this to make pytest emit debug logs
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Midnight every month
+    - cron: "0 0 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  version-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python0version: [3.9]
+    uses: ./.github/workflows/./build_and_test_worker.yml
+    with:
+      os: ${{ matrix.os }}
+      pytest-debug: ${{ github.event.inputs.pytest-debug }}
+      python-version: ${{ matrix.python-version }}
+

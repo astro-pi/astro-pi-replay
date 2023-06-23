@@ -46,6 +46,11 @@ endif
 MAIN_BRANCH:=main
 PYFLAGS=
 PYPROJECT:=pyproject.toml
+ifdef PYTEST_DEBUG
+PYTEST_FLAGS:=-s --log-cli-level=DEBUG
+else
+PYTEST_FLAGS:=-s
+endif
 REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
@@ -211,7 +216,7 @@ setup_developer: $(VENV_NAME) pre_commit_install
 	@echo "or use direnv"
 
 test: $(VENV_NAME)
-	. $(VENV_NAME)/bin/activate; $(PYTEST) -s
+	. $(VENV_NAME)/bin/activate; $(PYTEST) $(PYTEST_FLAGS)
 
 test_smoke_%:
 	@echo "Running smoke tests on env $*"
