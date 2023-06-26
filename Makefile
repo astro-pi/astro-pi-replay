@@ -40,7 +40,6 @@ GITHUB_CONTAINER_REGISTRY_URL:=ghcr.io
 
 GREP_REGEX_ENGINE:=$(shell $(GREP) "-P" Makefile &> /dev/null && echo "P" || echo "E")
 MAIN_BRANCH:=main
-# NAME:=astro_pi_executor
 PYFLAGS=
 PYPROJECT:=pyproject.toml
 ifdef PYTEST_DEBUG
@@ -199,13 +198,13 @@ publish_git_tags: assert_on_git_branch_head_or_main
 	$(GIT) push -f origin --tags
 
 publish_test_pypi: assert_on_git_branch_head_or_main assert_env_var_set_TWINE_USERNAME \
-	assert_env_var_set_TWINE_PASSWORD $(VENV)
+	assert_env_var_set_TWINE_PASSWORD $(DIST_DIR)
 	. $(VENV_NAME)/bin/activate; \
 	$(TWINE) check $(DIST_DIR)/* ; \
-	$(TWINE) upload -r TestPyPi $(DIST_DIR)/*
+	$(TWINE) upload -r testpypi $(DIST_DIR)/*
 
 publish_prod_pypi: assert_on_git_branch_head_or_main assert_env_var_set_TWINE_USERNAME \
-	assert_env_var_set_TWINE_PASSWORD $(VENV)
+	assert_env_var_set_TWINE_PASSWORD $(DIST_DIR)
 	. $(VENV_NAME)/bin/activate; \
 	$(TWINE) check $(DIST_DIR)/* ; \
 	$(TWINE) upload $(DIST_DIR)/*
