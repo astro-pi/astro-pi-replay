@@ -40,6 +40,7 @@ GITHUB_CONTAINER_REGISTRY_URL:=ghcr.io
 
 GREP_REGEX_ENGINE:=$(shell $(GREP) "-P" Makefile &> /dev/null && echo "P" || echo "E")
 MAIN_BRANCH:=main
+NAME:=astro_pi_executor
 PYFLAGS=
 PYPROJECT:=pyproject.toml
 ifdef PYTEST_DEBUG
@@ -52,11 +53,11 @@ SITE_DIR:=site
 SRC_DIR:=src
 VENV_NAME:=venv
 # Dynamic configuration to ensure pyproject.toml is the source of truth
-NAME:=$(shell cat $(PYPROJECT) | \
-     $(TR) '\n' '\a' | \
-     $(GREP) -o$(GREP_REGEX_ENGINE) '\[project\]\aname = "[a-z_-]+"' | \
-     $(CUT) -d" " -f3 | \
-     $(TR) -d '""')
+#NAME:=$(shell cat $(PYPROJECT) | \
+#     $(TR) '\n' '\a' | \
+#     $(GREP) -o$(GREP_REGEX_ENGINE) '\[project\]\aname = "[a-z_-]+"' | \
+#     $(CUT) -d" " -f3 | \
+#     $(TR) -d '""')
 VERSION:=$(shell $(PYTHON3) -c 'import $(SRC_DIR).$(NAME) as ex; print(ex.__version__)')
 VERSION_MAJOR:=$(shell $(PYTHON3) -c 'print("$(VERSION)".split(".")[0])')
 VERSION_MINOR:=$(shell $(PYTHON3) -c 'print("$(VERSION)".split(".")[1])')
