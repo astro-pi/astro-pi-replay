@@ -7,15 +7,12 @@ import logging
 import os
 import re
 import sys
-import uuid
-from datetime import timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.sense_hat.sense_hat_api import SenseHatAdapter
 from astro_pi_executor.types import ExecutionMode
-from test_utils import prepare_executor_to_run_in_fake_live_venv
+from test_utils import ProgramFixture, prepare_executor_to_run_in_fake_live_venv
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +20,6 @@ logger = logging.getLogger(__name__)
 ###########################################
 # Testing adapters are called
 ###########################################
-# Executor decorator tests
-# TODO perhaps this should be in the SenseHatAdapter test?
-def test_replay_should_replay_sequence_of_data():
-    executor = AstroPiExecutor()
-
-    # Make the test deterministic
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
-        sh = SenseHatAdapter(executor)
-        assert sh.colour.colour == (17, 15, 13, 48)
-        assert executor._state._last_row_index == (13723 - 1)  # should be the last row
-
-
 def test_replay_data_should_be_mutually_consistent():
     # a bit like Kafka's event windowing, could aggregate measurements
     # into logical sessions that read from the same row?
@@ -47,52 +31,29 @@ def test_replay_data_should_be_mutually_consistent():
 ###########################################
 
 
-def get_basic_sense_hat_programme(random_uuid: str, path: Path) -> str:
-    """
-    Utility method
-    """
-    file_path: Path = path / (random_uuid + ".txt")
-    return os.linesep.join(
-        [
-            "from sense_hat import SenseHat",
-            "sh = SenseHat()",
-            "rgb = sh.colour.rgb",
-            f"with open('{str(file_path)}', 'w') as f:",
-            "    f.write(repr(rgb))",
-            f"print('{random_uuid}', rgb){os.linesep}",
-        ]
-    )
-
-
 @prepare_executor_to_run_in_fake_live_venv
-def test_executor_live_mode_should_call_underlying_libraries(tmp_path: Path):
+def test_executor_live_mode_should_call_underlying_libraries(
+    tmp_path: Path, sense_hat_program: ProgramFixture
+):
     executor: AstroPiExecutor = AstroPiExecutor(replay_mode=False)
-    main_path: Path = tmp_path / "main.py"
-    random_uuid: str = str(uuid.uuid4())
-    with main_path.open("w") as f:
-        f.write(get_basic_sense_hat_programme(random_uuid, tmp_path))
 
-    executor.run(ExecutionMode.LIVE, tmp_path, main_path)
+    executor.run(ExecutionMode.LIVE, tmp_path, sense_hat_program.main)
     expected_regex = r"<Mock name='mock\(\)\.colour\.rgb' id='[0-9]+'>"
-    expected_path = tmp_path / (random_uuid + ".txt")
-    assert expected_path.exists()
-    with expected_path.open() as f:
+    assert sense_hat_program.expected_file.exists()
+    with sense_hat_program.expected_file.open() as f:
         contents = f.read()
     logger.debug(f"File contents: {contents}")
     assert re.search(expected_regex, contents) is not None
 
 
-def test_executor_replay_mode_should_replay_data(tmp_path: Path):
+def test_executor_replay_mode_should_replay_data(
+    tmp_path: Path, sense_hat_program: ProgramFixture
+):
     executor: AstroPiExecutor = AstroPiExecutor()
-    main_path: Path = tmp_path / "main.py"
-    random_uuid: str = str(uuid.uuid4())
-    with main_path.open("w") as f:
-        f.write(get_basic_sense_hat_programme(random_uuid, tmp_path))
 
-    executor.run(ExecutionMode.REPLAY, tmp_path, main_path)
-    expected_path = tmp_path / (random_uuid + ".txt")
-    assert expected_path.exists()
-    with expected_path.open() as f:
+    executor.run(ExecutionMode.REPLAY, tmp_path, sense_hat_program.main)
+    assert sense_hat_program.expected_file.exists()
+    with sense_hat_program.expected_file.open() as f:
         contents = f.read()
     logger.debug(f"File contents: {contents}")
     assert re.search(r"(29, 27, 24)", contents) is not None

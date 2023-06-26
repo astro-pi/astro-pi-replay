@@ -13,7 +13,7 @@ Since this is a pure Python project it is very easy to set up a basic developer 
 1. Install [Python](https://www.python.org/) (see [pyproject.toml](./pyproject.toml) for up to date Python version requirements).
 2. Set up a [venv](https://docs.python.org/3/library/venv.html) with `python3 -m venv venv`
 3. Activate the venv with `source venv/bin/activate`.
-4. Install the dev dependencies with `pip install -r requirements.txt`
+4. Install the dev dependencies with `pip install -r requirements-dev.txt`
 5. Install the [pre-commit](https://pre-commit.com/) hooks with `pre-commit install --install-hooks`
 
 Having followed these instructions you should be inside a venv that has all the dependencies available, and before you commit any changes a series of pre-commit checks will be made to ensure good code quality.
