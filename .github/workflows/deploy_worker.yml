@@ -37,9 +37,9 @@ jobs:
           type -P cat
       - name: Check that the python version in the code matches the tag
         run: |
-          PYTHON_VERSION=$(make python_version)
-          if [ "$PYTHON_VERSION" != "${{ github.ref }}" ]; then
-            echo "Python version in code does not match ${{ github.ref }}"
+          REPO_VERSION=$(make version)
+          if [ "refs/tags/$PYTHON_VERSION" != "${{ github.ref }}" ]; then
+            echo "Declared version in repository does not match tag '${{ github.ref }}'"
             exit 1
           fi
       - run: make publish_git_tags
