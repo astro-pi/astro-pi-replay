@@ -17,7 +17,7 @@ on:
         description: The python version to run.
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   update_semver_tags:
