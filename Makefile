@@ -191,9 +191,9 @@ publish_github_release: assert_on_git_branch_head_or_main publish_git_tags $(DIS
 
 publish_git_tags: assert_on_git_branch_head_or_main
 	@echo "Creating semver tags for $(VERSION)"
-	$(GIT) tag -f $(VERSION_MAJOR)
-	$(GIT) tag -f $(VERSION_MAJOR).$(VERSION_MINOR)
-	$(GIT) tag -f $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+	$(GIT) tag -f v$(VERSION_MAJOR)
+	$(GIT) tag -f v$(VERSION_MAJOR).$(VERSION_MINOR)
+	$(GIT) tag -f v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
 	@echo "Overwriting the remote tags"
 	$(GIT) push -f origin --tags
 
