@@ -13,7 +13,7 @@ on:
         description: Set this to make pytest emit debug logs.
       python-version:
         required: true
-        type: number
+        type: string
         description: The python version to run.
 
 permissions:
@@ -28,6 +28,13 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
+      - name: Debugging
+        run: |
+          type -P grep
+          grep -P "" Makefile || echo "-P unsupported"
+          type -P tr
+          type -P cut
+          type -P cat
       - name: Check that the python version in the code matches the tag
         run: |
           PYTHON_VERSION=$(make python_version)

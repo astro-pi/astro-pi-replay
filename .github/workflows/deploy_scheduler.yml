@@ -8,13 +8,13 @@ permissions:
   contents: read
 
 jobs:
-  matrix:
+  deploy_matrix:
     # TODO define this only once for all workflows!
     strategy:
       # fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.9]
+        python-version: ['3.9']
     uses: ./.github/workflows/deploy_worker.yml
     with:
       os: ${{ matrix.os }}
