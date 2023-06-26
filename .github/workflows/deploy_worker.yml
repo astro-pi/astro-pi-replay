@@ -38,7 +38,7 @@ jobs:
       - name: Check that the python version in the code matches the tag
         run: |
           REPO_VERSION=$(make version)
-          if [ "refs/tags/$PYTHON_VERSION" != "${{ github.ref }}" ]; then
+          if [ "refs/tags/$REPO_VERSION" != "${{ github.ref }}" ]; then
             echo "Declared version in repository does not match tag '${{ github.ref }}'"
             exit 1
           fi
