@@ -121,8 +121,8 @@ assert_min_python_version_detected:
 	  exit 1; \
 	fi
 
-assert_on_git_branch_%:
-	@if [ "$*" != "$(CURRENT_BRANCH)" ]; then \
+assert_on_git_branch_head_or_%:
+	@if [ $(CURRENT_BRANCH) != "HEAD" ] && [ "$*" != "$(CURRENT_BRANCH)" ]; then \
 	  echo "Expected branch to be $* but was '$(CURRENT_BRANCH)'"; \
 	  exit 1; \
 	fi
@@ -176,21 +176,21 @@ pre_commit_run: pre_commit_install
 python_version: assert_min_python_version_detected
 	@echo $(PYTHON_VERSION)
 
-publish_docs: assert_on_git_branch_main build_docs
+publish_docs: assert_on_git_branch_head_or_main build_docs
 	@echo "Deploying docs to Github"
 	$(MKDOCS) gh-deploy
 
-publish_docker: assert_on_git_branch_main assert_env_var_set_GITHUB_TOKEN build_docker publish_git_tags
+publish_docker: assert_on_git_branch_head_or_main assert_env_var_set_GITHUB_TOKEN build_docker publish_git_tags
 	@echo "Publishing Docker image"
 	$(DOCKER) login $(GITHUB_CONTAINER_REGISTRY_URL) -u USERNAME --password-stdin
 	$(DOCKER) push $(GITHUB_CONTAINER_REGISTRY_URL)/$(GITHUB_NAMESPACE)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE_NAME):latest
 	$(DOCKER) push $(GITHUB_CONTAINER_REGISTRY_URL)/$(GITHUB_NAMESPACE)/$(DOCKER_IMAGE_NAME):latest
 
-publish_github_release: assert_on_git_branch_main publish_git_tags $(DIST)
+publish_github_release: assert_on_git_branch_head_or_main publish_git_tags $(DIST)
 	$(GH) release create --generate-notes v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH) $(DIST)/*
 
-publish_git_tags: assert_on_git_branch_main
+publish_git_tags: assert_on_git_branch_head_or_main
 	@echo "Creating semver tags for $(VERSION)
 	$(GIT) tag -f v$(VERSION_MAJOR)
 	$(GIT) tag -f v$(VERSION_MAJOR).$(VERSION_MINOR)
@@ -198,13 +198,13 @@ publish_git_tags: assert_on_git_branch_main
 	@echo "Overwriting the remote tags"
 	$(GIT) push -f origin $(MAIN_BRANCH) --tags
 
-publish_test_pypi: assert_on_git_branch_main assert_env_var_set_TWINE_USERNAME \
+publish_test_pypi: assert_on_git_branch_head_or_main assert_env_var_set_TWINE_USERNAME \
 	assert_env_var_set_TWINE_PASSWORD $(VENV)
 	. $(VENV_NAME)/bin/activate; \
 	$(TWINE) check $(DIST_DIR)/* ; \
 	$(TWINE) upload -r TestPyPi $(DIST_DIR)/*
 
-publish_prod_pypi: assert_on_git_branch_main assert_env_var_set_TWINE_USERNAME \
+publish_prod_pypi: assert_on_git_branch_head_or_main assert_env_var_set_TWINE_USERNAME \
 	assert_env_var_set_TWINE_PASSWORD $(VENV)
 	. $(VENV_NAME)/bin/activate; \
 	$(TWINE) check $(DIST_DIR)/* ; \
@@ -241,5 +241,5 @@ $(VENV_NAME): $(VENV_NAME)/touchfile
 version:
 	@echo $(VERSION)
 
-.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
+.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
 
