@@ -47,7 +47,8 @@ PYTEST_FLAGS:=-s --log-cli-level=DEBUG
 else
 PYTEST_FLAGS:=-s
 endif
-REQUIREMENTS_TXT:=requirements-dev.txt
+REQUIREMENTS_DEV_TXT:=requirements-dev.txt
+REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
 VENV_NAME:=venv
@@ -227,6 +228,7 @@ uninstall:
 $(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
 	$(TEST) -d $(VENV_NAME) || $(PYTHON3) $(PYFLAGS) -m $(VENV) $(VENV_NAME) && \
 	. $(VENV_NAME)/bin/activate ; \
+	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
 	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_TXT) ; \
 	$(VENV_PIP) install --editable . ; \
 	$(TOUCH) $(VENV_NAME)/touchfile

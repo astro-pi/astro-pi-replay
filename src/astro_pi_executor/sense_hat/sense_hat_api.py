@@ -1,13 +1,31 @@
 #!/usr/bin/python
 import typing
 
+import numpy as np
+import pandas as pd
+
+from astro_pi_executor.custom_types import (
+    DEFAULT_ROLL_PITCH_YAW_DICT,
+    DEFAULT_X_Y_Z_DICT,
+    RGB,
+    RGBC,
+    RollPitchYawDict,
+    XYZDict,
+)
 from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.sense_hat.sense_hat_public_api import (
     SenseHatAPI,
     SenseHatColourSensorAPI,
     SenseHatStickAPI,
 )
-from astro_pi_executor.types import RGB, RGBC
+
+
+def xyzdict_reducer(df: pd.DataFrame) -> pd.DataFrame:
+    return df.rename(lambda col: col.split("_")[-1]).to_dict()
+
+
+def to_dict_reducer(df: pd.DataFrame) -> pd.DataFrame:
+    return df.to_dict()
 
 
 def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSensorAPI:
@@ -17,12 +35,15 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
 
         # Private
         def _scale(self, value) -> int:
+            """Scales from a normalised value to an
+            approximate raw value by reversing the
+            steps in the original SenseHat module"""
             return value * (self.max_raw // 256)
 
         # Public
 
         @property
-        @executor.sense_hat_replay(col_names=["B"])
+        @executor.sense_hat_replay(col_names=["blue"])
         def blue(self) -> int:
             return super().blue
 
@@ -31,7 +52,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
             return self._scale(self.blue)
 
         @property
-        @executor.sense_hat_replay(col_names=["C"])
+        @executor.sense_hat_replay(col_names=["clear"])
         def clear(self) -> int:
             return super().clear
 
@@ -41,7 +62,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
 
         @property
         @executor.sense_hat_replay(
-            col_names=["R", "G", "B", "C"], reducer=lambda s: tuple(s[:4])
+            col_names=["red", "green", "blue", "clear"], reducer=lambda s: tuple(s[:4])
         )
         def colour(self) -> RGBC:
             return super().colour
@@ -68,7 +89,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
             pass
 
         @property
-        @executor.sense_hat_replay(col_names=["G"])
+        @executor.sense_hat_replay(col_names=["green"])
         def green(self) -> int:
             return super().green
 
@@ -93,7 +114,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
             return 1024
 
         @property
-        @executor.sense_hat_replay(col_names=["R"])
+        @executor.sense_hat_replay(col_names=["red"])
         def red(self) -> int:
             return super().red
 
@@ -103,7 +124,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
 
         @property
         @executor.sense_hat_replay(
-            col_names=["R", "G", "B"], reducer=lambda s: tuple(s[:3])
+            col_names=["red", "green", "blue"], reducer=lambda s: tuple(s[:3])
         )
         def rgb(self) -> RGB:
             return super().rgb
@@ -111,6 +132,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
     return _SenseHatColourSensorAdapter()
 
 
+# TODO - remove methods that are just synonyms
 def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAPI:
     class _SenseHatAdapter(SenseHatAPI):
         """
@@ -128,17 +150,20 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         # def accel(self) -> RollPitchYawDict:
         #    return self.accelerometer
 
-        # @property
-        # def accel_raw(self) -> XYZDict:
-        #    return self.accelerometer_raw
+        @property
+        def accel_raw(self) -> XYZDict:
+            return self.accelerometer_raw
 
         # @property
         # def accelerometer(self) -> RollPitchYawDict:
         #    return DEFAULT_ROLL_PITCH_YAW_DICT
 
-        # @property
-        # def accelerometer_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
+        @property
+        @executor.sense_hat_replay(
+            col_names=["acc_x", "acc_y", "acc_z"], reducer=xyzdict_reducer
+        )
+        def accelerometer_raw(self) -> XYZDict:
+            return DEFAULT_X_Y_Z_DICT
 
         # def clear(self, *args) -> None:
         #    pass
@@ -147,21 +172,20 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         # def compass(self) -> float:
         #    return float()
 
-        # @property
-        # def compass_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
-
-        # @property
-        # def colour(self) -> SenseHatColourSensorAPI:
-        #    return SenseHatColourSensorAPI(int(), int(), object())
+        @property
+        @executor.sense_hat_replay(
+            col_names=["mag_x", "mag_y", "mag_z"], reducer=xyzdict_reducer
+        )
+        def compass_raw(self) -> XYZDict:
+            return DEFAULT_X_Y_Z_DICT
 
         @property
         def colour(self) -> SenseHatColourSensorAPI:
             return SenseHatColourSensorAdapter(executor)
 
-        # @property
-        # def color(self) -> SenseHatColourSensorAPI:
-        #    return self.colour
+        @property
+        def color(self) -> SenseHatColourSensorAPI:
+            return self.colour
 
         # def flip_h(self, redraw:bool) -> None:
         #    pass
@@ -180,76 +204,45 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         # def gamma_reset(self) -> None:
         #    pass
 
-        # def get_accelerometer(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
-
-        # def get_accelerometer_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
-
-        # def get_compass(self) -> float:
-        #    return float()
-
-        # def get_compass_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
-
-        # def get_gyroscope(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
-
-        # def get_gyroscope_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
-
-        # def get_humidity(self) -> float:
-        #    return float()
-
-        # def get_orientation(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
-
-        # def get_orientation_degrees(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
-
-        # def get_orientation_radians(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
-
         # def get_pixel(self, x: int, y: int) -> list[int]:
         #    return list()
 
         # def get_pixels(self) -> list[list[int]]:
         #    return list()
 
-        # def get_pressure(self) -> float:
-        #    return float()
+        def get_temperature_from_humidity(self) -> float:
+            return self.temperature
 
-        # def get_temperature(self) -> float:
-        #    return float()
-
-        # def get_temperature_from_humidity(self) -> float:
-        #    return float()
-
-        # def get_temperature_from_pressure(self) -> float:
-        #    return float()
+        def get_temperature_from_pressure(self) -> float:
+            return self.temperature
 
         # @property
         # def gyro(self) -> RollPitchYawDict:
         #    return self.gyroscope
 
-        # @property
-        # def gyro_raw(self) -> XYZDict:
-        #    return self.gyroscope_raw
+        @property
+        def gyro_raw(self) -> XYZDict:
+            return self.gyroscope_raw
 
         # @property
         # def gyroscope(self) -> RollPitchYawDict:
         #    return DEFAULT_ROLL_PITCH_YAW_DICT
 
-        # @property
-        # def gyroscope_raw(self) -> XYZDict:
-        #    return DEFAULT_X_Y_Z_DICT
+        @property
+        @executor.sense_hat_replay(
+            col_names=["gyro_x", "gyro_y", "gyro_z"], reducer=xyzdict_reducer
+        )
+        def gyroscope_raw(self) -> XYZDict:
+            return DEFAULT_X_Y_Z_DICT
 
-        # @property
-        # def humidity(self) -> float:
-        #    return float()
+        @property
+        @executor.sense_hat_replay(col_names=["hum"])
+        def humidity(self) -> float:
+            return float()
 
-        # def has_colour_sensor(self) -> bool:
-        #    return bool()
+        # TODO: no need for this in this file.
+        def has_colour_sensor(self) -> bool:
+            return hasattr(self, "colour")
 
         # def load_image(self, file_path: str, redraw:bool) -> list[list[int]]:
         #    return list()
@@ -262,17 +255,27 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         # def low_light(self, value: int) -> None:
         #    pass
 
-        # @property
-        # def orientation(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
+        @property
+        @executor.sense_hat_replay(
+            col_names=["roll", "pitch", "yaw"], reducer=to_dict_reducer
+        )
+        def orientation(self) -> RollPitchYawDict:
+            return DEFAULT_ROLL_PITCH_YAW_DICT
 
-        # @property
-        # def orientation_radians(self) -> RollPitchYawDict:
-        #    return DEFAULT_ROLL_PITCH_YAW_DICT
+        @property
+        def orientation_radians(self) -> RollPitchYawDict:
+            # 1 degree is pi/180 radians
+            degrees = self.orientation
+            return {
+                "roll": degrees["roll"] * (np.pi / 180.0),
+                "pitch": degrees["pitch"] * (np.pi / 180.0),
+                "yaw": degrees["yaw"] * (np.pi / 180.0),
+            }
 
-        # @property
-        # def pressure(self) -> float:
-        #    return float()
+        @property
+        @executor.sense_hat_replay(col_names=["pres"])
+        def pressure(self) -> float:
+            return float()
 
         # @property
         # def rotation(self) -> int:
@@ -314,17 +317,14 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         def stick(self) -> SenseHatStickAPI:
             return SenseHatStickAPI()
 
-        # @property
-        # def temp(self) -> float:
-        #    return self.temperature
+        @property
+        def temp(self) -> float:
+            return self.temperature
 
-        # @property
-        # def temperature(self) -> float:
-        #    return float()
-
-        # @executor.sense_hat_replay(name="humidity")
-        # def humidity(self) -> float:
-        #    return super().humidity
+        @property
+        @executor.sense_hat_replay(col_names=["temp"])
+        def temperature(self) -> float:
+            return float()
 
     return _SenseHatAdapter()
 

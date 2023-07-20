@@ -82,7 +82,8 @@ def live_venv(tmp_path_factory) -> Path:
     packages_dir: Path = venv_dir / "lib" / python_version / "site-packages"
 
     module_files: dict[str, list[str]] = {
-        "sense_hat": ["from unittest.mock import Mock", "SenseHat = Mock()"]
+        "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
+        "picamera": ["from unittest.mock import MagicMock", "PiCamera = MagicMock()"],
     }
 
     for module in AstroPiExecutor.MODULES_TO_STUB:
@@ -90,3 +91,11 @@ def live_venv(tmp_path_factory) -> Path:
         with module_file.open("w") as f:
             f.write(os.linesep.join(module_files[module]))
     return venv_dir
+
+
+@pytest.fixture(autouse=True)
+def clear_caches():
+    """
+    Ensure that each test always uses a fresh cache
+    """
+    AstroPiExecutor._df_from_replay_file.cache_clear()

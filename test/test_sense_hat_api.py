@@ -14,5 +14,5 @@ def test_replay_should_replay_sequence_of_data():
     with patch("astro_pi_executor.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
-        assert sh.colour.colour == (17, 15, 13, 48)
-        assert executor._state._last_row_index == (13723 - 1)  # should be the last row
+        assert sh.colour.colour == (9, 8, 8, 17)
+        assert executor._state._last_sense_hat_row_index == 1023  # last row

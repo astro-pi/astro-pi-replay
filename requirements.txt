@@ -1,0 +1,12 @@
+pandas
+Pillow
+exif
+requests
+#oem
+## the below are transitive dependencies of oem
+#lxml
+#astropy
+#defusedxml
+
+# the below are transitive dependencies of picamera
+colorzero

@@ -1,3 +1,4 @@
+import functools
 import importlib.util
 import logging
 import os
@@ -9,26 +10,31 @@ import tempfile
 import venv
 from datetime import datetime
 from functools import partial, wraps
-from importlib.machinery import ModuleSpec
 from pathlib import Path
 from typing import Callable, Optional
 
 import pandas as pd
 
 from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.types import ExecutionMode
+from astro_pi_executor.custom_types import ExecutionMode
+from astro_pi_executor.resources import get_resource
 
 logger = logging.getLogger(__name__)
 
 
 class AstroPiExecutorState:
     """
-    Wrapper class for the executor's shared, mutable state.
+    Wrapper class for the executor instance's shared, mutable state.
     """
 
     def __init__(self) -> None:
-        self._last_row_index: int = 0
+        self._last_sense_hat_row_index: int = 0
+        self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
+
+
+class AstroPiExecutorRuntimeError(RuntimeError):
+    pass
 
 
 class AstroPiExecutorException(Exception):
@@ -45,7 +51,8 @@ class AstroPiExecutorException(Exception):
 
 class AstroPiExecutor:
     """
-    Class containing the replaying logic + the CLI main m
+    Class containing the replaying logic (as instance methods)
+    + the CLI main methods (as static methods).
 
     This class is instantiated (by the API adapter classes) only
     when ExecutionMode is REPLAY, in order control the replaying
@@ -53,10 +60,9 @@ class AstroPiExecutor:
     venv and run main.py files.
     """
 
-    # TODO refactor to expose function style in addition to decorator style
-
     # MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit", "skyfield"]
-    MODULES_TO_STUB: list[str] = ["sense_hat"]
+    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera"]
+    NOT_FOUND = f"{PROGRAM_NAME} not found"
 
     """
     Checks whether the current interpreter is running in a venv,
@@ -66,9 +72,9 @@ class AstroPiExecutor:
 
     def __init__(
         self,
-        datetime_col: str = "Date/Time",
-        # example: 2022-01-31 12:21:15
-        datetime_format: str = "%Y-%m-%d %H:%M:%S",
+        datetime_col: str = "datetime",
+        # example: 2022-01-31 12:21:15.123456
+        datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
         replay_mode: bool = True,
         state: AstroPiExecutorState = AstroPiExecutorState(),
     ) -> None:
@@ -81,17 +87,18 @@ class AstroPiExecutor:
         # random_mode = False # whether or not to randomly generate data
         # mode: ir or vis
 
+    def picamera_replay(self) -> Callable:
+        """
+        Decorator used to conditionally replay photos from file for the PiCamera
+        """
+        return lambda: 1
+
     def sense_hat_replay(self, *args, **kwargs) -> Callable:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        # TODO use the data dir
-        filename = str(
-            Path(__file__).parent
-            / "sense_hat"
-            / "data"
-            / "astro_pi_mark_2_commissioning_data_ir.tsv"
-        )
+        filename = str(get_resource("OrbitAz") / "data.csv")
+
         if "filename" not in kwargs:
             kwargs["filename"] = filename
             # filename = kwargs["filename"]
@@ -100,7 +107,7 @@ class AstroPiExecutor:
 
     def replay(
         self,
-        reducer: Callable[[pd.Series], object] = lambda s: s[0],
+        reducer: Callable[[pd.DataFrame], object] = lambda df: df[0],
         filename: Optional[str] = None,
         col_names: Optional[list[str]] = None,
         *args,
@@ -128,50 +135,9 @@ class AstroPiExecutor:
                     if col_names is None:
                         col_names = [func.__name__]
 
-                    # Detect file type
-                    suffix = filename.split(".")[-1]
-                    if suffix == "csv":
-                        df = pd.read_csv(filename, parse_dates=[self.datetime_col])
-                    elif suffix == "tsv":
-                        df = pd.read_csv(
-                            filename, sep="\t", parse_dates=[self.datetime_col]
-                        )
-                    elif suffix == "parquet":
-                        df = pd.read_parquet(
-                            filename,
-                        )
-                    else:
-                        raise AstroPiExecutorException(
-                            f"Unsupported filetype '{suffix}'."
-                        )
-                    df = df.set_index(self.datetime_col)
-
-                    for col_name in col_names:
-                        if col_name not in df.columns:
-                            raise AstroPiExecutorException(
-                                f"Column '{col_name}' not found "
-                                + f"in file '{filename}'.\n\n"
-                                + "Detected columns: \n\t"
-                                + ", ".join(df.columns)
-                            )
-
-                    # Now to find the most appropriate row, based on the amount of time
-                    # elapsed. This area needs to be optimised.
-                    start_time = self._state._start_time
-                    now = datetime.now()
-                    delta_in_seconds = pd.Timedelta(
-                        round((now - start_time).total_seconds()), "seconds"
+                    return self._replay_next(
+                        filename, self.datetime_col, col_names, reducer
                     )
-                    first_time = df.iloc[0].name
-                    proposed_time = first_time + delta_in_seconds
-
-                    # Find the nearest time using the proposed time
-                    nearest_i = df.index.get_indexer(
-                        pd.Index([proposed_time]), method="nearest"
-                    )[0]
-                    self._state._last_row_index = nearest_i
-
-                    return reducer(df[col_names].iloc[nearest_i])
                 else:
                     return func(*_args, **_kwargs)
 
@@ -187,17 +153,6 @@ class AstroPiExecutor:
         else:
             logger.debug("Returning actual decorator")
         return decorator
-
-    @staticmethod
-    def _detect_execution_mode() -> ExecutionMode:
-        return (
-            ExecutionMode.LIVE
-            if all(
-                importlib.util.find_spec(module) is not None
-                for module in AstroPiExecutor.MODULES_TO_STUB
-            )
-            else ExecutionMode.REPLAY
-        )
 
     @staticmethod
     def run(
@@ -233,6 +188,7 @@ class AstroPiExecutor:
                     Path(os.environ.get("HOME", tempfile.gettempdir()))
                     / f".{PROGRAM_NAME}"
                 )
+                logging.debug(f"Found {venv_dirname}")
 
             venv_dir: Path = AstroPiExecutor._setup_venv(venv_dirname)
 
@@ -247,6 +203,10 @@ class AstroPiExecutor:
             env = None
             python3 = "python3"
 
+        # Add if __name__ == "__main__" guard as needed
+        # (required by multiprocessing in CameraPreview currently FIXME)
+        main = AstroPiExecutor.add_name_is_main_guard(main)
+
         # Run the program that was passed in
         if platform.system() in ["Linux", "Darwin", "Windows"]:
             # -u is for unbuffered Python, which is what is used on the
@@ -258,6 +218,141 @@ class AstroPiExecutor:
             )  # nosec B603: runs main as intended
         else:
             raise OSError(f"Unsupported system {os}")
+
+    def _find_next_datum(self, df: pd.DataFrame) -> int:
+        """
+        Finds the next row in the given dataframe indexed by
+        datetime, based on the elapsed time.
+        """
+        start_time = self._state._start_time
+        now = datetime.now()
+        delta_in_seconds = pd.Timedelta(
+            round((now - start_time).total_seconds()), "seconds"
+        )
+        first_time = df.iloc[0].name
+        proposed_time = first_time + delta_in_seconds
+
+        # Find the nearest time using the proposed time
+        nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="nearest")[0]
+        logging.debug(f"Nearest i: {nearest_i}")
+        self._state._last_sense_hat_row_index = nearest_i
+        return nearest_i
+
+    @staticmethod
+    def _detect_execution_mode() -> ExecutionMode:
+        return (
+            ExecutionMode.LIVE
+            if all(
+                importlib.util.find_spec(module) is not None
+                for module in AstroPiExecutor.MODULES_TO_STUB
+            )
+            else ExecutionMode.REPLAY
+        )
+
+    @functools.cache
+    def _df_from_replay_file(self, filename: str, datetime_col: str) -> pd.DataFrame:
+        # Detect file type
+        suffix = filename.split(".")[-1]
+        if suffix == "csv":
+            df = pd.read_csv(filename, parse_dates=[datetime_col])
+        elif suffix == "tsv":
+            df = pd.read_csv(filename, sep="\t", parse_dates=[datetime_col])
+        elif suffix == "parquet":
+            df = pd.read_parquet(
+                filename,
+            )
+        else:
+            raise AstroPiExecutorException(f"Unsupported filetype '{suffix}'.")
+        df = df.set_index(datetime_col)
+        return df
+
+    def _replay_next(
+        self,
+        filename: str,
+        datetime_col: str,
+        col_names: list[str],
+        reducer: Callable[[pd.DataFrame], object] = lambda s: s[0],
+    ) -> object:
+        """Internal method that opens the given filename and
+        returns the given col names, using the reducer. In effect,
+        this replays the data."""
+
+        df = self._df_from_replay_file(filename, datetime_col)
+
+        for col_name in col_names:
+            if col_name not in df.columns:
+                raise AstroPiExecutorException(
+                    f"Column '{col_name}' not found "
+                    + f"in file '{filename}'.\n\n"
+                    + "Detected columns: \n\t"
+                    + ", ".join(df.columns)
+                )
+
+        nearest_i = self._find_next_datum(df)
+
+        return reducer(df[col_names].iloc[nearest_i])
+
+    @staticmethod
+    def _check_package_installed(venv_python3) -> subprocess.CompletedProcess[str]:
+        """
+        Runs a program using the venv Python to check if
+        the current package is installed.
+        """
+        dynamic_program: str = "; ".join(
+            [
+                "import importlib.util",
+                "from pathlib import Path",
+                "module = importlib.util.find_spec(" + f"'{PROGRAM_NAME}')",
+                f"to_print = '{AstroPiExecutor.NOT_FOUND}' if module is None "
+                + "else Path(module.origin).parent",
+                "print(to_print)",
+            ]
+        )
+
+        out = subprocess.run(  # nosec B603: no user input
+            [venv_python3, "-c", dynamic_program],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return out
+
+    @staticmethod
+    def add_name_is_main_guard(main: Path) -> Path:
+        """
+        Checks if the file at the given path includes an if name == "__main__"
+        expression. If it does, returns the same file.
+        Otherwise, returns a modified copy of the file with the original contents
+        inside the if expression.
+        """
+        substrings: list[str] = [
+            'if __name__ == "__main__":',
+            "if __name__ == '__main__':",
+        ]
+        with main.open("r") as f:
+            contents = f.read().strip()
+
+        includes_guard = False
+        for substring in substrings:
+            if substring in contents:
+                includes_guard = True
+        logger.debug(f"Main file includes guard: {includes_guard}")
+
+        if includes_guard:
+            return main
+        else:
+            tabbed = os.linesep.join([f"    {line}" for line in contents.splitlines()])
+            if len(tabbed) == 0:
+                tabbed = "    pass"
+
+            tempdir = Path(tempfile.gettempdir())
+            main_copy: Path = tempdir / "main.py"
+            if main_copy.exists():
+                os.remove(main_copy)
+            with main_copy.open("w") as f:
+                f.write(substrings[0] + os.linesep)
+                f.write(tabbed)
+            return main_copy
 
     @staticmethod
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
@@ -282,13 +377,13 @@ class AstroPiExecutor:
                 + "However, running in replay mode will use a "
                 + "separate copied (modified) venv."
             )
-            shutil.copytree(sys.prefix, venv_dir)
+            shutil.copytree(sys.prefix, venv_dir, symlinks=True)
         else:
             venv.create(
                 venv_dir, symlinks=True, system_site_packages=True, with_pip=True
             )
 
-        # 2. Install the stubbed modules as required
+        # 2. Install the executor package as required
         logger.debug("Installing stubbed modules in the venv...")
 
         python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
@@ -296,39 +391,30 @@ class AstroPiExecutor:
         venv_pip = str(venv_dir / "bin" / "pip")
         venv_python3 = str(venv_dir / "bin" / "python3")
 
-        # It's not guaranteed that the executor will be installed directly
-        # in the current venv's site-packages dir. Therefore, check if it is
-        # installed using importlib.util.find_spec.
-        module_info: Optional[ModuleSpec] = importlib.util.find_spec(PROGRAM_NAME)
-        if module_info is None:
+        # Is astro_pi_executor already installed in the new venv?
+        out = AstroPiExecutor._check_package_installed(venv_python3)
+
+        if out.stdout.strip() == AstroPiExecutor.NOT_FOUND:
+            # install the module
             logger.debug(f"Installing {PROGRAM_NAME} into venv...")
             subprocess.run(
                 [venv_pip, "install", "."], check=True
             )  # nosec B603: no user input
-        else:
-            executor_installed_path: Path = Path(str(module_info.origin)).parent
+            out = AstroPiExecutor._check_package_installed(venv_python3)
 
-        logger.debug("Installing stubbed modules in the venv...")
-        dynamic_program: str = "; ".join(
-            [
-                "import importlib.util",
-                "from pathlib import Path",
-                "print(Path(importlib.util.find_spec("
-                + f"'{PROGRAM_NAME}').origin).parent)",
-            ]
-        )
-
-        out = subprocess.run(  # nosec B603: no user input
-            [venv_python3, "-c", dynamic_program],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
         executor_installed_path = Path(out.stdout.strip())
+        if not executor_installed_path.exists():
+            raise AstroPiExecutorException(
+                f"Could not set up {PROGRAM_NAME} environment"
+            )
 
         logger.debug(f"Found {PROGRAM_NAME} installed at {executor_installed_path}")
 
+        # 3. Install stubs into the venv
+        logger.debug("Installing stubbed modules in the venv...")
+
         for module in AstroPiExecutor.MODULES_TO_STUB:
+            logger.debug(f"Installing {module}")
             shutil.copytree(
                 executor_installed_path / module, venv_site_packages_dir / module
             )
@@ -336,7 +422,6 @@ class AstroPiExecutor:
         return venv_dir
 
 
-# TODO tests!
 # TODO check that sense_hat can be imported when executed via astro_pi_executor
 
 # Integration tests:

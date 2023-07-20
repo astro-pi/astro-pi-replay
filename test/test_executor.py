@@ -7,14 +7,22 @@ import logging
 import os
 import re
 import sys
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.types import ExecutionMode
 from test_utils import ProgramFixture, prepare_executor_to_run_in_fake_live_venv
 
 logger = logging.getLogger(__name__)
+
+
+# TODO test the new (_replay_next, etc.) 'private' methods...
+def test_replay_when_capture_called_repeatedly_should_return_different_photos(
+    tmp_path: Path,
+):
+    pass
 
 
 ###########################################
@@ -38,7 +46,7 @@ def test_executor_live_mode_should_call_underlying_libraries(
     executor: AstroPiExecutor = AstroPiExecutor(replay_mode=False)
 
     executor.run(ExecutionMode.LIVE, tmp_path, sense_hat_program.main)
-    expected_regex = r"<Mock name='mock\(\)\.colour\.rgb' id='[0-9]+'>"
+    expected_regex = r"<MagicMock name='mock\(\)\.colour\.rgb' id='[0-9]+'>"
     assert sense_hat_program.expected_file.exists()
     with sense_hat_program.expected_file.open() as f:
         contents = f.read()
@@ -51,12 +59,17 @@ def test_executor_replay_mode_should_replay_data(
 ):
     executor: AstroPiExecutor = AstroPiExecutor()
 
-    executor.run(ExecutionMode.REPLAY, tmp_path, sense_hat_program.main)
+    # make the test deterministic
+    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+            seconds=2
+        )
+        executor.run(ExecutionMode.REPLAY, tmp_path, sense_hat_program.main)
     assert sense_hat_program.expected_file.exists()
     with sense_hat_program.expected_file.open() as f:
         contents = f.read()
     logger.debug(f"File contents: {contents}")
-    assert re.search(r"(29, 27, 24)", contents) is not None
+    assert re.search(r"(12, 11, 11)", contents) is not None
 
 
 ###########################################
@@ -100,4 +113,9 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     assert "sense_hat" in os.listdir(site_packages_path)
     sense_hat_path: Path = site_packages_path / "sense_hat"
     assert "sense_hat_api.py" in os.listdir(sense_hat_path)
+
+    assert "picamera" in os.listdir(site_packages_path)
+    picamera_path: Path = site_packages_path / "picamera"
+    assert "picamera_api.py" in os.listdir(picamera_path)
+
     # TODO add the other modules

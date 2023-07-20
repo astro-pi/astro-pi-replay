@@ -1,53 +1,77 @@
 import logging
+import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.types import ExecutionMode
+from astro_pi_executor.custom_types import ExecutionMode
+from astro_pi_executor.downloader import Downloader
+from astro_pi_executor.executor import AstroPiExecutor, AstroPiExecutorException
+from astro_pi_executor.resources import RESOURCE_DIR, get_resource
 
 logger = logging.getLogger(__name__)
+
+RUN_CMD: str = "run"
+DOWNLOAD_CMD: str = "download"
 
 
 def main() -> None:
     arg_parser = ArgumentParser(prog=PROGRAM_NAME, description="")
-
-    arg_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
     arg_parser.add_argument("--debug", action="store_true", help="Emit debug messages")
-    # TODO
-    # arg_parser.add_argument("--force-reinstall", action="store_true",
-    #                        help="Forcibly reinstall the venv used to replay data")
-    arg_parser.add_argument(
+    subparsers = arg_parser.add_subparsers(help="sub-command help")
+
+    download_parser = subparsers.add_parser(
+        DOWNLOAD_CMD, help="Download the photos to use during run (required)"
+    )
+    # download_parser.add_argument("--force-reinstall", action="store_true",
+    #                            help="Forcibly reinstall the venv used to replay data")
+    # download_parser.add_argument("--venv_dir", type=Path, required=False,
+    #     help="Path to place the venv",
+    # )
+    download_parser.set_defaults(cmd="download")
+
+    run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
+    run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
+    run_parser.add_argument(
+        "--match-original-photo-intervals",
+        action="store_true",
+        help="Enable this mode to sleep in between successive captures to "
+        + "try and match the timestamps of the original photos.",
+    )
+    run_parser.add_argument(
         "--mode",
         type=ExecutionMode,
         required=False,
-        # default=detect_execution_mode(),
         help="Whether to replay data or fetch" + "live data",
     )
-    # arg_parser.add_argument("--data_dir", type=Path,
-    #                        required=False,
-    #                        # default=default_dir,
-    #                        help="Path to place downloaded data files")
-    arg_parser.add_argument(
+    run_parser.add_argument(
         "--venv_dir",
         type=Path,
         required=False,
-        # default=default_dir,
-        help="Path to place the venv",
+        help=f"Path to venv (if not using ~/.{PROGRAM_NAME})",
     )
+    run_parser.set_defaults(cmd="run")
 
     args: Namespace = arg_parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-    print(args)
-    return AstroPiExecutor.run(args.mode, args.venv_dir, args.main)
-
-
-# TODO tests!
-# TODO check that sense_hat can be imported when executed via astro_pi_executor
-
-# Integration tests:
-# - using qemu?
-# - On Windows, Linux, Darwin ensure that the adapter can be installed
-# - On RP4, ensure it calls the real lib (integration test) - I should test this now...!
-# perhaps an i2c bus can be emulated...
+    logger.debug(args)
+    if hasattr(args, "cmd"):
+        downloader = Downloader()
+        if args.cmd == "run":
+            if not downloader.has_installed():
+                raise AstroPiExecutorException(
+                    "Photos not yet downloaded. Please run "
+                    + f"{PROGRAM_NAME} {DOWNLOAD_CMD} to download the photos "
+                )
+            with get_resource("motd").open("r") as f:
+                sys.stdout.write(f.read())
+            AstroPiExecutor.run(args.mode, args.venv_dir, args.main)
+        elif args.cmd == "download":
+            downloader.download(RESOURCE_DIR)
+            logger.info("Installing images...")
+            downloader.install(RESOURCE_DIR)
+            logger.info("Installation complete")
+        else:
+            arg_parser.print_usage()
+            sys.exit(1)

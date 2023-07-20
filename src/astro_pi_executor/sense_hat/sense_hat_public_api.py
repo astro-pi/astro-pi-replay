@@ -1,18 +1,18 @@
 #!/usr/bin/python
 from typing import Callable, Optional
 
-from astro_pi_executor.types import RGB, RGBC, InputEvent, RollPitchYawDict, XYZDict
-
-# Type synonyms
-
-# default values
-DEFAULT_ROLL_PITCH_YAW_DICT = {"roll": float(), "pitch": float(), "yaw": float()}
-DEFAULT_RGB_TUPLE = (int(), int(), int())
-DEFAULT_RGBC_TUPLE = (int(), int(), int(), int())
-DEFAULT_X_Y_Z_DICT = {"x": float(), "y": float(), "z": float()}
-DEFAULT_CALLABLE = (
-    lambda x: x
-)  # TODO could use inspect module to check type annotations at runtime
+from astro_pi_executor.custom_types import (
+    DEFAULT_CALLABLE,
+    DEFAULT_RGB_TUPLE,
+    DEFAULT_RGBC_TUPLE,
+    DEFAULT_ROLL_PITCH_YAW_DICT,
+    DEFAULT_X_Y_Z_DICT,
+    RGB,
+    RGBC,
+    InputEvent,
+    RollPitchYawDict,
+    XYZDict,
+)
 
 
 class SenseHatColourSensorAPI:
@@ -249,34 +249,34 @@ class SenseHatAPI:
         pass
 
     def get_accelerometer(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.accelerometer
 
     def get_accelerometer_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.accelerometer_raw
 
     def get_compass(self) -> float:
-        return float()
+        return self.compass
 
     def get_compass_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.compass_raw
 
     def get_gyroscope(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.gyroscope
 
     def get_gyroscope_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.gyroscope_raw
 
     def get_humidity(self) -> float:
-        return float()
+        return self.humidity
 
     def get_orientation(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.orientation
 
     def get_orientation_degrees(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.orientation
 
     def get_orientation_radians(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.orientation_radians
 
     def get_pixel(self, x: int, y: int) -> list[int]:
         return list()
