@@ -524,5 +524,5 @@ class PiYUVArray(PiArrayOutput):
 #     pass
 # class PiMotionAnalysis(PiAnalysisOutput):
 #     pass
-# class PiArrayTransform(mo.MMALPythonComponentPublicAPI):
+# class PiArrayTransform(mo.MMALPythonComponent):
 #     pass

@@ -4,23 +4,23 @@ from typing import BinaryIO, Optional
 
 from astro_pi_executor.picamera.frames import PiVideoFrameType
 from astro_pi_executor.picamera.mmalobj import (
-    MMALBufferPublicAPI,
-    MMALComponentPublicAPI,
-    MMALPortPublicAPI,
-    MMALResizerPublicAPI,
-    MMALVideoPortPublicAPI,
+    MMALBuffer,
+    MMALComponent,
+    MMALPort,
+    MMALResizer,
+    MMALVideoPort,
 )
-from astro_pi_executor.picamera.picamera_public_api import PiCameraPublicAPI
+from astro_pi_executor.picamera.picamera_public_api import PiCamera
 
 logger = logging.getLogger(__name__)
 
 
-class PiEncoderPublicAPI:
+class PiEncoder:
     def __init__(
         self,
-        parent: PiCameraPublicAPI,
-        camera_port: MMALVideoPortPublicAPI,
-        input_port: MMALVideoPortPublicAPI,
+        parent: PiCamera,
+        camera_port: MMALVideoPort,
+        input_port: MMALVideoPort,
         format: str,
         resize: Optional[tuple[int, int]],
         **options,
@@ -30,11 +30,11 @@ class PiEncoderPublicAPI:
         self.input_port = input_port
         self.format = format
         self.resize = resize
-        self.output_port = MMALVideoPortPublicAPI()
+        self.output_port = MMALVideoPort()
         self._event = Event()
         self._outputs_lock = Lock()
 
-    def _callback(self, port: MMALPortPublicAPI, buf: MMALBufferPublicAPI):
+    def _callback(self, port: MMALPort, buf: MMALBuffer):
         pass
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
@@ -56,7 +56,7 @@ class PiEncoderPublicAPI:
         pass
 
     @property
-    def encoder(self) -> Optional[MMALComponentPublicAPI]:
+    def encoder(self) -> Optional[MMALComponent]:
         pass
 
     @property
@@ -81,7 +81,7 @@ class PiEncoderPublicAPI:
         pass
 
     @property
-    def resizer(self) -> Optional[MMALResizerPublicAPI]:
+    def resizer(self) -> Optional[MMALResizer]:
         pass
 
     def start(self, output) -> None:

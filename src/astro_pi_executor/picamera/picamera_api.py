@@ -21,13 +21,10 @@ from astro_pi_executor.picamera.exc import (
     PiCameraValueError,
 )
 from astro_pi_executor.picamera.exif import modify_exif_tags
-from astro_pi_executor.picamera.frames import PiVideoFramePublicAPI
-from astro_pi_executor.picamera.picamera_public_api import PiCameraPublicAPI
+from astro_pi_executor.picamera.frames import PiVideoFrame
+from astro_pi_executor.picamera.picamera_public_api import PiCamera
 from astro_pi_executor.picamera.preview import CameraPreview
-from astro_pi_executor.picamera.renderers import (
-    PiOverlayRendererPublicAPI,
-    PiRendererPublicAPI,
-)
+from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_executor.resources import get_resource
 
 logger = logging.getLogger(__name__)
@@ -48,12 +45,12 @@ video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 index_file: Path = get_resource("OrbitAz") / "photo_index.csv"
 
 
-def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPublicAPI:
-    class _PiCameraAdapter(PiCameraPublicAPI):
+def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
+    class _PiCameraAdapter(PiCamera):
         _preview_proc: Optional[multiprocessing.Process] = None
         _recording_proc: Optional[subprocess.Popen[bytes]] = None
         _frame_counter: Iterator[int] = itertools.count(0)
-        _preview: Optional[PiRendererPublicAPI] = None
+        _preview: Optional[PiRenderer] = None
 
         # TODO
         def __enter__(self):
@@ -114,8 +111,8 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPu
             size: Optional[tuple[int, int]] = None,
             format: Optional[str] = None,
             **options,
-        ) -> PiOverlayRendererPublicAPI:
-            overlay = PiOverlayRendererPublicAPI(self, source, size, format, **options)
+        ) -> PiOverlayRenderer:
+            overlay = PiOverlayRenderer(self, source, size, format, **options)
             self.overlays.append(overlay)
             return overlay
 
@@ -361,7 +358,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPu
 
         # TODO
         @property
-        def frame(self) -> Optional[PiVideoFramePublicAPI]:
+        def frame(self) -> Optional[PiVideoFrame]:
             if not self.recording:
                 raise PiCameraRuntimeError(
                     "Cannot query frame information " + "when camera is not recording"
@@ -382,7 +379,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPu
             )
 
         # TODO
-        def remove_overlay(self, overlay: PiOverlayRendererPublicAPI) -> None:
+        def remove_overlay(self, overlay: PiOverlayRenderer) -> None:
             return super().remove_overlay(overlay)
 
         # TODO
@@ -390,14 +387,14 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPu
             return super().split_recording(output)
 
         # TODO
-        def start_preview(self, **options) -> PiRendererPublicAPI:
+        def start_preview(self, **options) -> PiRenderer:
             if self._preview_proc is None:
                 preview: CameraPreview = CameraPreview(
                     str(get_resource("OrbitAz/OrbitAz.mp4"))
                 )
                 self._preview_proc = preview
                 preview.start()
-                renderer = PiRendererPublicAPI(self)
+                renderer = PiRenderer(self)
                 self._preview = renderer
                 return renderer
             elif self.preview is not None:
@@ -474,7 +471,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCameraPu
 
         # TODO
         @property
-        def preview(self) -> Optional[PiRendererPublicAPI]:
+        def preview(self) -> Optional[PiRenderer]:
             # # TODO add overlays
             return self._preview if self.previewing else None
 

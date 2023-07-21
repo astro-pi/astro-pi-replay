@@ -14,17 +14,14 @@ from colorzero import Color
 from astro_pi_executor.custom_types import UV, XYWH
 from astro_pi_executor.executor import AstroPiExecutorException
 from astro_pi_executor.picamera.exc import PiCameraRuntimeError
-from astro_pi_executor.picamera.frames import PiVideoFramePublicAPI
+from astro_pi_executor.picamera.frames import PiVideoFrame
 from astro_pi_executor.picamera.mmalobj import PiFramerateRange, PiResolution
-from astro_pi_executor.picamera.renderers import (
-    PiOverlayRendererPublicAPI,
-    PiRendererPublicAPI,
-)
+from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
 
 logger = logging.getLogger(__name__)
 
 
-class PiCameraPublicAPI(abc.ABC):
+class PiCamera(abc.ABC):
     """
     This is for a V2 camera i.e. a Sony IMX219
     """
@@ -186,7 +183,7 @@ class PiCameraPublicAPI(abc.ABC):
         self.crop: XYWH = (0.0, 0.0, 1.0, 1.0)
         self.digital_gain: Fraction = Fraction(187, 128)  # TODO sample
         self.drc_strength: str = "off"
-        self.exif_tags: dict[str, str] = PiCameraPublicAPI._DEFAULT_EXIF_TAGS
+        self.exif_tags: dict[str, str] = PiCamera._DEFAULT_EXIF_TAGS
         self.exposure_compensation: int = 0
         self.exposure_mode: str = "auto"
         self.exposure_speed: int = int()  # TODO sample
@@ -209,7 +206,7 @@ class PiCameraPublicAPI(abc.ABC):
         self._led: Optional[bool] = None
         self._led_pin: int = led_pin if led_pin is not None else 32
         self.meter_mode: str = "average"
-        self.overlays: list[PiRendererPublicAPI] = []
+        self.overlays: list[PiRenderer] = []
         self.preview_alpha: int = 255
         self.preview_fullscreen: bool = True
         self.preview_layer: int = 2
@@ -252,7 +249,7 @@ class PiCameraPublicAPI(abc.ABC):
         size: Optional[tuple[int, int]] = None,
         format: Optional[str] = None,
         **options,
-    ) -> PiOverlayRendererPublicAPI:
+    ) -> PiOverlayRenderer:
         pass
 
     @abstractmethod
@@ -304,7 +301,7 @@ class PiCameraPublicAPI(abc.ABC):
         return self._closed
 
     @abstractproperty
-    def frame(self) -> Optional[PiVideoFramePublicAPI]:
+    def frame(self) -> Optional[PiVideoFrame]:
         if not self.recording:
             raise PiCameraRuntimeError(
                 "Cannot query frame information " + "when camera is not recording"
@@ -324,7 +321,7 @@ class PiCameraPublicAPI(abc.ABC):
         return self._previewing
 
     @abstractproperty
-    def preview(self) -> Optional[PiRendererPublicAPI]:
+    def preview(self) -> Optional[PiRenderer]:
         pass
 
     @abstractmethod
@@ -343,7 +340,7 @@ class PiCameraPublicAPI(abc.ABC):
         return self._recording
 
     @abstractmethod
-    def remove_overlay(self, overlay: PiOverlayRendererPublicAPI) -> None:
+    def remove_overlay(self, overlay: PiOverlayRenderer) -> None:
         pass
 
     def request_key_frame(self, splitter_port: int = 1) -> None:
@@ -355,9 +352,9 @@ class PiCameraPublicAPI(abc.ABC):
         pass
 
     @abstractmethod
-    def start_preview(self, **options) -> PiRendererPublicAPI:
+    def start_preview(self, **options) -> PiRenderer:
         self._previewing = True
-        return PiRendererPublicAPI(self)  # TODO - should be preview one
+        return PiRenderer(self)  # TODO - should be preview one
 
     @abstractmethod
     def start_recording(

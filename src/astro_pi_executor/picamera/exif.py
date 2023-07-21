@@ -16,7 +16,7 @@ from collections import defaultdict
 from PIL import ExifTags, Image
 
 from astro_pi_executor.picamera.exc import PiCameraValueError
-from astro_pi_executor.picamera.picamera_public_api import PiCameraPublicAPI
+from astro_pi_executor.picamera.picamera_public_api import PiCamera
 
 DATETIME_STR_FORMAT: str = "%Y:%m:%d %H:%M:%S"
 
@@ -202,7 +202,7 @@ def modify_exif_tags(
         "EXIF.DateTimeDigitized": now,
         "IFD0.DateTime": now,
     }
-    if PiCameraPublicAPI._DEFAULT_EXIF_TAGS != desired_exif_tags:
+    if PiCamera._DEFAULT_EXIF_TAGS != desired_exif_tags:
         # merges, keeping keys from the right arg
         tags_to_set = tags_to_set | desired_exif_tags
 

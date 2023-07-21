@@ -5,15 +5,15 @@ from astro_pi_executor.custom_types import XYWH
 
 if TYPE_CHECKING:
     # trick to avoid circular imports
-    from astro_pi_executor.picamera.picamera_public_api import PiCameraPublicAPI
+    from astro_pi_executor.picamera.picamera_public_api import PiCamera
 
 logger = logging.getLogger(__name__)
 
 
-class PiRendererPublicAPI:
+class PiRenderer:
     def __init__(
         self,
-        parent: "PiCameraPublicAPI",
+        parent: "PiCamera",
         layer: int = 2,
         alpha: int = 255,
         fullscreen: bool = True,
@@ -37,10 +37,10 @@ class PiRendererPublicAPI:
         pass
 
 
-class PiOverlayRendererPublicAPI(PiRendererPublicAPI):
+class PiOverlayRenderer(PiRenderer):
     def __init__(
         self,
-        parent: "PiCameraPublicAPI",
+        parent: "PiCamera",
         source: BinaryIO,
         resolution: Optional[tuple[int, int]] = None,
         format: Optional[str] = None,
@@ -64,10 +64,10 @@ class PiOverlayRendererPublicAPI(PiRendererPublicAPI):
         self.source = source
 
 
-class PiPreviewRendererPublicAPI(PiRendererPublicAPI):
+class PiPreviewRenderer(PiRenderer):
     def __init__(
         self,
-        parent: "PiCameraPublicAPI",
+        parent: "PiCamera",
         source: BinaryIO,
         resolution=None,
         layer=2,
@@ -90,7 +90,7 @@ class PiPreviewRendererPublicAPI(PiRendererPublicAPI):
 
 
 class PiNullSink:
-    def __init__(self, parent: "PiCameraPublicAPI", source: BinaryIO) -> None:
+    def __init__(self, parent: "PiCamera", source: BinaryIO) -> None:
         self.parent = parent
         self.source = source
 

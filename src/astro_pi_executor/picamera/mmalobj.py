@@ -233,83 +233,83 @@ class PiSensorMode(
 PiCameraFraction = Fraction
 
 
-class MMALBaseComponentPublicAPI:
+class MMALBaseComponent:
     pass
 
 
-class MMALCameraPublicAPI(MMALBaseComponentPublicAPI):
+class MMALCamera(MMALBaseComponent):
     pass
 
 
-class MMALCameraInfoPublicAPI(MMALBaseComponentPublicAPI):
+class MMALCameraInfo(MMALBaseComponent):
     pass
 
 
-class MMALComponentPublicAPI(MMALBaseComponentPublicAPI):
+class MMALComponent(MMALBaseComponent):
     pass
 
 
-class MMALSplitterPublicAPI(MMALComponentPublicAPI):
+class MMALSplitter(MMALComponent):
     pass
 
 
-class MMALResizerPublicAPI(MMALComponentPublicAPI):
+class MMALResizer(MMALComponent):
     pass
 
 
-class MMALISPResizerPublicAPI(MMALComponentPublicAPI):
+class MMALISPResizer(MMALComponent):
     pass
 
 
-class MMALEncoderPublicAPI(MMALComponentPublicAPI):
+class MMALEncoder(MMALComponent):
     pass
 
 
-class MMALVideoEncoderPublicAPI(MMALEncoderPublicAPI):
+class MMALVideoEncoder(MMALEncoder):
     pass
 
 
-class MMALImageEncoderPublicAPI(MMALEncoderPublicAPI):
+class MMALImageEncoder(MMALEncoder):
     pass
 
 
-class MMALDecoderPublicAPI(MMALComponentPublicAPI):
+class MMALDecoder(MMALComponent):
     pass
 
 
-class MMALVideoDecoderPublicAPI(MMALDecoderPublicAPI):
+class MMALVideoDecoder(MMALDecoder):
     pass
 
 
-class MMALImageDecoderPublicAPI(MMALDecoderPublicAPI):
+class MMALImageDecoder(MMALDecoder):
     pass
 
 
-class MMALRendererPublicAPI(MMALComponentPublicAPI):
+class MMALRenderer(MMALComponent):
     pass
 
 
-class MMALNullSinkPublicAPI(MMALComponentPublicAPI):
+class MMALNullSink(MMALComponent):
     pass
 
 
-class MMALControlPortPublicAPI:
+class MMALControlPort:
     pass
 
 
-class MMALPortPublicAPI(MMALControlPortPublicAPI):
+class MMALPort(MMALControlPort):
     pass
 
 
-class MMALVideoPortPublicAPI(MMALPortPublicAPI):
+class MMALVideoPort(MMALPort):
     pass
 
 
-class MMALSubPicturePortPublicAPI(MMALPortPublicAPI):
+class MMALSubPicturePort(MMALPort):
     pass
 
 
-class MMALAudioPortPublicAPI(MMALPortPublicAPI):
+class MMALAudioPort(MMALPort):
     pass
 
 
@@ -318,48 +318,48 @@ class MMALAudioPortPublicAPI(MMALPortPublicAPI):
 # pass
 
 
-class MMALBaseConnectionPublicAPI:
+class MMALBaseConnection:
     pass
 
 
-class MMALConnectionPublicAPI(MMALBaseConnectionPublicAPI):
+class MMALConnection(MMALBaseConnection):
     pass
 
 
-class MMALBufferPublicAPI:
+class MMALBuffer:
     pass
 
 
-class MMALQueuePublicAPI:
+class MMALQueue:
     pass
 
 
-class MMALPoolPublicAPI:
+class MMALPool:
     pass
 
 
-class MMALPortPoolPublicAPI(MMALPoolPublicAPI):
+class MMALPortPool(MMALPool):
     pass
 
 
 # TODO
 # class MMALPythonPort(TODO):
 #     pass
-class MMALPythonBaseComponentPublicAPI:
+class MMALPythonBaseComponent:
     pass
 
 
-class MMALPythonComponentPublicAPI(MMALPythonBaseComponentPublicAPI):
+class MMALPythonComponent(MMALPythonBaseComponent):
     pass
 
 
-class MMALPythonConnectionPublicAPI(MMALBaseConnectionPublicAPI):
+class MMALPythonConnection(MMALBaseConnection):
     pass
 
 
-class MMALPythonSourcePublicAPI(MMALPythonBaseComponentPublicAPI):
+class MMALPythonSource(MMALPythonBaseComponent):
     pass
 
 
-class MMALPythonTargetPublicAPI(MMALPythonComponentPublicAPI):
+class MMALPythonTarget(MMALPythonComponent):
     pass

@@ -1,10 +1,6 @@
 Current:
 --------
-- Fix tests
-- Fix mypy
-- Commit!!!
 - Finish basic PiCamera API
-  - CircularIO.
   - start/stop/split recording
   - etc.
 - Finish sense hat API coverage

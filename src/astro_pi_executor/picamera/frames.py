@@ -11,7 +11,7 @@ class PiVideoFrameType:
     motion_data = 3
 
 
-class PiVideoFramePublicAPI(NamedTuple):
+class PiVideoFrame(NamedTuple):
     index: int  # type: ignore
     frame_type: PiVideoFrameType
     frame_size: int
