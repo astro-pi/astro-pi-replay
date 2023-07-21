@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.sense_hat.sense_hat_api import SenseHatAdapter
+from astro_pi_executor.sense_hat.sense_hat import SenseHatAdapter
 
 # TODO test that the SenseHat API works
 

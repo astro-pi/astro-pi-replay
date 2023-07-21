@@ -1,3 +1,3 @@
-from astro_pi_executor.picamera.picamera_api import PiCameraAdapter as PiCamera
+from astro_pi_executor.picamera.camera import PiCameraAdapter as PiCamera
 
 __all__ = ["PiCamera"]

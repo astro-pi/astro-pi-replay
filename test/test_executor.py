@@ -112,10 +112,10 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
 
     assert "sense_hat" in os.listdir(site_packages_path)
     sense_hat_path: Path = site_packages_path / "sense_hat"
-    assert "sense_hat_api.py" in os.listdir(sense_hat_path)
+    assert "sense_hat.py" in os.listdir(sense_hat_path)
 
     assert "picamera" in os.listdir(site_packages_path)
     picamera_path: Path = site_packages_path / "picamera"
-    assert "picamera_api.py" in os.listdir(picamera_path)
+    assert "camera.py" in os.listdir(picamera_path)
 
     # TODO add the other modules

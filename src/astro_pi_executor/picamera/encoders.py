@@ -2,6 +2,7 @@ import logging
 from threading import Event, Lock
 from typing import BinaryIO, Optional
 
+from astro_pi_executor.picamera.abstract_camera import PiCamera
 from astro_pi_executor.picamera.frames import PiVideoFrameType
 from astro_pi_executor.picamera.mmalobj import (
     MMALBuffer,
@@ -10,7 +11,6 @@ from astro_pi_executor.picamera.mmalobj import (
     MMALResizer,
     MMALVideoPort,
 )
-from astro_pi_executor.picamera.picamera_public_api import PiCamera
 
 logger = logging.getLogger(__name__)
 

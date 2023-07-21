@@ -17,7 +17,7 @@ from PIL import Image
 import test_utils
 from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.picamera.array import PiRGBArray
-from astro_pi_executor.picamera.picamera_api import PiCameraAdapter
+from astro_pi_executor.picamera.camera import PiCameraAdapter
 from astro_pi_executor.resources import get_resource
 
 logger = logging.getLogger(__name__)

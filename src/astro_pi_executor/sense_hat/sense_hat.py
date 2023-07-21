@@ -13,7 +13,7 @@ from astro_pi_executor.custom_types import (
     XYZDict,
 )
 from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.sense_hat.sense_hat_public_api import (
+from astro_pi_executor.sense_hat.abstract_sense_hat import (
     SenseHatAPI,
     SenseHatColourSensorAPI,
     SenseHatStickAPI,
@@ -139,7 +139,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         This is an object that conforms to the SenseHat interface
         that returns default values for every function call.
         For most types the default value is obvious, but
-        check check sense_hat_public_api.py if in doubt.
+        check check abstract_sense_hat.py if in doubt.
         """
 
         def __init__(self):

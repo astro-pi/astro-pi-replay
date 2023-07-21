@@ -15,6 +15,7 @@ from astro_pi_executor.executor import (
     AstroPiExecutorException,
     AstroPiExecutorRuntimeError,
 )
+from astro_pi_executor.picamera.abstract_camera import PiCamera
 from astro_pi_executor.picamera.exc import (
     PiCameraError,
     PiCameraRuntimeError,
@@ -22,7 +23,6 @@ from astro_pi_executor.picamera.exc import (
 )
 from astro_pi_executor.picamera.exif import modify_exif_tags
 from astro_pi_executor.picamera.frames import PiVideoFrame
-from astro_pi_executor.picamera.picamera_public_api import PiCamera
 from astro_pi_executor.picamera.preview import CameraPreview
 from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_executor.resources import get_resource

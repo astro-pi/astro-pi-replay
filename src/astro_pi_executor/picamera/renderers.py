@@ -5,7 +5,7 @@ from astro_pi_executor.custom_types import XYWH
 
 if TYPE_CHECKING:
     # trick to avoid circular imports
-    from astro_pi_executor.picamera.picamera_public_api import PiCamera
+    from astro_pi_executor.picamera.abstract_camera import PiCamera
 
 logger = logging.getLogger(__name__)
 

@@ -15,8 +15,8 @@ from collections import defaultdict
 
 from PIL import ExifTags, Image
 
+from astro_pi_executor.picamera.abstract_camera import PiCamera
 from astro_pi_executor.picamera.exc import PiCameraValueError
-from astro_pi_executor.picamera.picamera_public_api import PiCamera
 
 DATETIME_STR_FORMAT: str = "%Y:%m:%d %H:%M:%S"
 
