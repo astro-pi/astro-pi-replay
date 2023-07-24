@@ -1,11 +1,66 @@
+# TODO copy the license from mmalobj.py in the real implementation
+import io
 import logging
 import warnings
 from collections import namedtuple
 from fractions import Fraction
 
 from astro_pi_executor.picamera.exc import PiCameraDeprecated, PiCameraValueError
+from astro_pi_executor.picamera.streams import BufferIO
 
 logger = logging.getLogger(__name__)
+
+
+def open_stream(stream, output=True, buffering=65536):
+    """
+    This is the core of picamera's IO-semantics. It returns a tuple of a
+    file-like object and a bool indicating whether the stream requires closing
+    once the caller is finished with it.
+
+    * If *stream* is a string, it is opened as a file object (with mode 'wb' if
+      *output* is ``True``, and the specified amount of *bufffering*). In this
+      case the function returns ``(stream, True)``.
+
+    * If *stream* is a stream with a ``write`` method, it is returned as
+      ``(stream, False)``.
+
+    * Otherwise *stream* is assumed to be a writeable buffer and is wrapped
+      with :class:`BufferIO`. The function returns ``(stream, True)``.
+    """
+    if isinstance(stream, bytes):
+        stream = stream.decode("ascii")
+    opened = isinstance(stream, str)
+    if opened:
+        stream = io.open(stream, "wb" if output else "rb", buffering)
+    else:
+        try:
+            if output:
+                stream.write
+            else:
+                stream.read
+        except AttributeError:
+            # Assume the stream is actually a buffer
+            opened = True
+            stream = BufferIO(stream)
+            if output and not stream.writable:
+                raise IOError("writeable buffer required for output")
+    return (stream, opened)
+
+
+def close_stream(stream, opened):
+    """
+    If *opened* is ``True``, then the ``close`` method of *stream* will be
+    called. Otherwise, the function will attempt to call the ``flush`` method
+    on *stream* (if one exists). This function essentially takes the output
+    of :func:`open_stream` and finalizes the result.
+    """
+    if opened:
+        stream.close()
+    else:
+        try:
+            stream.flush()
+        except AttributeError:
+            pass
 
 
 def to_resolution(value):
@@ -234,7 +289,8 @@ PiCameraFraction = Fraction
 
 
 class MMALBaseComponent:
-    pass
+    def __init__(self):
+        self.enabled = False
 
 
 class MMALCamera(MMALBaseComponent):
@@ -294,7 +350,15 @@ class MMALNullSink(MMALComponent):
 
 
 class MMALControlPort:
-    pass
+    def __init__(self, port: int):
+        self.value: int = port
+        self.enabled = False
+
+    def enable(self):
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
 
 
 class MMALPort(MMALControlPort):

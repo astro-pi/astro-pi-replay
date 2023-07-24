@@ -1,5 +1,12 @@
 import collections
 from enum import Enum
+from typing import TYPE_CHECKING, Union
+
+from typing_extensions import TypeAlias
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRead, SupportsWrite, WriteableBuffer
+
 
 # Type synonyms
 RGBC = tuple[int, int, int, int]
@@ -24,3 +31,24 @@ DEFAULT_CALLABLE = (
 class ExecutionMode(str, Enum):
     REPLAY = ("REPLAY",)
     LIVE = "LIVE"
+
+
+# Picamera types
+# output: Union[str, BinaryIO, np.ndarray],
+
+# class SupportsWrite(Protocol):
+#     __slots__ = ()
+#     write: Callable[[bytes],None]
+
+# class SupportsRead(Protocol):
+#     __slots__ = ()
+#     read: Callable[[None],bytes]
+
+
+# https://docs.python.org/3/c-api/buffer.html
+
+# format: Optional[str] = None
+# see: https://peps.python.org/pep-0688/#python-level-buffer-protocol
+IO_TYPE: TypeAlias = Union[
+    bytes, str, "SupportsWrite", "SupportsRead", "WriteableBuffer"
+]

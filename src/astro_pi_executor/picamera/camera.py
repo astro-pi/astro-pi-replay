@@ -4,30 +4,38 @@ import logging
 import multiprocessing
 import re
 import subprocess
+import threading
 from pathlib import Path
-from typing import BinaryIO, Iterable, Iterator, Optional, Union
+from typing import BinaryIO, Iterable, Iterator, Optional, cast
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import astro_pi_executor.picamera.mmalobj as mo
+from astro_pi_executor.custom_types import IO_TYPE, RGB
 from astro_pi_executor.executor import (
     AstroPiExecutor,
     AstroPiExecutorException,
     AstroPiExecutorRuntimeError,
 )
 from astro_pi_executor.picamera.abstract_camera import PiCamera
+from astro_pi_executor.picamera.encoders import PiEncoder, PiVideoEncoder
 from astro_pi_executor.picamera.exc import (
+    PiCameraAlreadyRecording,
     PiCameraError,
+    PiCameraNotRecording,
     PiCameraRuntimeError,
     PiCameraValueError,
 )
 from astro_pi_executor.picamera.exif import modify_exif_tags
-from astro_pi_executor.picamera.frames import PiVideoFrame
+from astro_pi_executor.picamera.frames import PiVideoFrame, PiVideoFrameType
 from astro_pi_executor.picamera.preview import CameraPreview
 from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_executor.resources import get_resource
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
 photo_formats = [
     "jpg",
     "jpeg",
@@ -47,10 +55,14 @@ index_file: Path = get_resource("OrbitAz") / "photo_index.csv"
 
 def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
     class _PiCameraAdapter(PiCamera):
+        # TODO make these instance attribtues
         _preview_proc: Optional[multiprocessing.Process] = None
         _recording_proc: Optional[subprocess.Popen[bytes]] = None
+        _recording_fmt: Optional[str] = None
+        _recording_consumer: Optional[ProcStdoutConsumer] = None
         _frame_counter: Iterator[int] = itertools.count(0)
         _preview: Optional[PiRenderer] = None
+        _encoders: dict[int, PiEncoder] = {}
 
         # TODO
         def __enter__(self):
@@ -84,7 +96,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
             bbox = draw_context.multiline_textbbox((0, 0), text, font=font)
             _, _, box_width, box_height = bbox
 
-            img_width, img_height = img.size
+            img_width, _ = img.size
             coordinate: tuple[int, int] = (round((img_width / 2) - (box_width / 2)), 20)
 
             if self.annotate_background is not None:
@@ -95,19 +107,19 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                     coordinate[1] + box_height,
                 )
                 draw_context.rectangle(
-                    coords_box, fill=tuple(self.annotate_background.rgb_bytes)
+                    coords_box, fill=cast(RGB, self.annotate_background.rgb_bytes)
                 )
 
             draw_context.multiline_text(
                 coordinate,
                 text,
                 font=font,
-                fill=tuple(self.annotate_foreground.rgb_bytes),
+                fill=cast(RGB, self.annotate_foreground.rgb_bytes),
             )
 
         def add_overlay(
             self,
-            source: BinaryIO,
+            source: BinaryIO,  # TODO is this definitely the right type?
             size: Optional[tuple[int, int]] = None,
             format: Optional[str] = None,
             **options,
@@ -118,21 +130,23 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
 
         def _detect_format(
             self,
-            output: Union[str, BinaryIO, np.ndarray],
+            output: IO_TYPE,
             format: Optional[str],
             allowed_formats: list[str] = photo_formats,
-        ) -> tuple[Union[str, BinaryIO, np.ndarray], Optional[str]]:
-            final_output: Union[str, BinaryIO, np.ndarray]
-            final_format: Optional[str]
+        ) -> tuple[IO_TYPE, str]:
+            final_output: IO_TYPE
+            final_format: str
 
             if format is None and isinstance(output, str):
                 split: list[str] = output.split(".")
-                if len(split) < 2 or split[-1] not in photo_formats:
-                    raise PiCameraValueError()
+                if len(split) < 2 or split[-1] not in allowed_formats:
+                    raise PiCameraValueError(
+                        f"Couldn't detect a valid format in {output}"
+                    )
                 final_output = ".".join(split[:-1])
                 final_format = split[-1]
             elif format not in allowed_formats and isinstance(output, str):
-                raise PiCameraValueError()
+                raise PiCameraValueError("Format not allowed")
             elif format is not None and isinstance(output, str) and format == "jpeg":
                 # change format so it appears to not overwrite the suffix
                 # given in the filename
@@ -148,22 +162,15 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                 final_format = format
             else:
                 final_output = output
+                if format is None:
+                    raise PiCameraValueError("Must specify a format")
                 final_format = format
-
-            if (
-                not isinstance(final_output, str)
-                and not hasattr(final_output, "write")
-                and final_format is None
-            ):
-                raise PiCameraValueError("Must specify a format")
 
             return final_output, final_format
 
-        # TODO test file conversions...
-        # @executor.picamera_replay()
         def capture(
             self,
-            output: Union[str, BinaryIO, np.ndarray],
+            output: IO_TYPE,
             format: Optional[str] = None,
             use_video_port: bool = False,
             resize: Optional[tuple[int, int]] = None,
@@ -192,40 +199,38 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
 
             if resize is not None:
                 im = im.resize(resize)
-            save_kwargs = {}
-            if final_format in ["jpeg", "jpg"] and len(self.exif_tags.keys()) > 0:
-                # exif tags are only supported for jpeg in the original picamera
-                exif = modify_exif_tags(im.getexif(), self.exif_tags)
-                save_kwargs["exif"] = exif
 
             if isinstance(final_output, str):
-                logger.debug("Path output detected")
-                im = im.save(f"{final_output}.{final_format}", **save_kwargs)
-            elif isinstance(final_output, np.ndarray):
-                # TODO only supported in "raw" formats
-                # modifies the array in-place
+                stream, opened = mo.open_stream(f"{final_output}.{final_format}")
+            else:
+                stream, opened = mo.open_stream(final_output)
+
+            # raw image
+            if final_format is not None and final_format in [
+                "rgb",
+                "rgba",
+                "bgr",
+                "bgra",
+            ]:
                 np_image = np.array(im)
-                if final_format is not None and final_format.startswith("bgr"):
+                if final_format.startswith("bgr"):
                     np_image[:, :, [0, 1, 2]] = np_image[
                         :, :, [2, 1, 0]
                     ]  # type: ignore
-                final_output[...] = np_image
-            elif (
-                hasattr(final_output, "write")
-                and callable(final_output.write)
-                and format in ["rgb", "rgba", "bgr", "bgra"]
-            ):
-                final_output.write(im.tobytes())
-                final_output.flush()  # TODO decide if this should be here?
-            elif hasattr(final_output, "write") and callable(final_output.write):
-                im = im.save(final_output, final_format=format, **save_kwargs)
+                stream.write(np_image.tobytes())
             else:
-                logger.debug("File-like output object detected")
-                im = im.save(final_output, **save_kwargs)
+                exif = None
+                if final_format == "yuv":
+                    im = im.convert("YCbCr")
+                elif final_format in ["jpeg", "jpg"] and len(self.exif_tags.keys()) > 0:
+                    # exif tags are only supported for jpeg in the original picamera
+                    exif = modify_exif_tags(im.getexif(), self.exif_tags)
+                im.save(stream, format=None, exif=exif)
+            mo.close_stream(stream, opened)
 
         def capture_continuous(
             self,
-            output: Union[str, BinaryIO, np.ndarray],
+            output: IO_TYPE,
             format: Optional[str] = None,
             use_video_port: bool = False,
             resize: Optional[tuple[int, int]] = None,
@@ -266,7 +271,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
 
         def capture_sequence(
             self,
-            outputs: Iterable[Union[str, BinaryIO, np.ndarray]],
+            outputs: Iterable[IO_TYPE],
             format: str = "jpeg",
             use_video_port: bool = False,
             resize: Optional[tuple[int, int]] = None,
@@ -280,82 +285,6 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                     output, format, use_video_port, resize, splitter_port, bayer
                 )
 
-        @staticmethod  # TODO this is actually implemented in arrays.py
-        def convert_image_to_yuv() -> np.ndarray:
-            # for yuv: https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.601_conversion
-            W = (
-                np.array(
-                    [
-                        [65.738, 129.057, 25.064],
-                        [-37.945, -74.494, 112.439],
-                        [112.439, -94.154, -18.285],
-                    ]
-                )
-                / 256
-            )
-            rgb_img = np.array(Image.open("image1.jpg"))
-            # Transforms each width x height rgb vectors in the image into the YUV
-            # space by multiplying the W matrix and adding it to the bias.
-            bias = np.array([16, 128, 128])
-            yuv = bias + np.tensordot(rgb_img, W, ([2], [1]))
-            return yuv
-
-        @staticmethod
-        def bayer(img: Image) -> np.ndarray:
-            """
-            Pseudo-inverse of de-mosaicing aka
-            un-demosaicing...
-            """
-            rgb_array: np.ndarray = np.array(img, dtype=np.uint8)
-            width, height, _ = rgb_array.shape
-
-            # Uses RGGB pattern:
-            #
-            # GB
-            # RG
-
-            bayered = np.zeros((2 * width, 2 * height), dtype=np.uint8)
-
-            # green (top row)
-            bayered[::2, ::2, 1] = rgb_array[:, :, 1]
-            # blue (top row)
-            bayered[::2, 1::2, 2] = rgb_array[:, :, 2]
-            # red (bottom row)
-            bayered[1::2, ::2, 0] = rgb_array[:, :, 0]
-            # green (bottom row)
-            bayered[1::2, 1::2, 1] = rgb_array[:, :, 1]
-
-            return bayered
-
-        @staticmethod
-        def bayer_to_raw(bayered_arr: np.ndarray) -> bytes:
-            """
-            To raw of Sony IMX219 (V2 module)
-            """
-            # numpy doesn't have 10-bit integers, so use 16bit
-            # data = np.uint16
-
-            # The first 32,768 bytes is the header, which
-            # starts with 'BRCM' - so we'll just fill the
-            # rest of the header with blanks for now (TODO inspect the raw data)
-            #
-            # the last 10,270,208 bytes are the data itself
-
-            # packed as 10-bit numbers over 5 bytes:
-            # byte 1 (b1): MSB     MSB-1 MSB-2   MSB-3 MSB-4 LSB+4 LSB+3 LSB+2
-            # byte 2 (b2): MSB     MSB-1 MSB-2   MSB-3 MSB-4 LSB+4 LSB+3 LSB+2
-            # byte 3 (b3): MSB     MSB-1 MSB-2   MSB-3 MSB-4 LSB+4 LSB+3 LSB+2
-            # byte 4 (b4): MSB     MSB-1 MSB-2   MSB-3 MSB-4 LSB+4 LSB+3 LSB+2
-            # byte 5:      b1LSB+1 b1LSB b2LSB+1 b2LSB ...
-
-            # reshape = (2480, 4128)
-            # crop = (2464, 4100)
-            # data = np.zeros(reshape, dtype=np.uint8)
-
-            # max number can be 1023 (2**10 - 1)
-
-            return bytes()
-
         # TODO
         @property
         def frame(self) -> Optional[PiVideoFrame]:
@@ -365,28 +294,46 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                 )
             return None
 
-        # TODO
         def record_sequence(
             self,
-            outputs: Iterable[Union[str, BinaryIO, np.ndarray]],
+            outputs: Iterable[IO_TYPE],
             format: str = "h264",
             resize: Optional[tuple[int, int]] = None,
             splitter_port: int = 1,
-            **option,
-        ) -> None:
-            return super().record_sequence(
-                outputs, format, resize, splitter_port, **option
-            )
+            **options,
+        ) -> Iterable[IO_TYPE]:
+            for i, output in enumerate(outputs):
+                if i == 0:
+                    self.start_recording(
+                        output, format, resize, splitter_port, **options
+                    )
+                else:
+                    self.split_recording(output, splitter_port, **options)
+                yield output
 
         # TODO
         def remove_overlay(self, overlay: PiOverlayRenderer) -> None:
             return super().remove_overlay(overlay)
 
-        # TODO
-        def split_recording(self, output):
-            return super().split_recording(output)
+        def split_recording(
+            self,
+            output: IO_TYPE,
+            splitter_port: int = 1,
+            **options,
+        ) -> Optional[PiVideoFrame]:
+            # TODO the _recording_fmt should be stored in an encoder object
+            # as per the real implementation...
+            if self._recording_fmt is None:
+                raise PiCameraNotRecording(
+                    "There is no recording in progress on " f"port {str(splitter_port)}"
+                )
+            else:
+                format: str = self._recording_fmt
+            self.stop_recording()
 
-        # TODO
+            self.start_recording(output, format=format)
+            return None
+
         def start_preview(self, **options) -> PiRenderer:
             if self._preview_proc is None:
                 preview: CameraPreview = CameraPreview(
@@ -404,7 +351,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
 
         def start_recording(
             self,
-            output: Union[str, BinaryIO],
+            output: IO_TYPE,
             format: Optional[str] = None,
             resize: Optional[tuple[int, int]] = None,
             splitter_port: int = 1,
@@ -421,53 +368,77 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
             if not self._has_ffmpeg:
                 raise AstroPiExecutorException("Please install ffmpeg")
 
-            video: Path = get_resource("OrbitAz/OrbitAz.h264")
+            video: Path = get_resource("OrbitAz/OrbitAz.mp4")
 
             # TODO add annotations
-            # TODO add overlays
+            # TODO resize
 
             # Start streaming to the output in real-time
 
-            # - untested on Windows...!!!!
+            delta: datetime.timedelta = (
+                datetime.datetime.now() - executor._state._start_time
+            )
+            vcodec = self.__get_vcodec(final_format)
 
-            # TODO maybe want to not start from the beginning - depends on the time
-            # (using the -ss) option
-            # TODO check if numpy arrays should be supported
-            command_args: list[str]
-            if isinstance(output, str):
-                command_args = [
-                    "ffmpeg",
-                    "-re",
-                    "-i",
-                    str(video),
-                    f"{final_output}.{final_format}",
-                ]
-                logger.debug(" ".join(command_args))
-
-                # non-blocking.
-                self._recording_proc = subprocess.Popen(command_args)  # nosec B603
-
+            # See http://trac.ffmpeg.org/wiki/StreamingGuide
+            command_args: list[str] = [
+                "ffmpeg",
+                # real-time reads
+                "-re",
+                # seek to time
+                "-ss",
+                str(delta.total_seconds()),
+                # input
+                "-i",
+                str(video),
+                # output codec
+                "-vcodec",
+                vcodec,
+            ]
+            if vcodec == "rawvideo":
+                pix_fmt = self.__get_pix_fmt(final_format)
+                command_args.extend(
+                    ["-f", "rawvideo", "-vf", f"format={pix_fmt}", "-pix_fmt", pix_fmt]
+                )
             else:
-                # output is a file-like object so run directly
-                if final_format is None:
-                    # TODO to _detect_format
-                    raise ValueError("Must specify format")
-                command_args = [
-                    "ffmpeg",
-                    "-re",
-                    "-i",
-                    str(video),
-                    "-f",
-                    final_format,
-                    "pipe:1",
-                ]
+                command_args.extend(["-f", final_format])
+
+            with self._encoders_lock:
+                camera_port, output_port = self._get_ports(True, splitter_port)
+                encoder = PiVideoEncoder(
+                    self, camera_port, output_port, final_format, resize, **options
+                )
+                self._encoders[splitter_port] = encoder
+            if isinstance(final_output, str):
+                command_args.append(f"{final_output}.{final_format}")
+
+                logger.debug(" ".join(command_args))
+                # non-blocking.
+                self._recording_proc = subprocess.Popen(  # nosec B603
+                    command_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            else:
+                encoder.start(output)
+
+                command_args.append("pipe:1")
                 logger.debug(" ".join(command_args))
                 self._recording_proc = subprocess.Popen(  # nosec B603
-                    command_args, stdout=output
+                    command_args, stdout=subprocess.PIPE
                 )
 
+                self._recording_consumer = ProcStdoutConsumer(
+                    self.resolution, final_format, encoder, self._recording_proc
+                )
+                self._recording_consumer.start()
+                # TODO make sure this is closed properly on closure
+
+            # TODO make sure this is consistent with the _recording_proc
+            self._recording_fmt = final_format  # TODO move to an encoder object.
+
+            # TODO add proper error handling to the Popen bits to ensure that
             # TODO add tear-down method (probably on the executor obj)
-            # to avoid zombie processes-event-driven?
+            # to avoid zombie processes
+            # possible using atexit module
 
         # TODO
         @property
@@ -481,9 +452,24 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                 self._preview_proc = None
                 self._preview = None
 
-        # TODO
         def stop_recording(self, splitter_port: int = 1) -> None:
-            return super().stop_recording(splitter_port)
+            super().stop_recording(splitter_port)
+
+            if self._recording_proc is None or splitter_port not in self._encoders:
+                raise PiCameraNotRecording(
+                    "There is no recording in progress on " f"port {str(splitter_port)}"
+                )
+            else:
+                self._recording_proc.terminate()
+                self._recording_proc.wait(timeout=30)
+                if self._recording_consumer is not None:
+                    self._recording_consumer.join()
+                self._recording_proc = None
+                self._recording_fmt = None
+                self._recording_consumer = None
+                self._encoders[splitter_port].close()
+                with self._encoders_lock:
+                    del self._encoders[splitter_port]
 
         @property
         def _has_ffmpeg(self) -> bool:
@@ -513,4 +499,98 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                 logger.error("ffprobe not found. Please install it.")
                 return False
 
+        def _get_ports(
+            self, from_video_port: bool, splitter_port: int
+        ) -> tuple[mo.MMALVideoPort, mo.MMALVideoPort]:
+            """
+            Determine the camera and output ports for given capture options.
+
+            See :ref:`camera_hardware` for more information on picamera's usage of
+            camera, splitter, and encoder ports. The general idea here is that the
+            capture (still) port operates on its own, while the video port is
+            always connected to a splitter component, so requests for a video port
+            also have to specify which splitter port they want to use.
+            """
+            # self._check_camera_open()
+            if from_video_port and (splitter_port in self._encoders):
+                raise PiCameraAlreadyRecording(
+                    "The camera is already using port %d " % splitter_port
+                )
+
+            camera_port: int = (
+                self.CAMERA_VIDEO_PORT if from_video_port else self.CAMERA_CAPTURE_PORT
+            )
+            output_port: int = splitter_port if from_video_port else camera_port
+            return (mo.MMALVideoPort(camera_port), mo.MMALVideoPort(output_port))
+
+        def __get_vcodec(self, format: Optional[str]) -> str:
+            if format == "h264":
+                return "copy"
+            elif format == "mjpeg":
+                return "mjpeg"
+            else:
+                return "rawvideo"
+
+        def __get_pix_fmt(self, format: Optional[str]) -> str:
+            if format == "yuv":
+                return "yuv420p"
+            elif format == "rgb":
+                return "rgb24"
+            elif format == "bgr":
+                return "bgr24"
+            elif format == "rgba":
+                return "rgba"
+            else:
+                return "bgra"
+
     return _PiCameraAdapter()
+
+
+# TODO move me
+class ProcStdoutConsumer(threading.Thread):
+    def __init__(
+        self,
+        resolution: mo.PiResolution,
+        final_format: str,
+        encoder: PiEncoder,
+        proc: subprocess.Popen[bytes],
+    ):
+        super().__init__()
+        self.resolution = resolution
+        self.final_format = final_format
+        self.encoder = encoder
+        self.proc = proc
+
+    def run(self) -> None:
+        """Consumes the ffmpeg subprocess"""
+
+        is_raw: bool = (
+            True
+            if self.final_format in ["rgb", "rgba", "bgr", "bgra", "yuv"]
+            else False
+        )
+
+        frame_size: int
+        if is_raw:
+            # stream frame by frame when raw
+            frame_size = (
+                self.resolution.width * self.resolution.height * len(self.final_format)
+            )
+
+            if self.final_format == "yuv":
+                # YUV has a byte ratio of 4:6 hence multiply by 2/3
+                frame_size = round(frame_size * 2 / 3)
+        else:
+            # When not raw, just copy 100kb at a time
+            # FIXME recalculate to get desired bitrate
+            frame_size = 100 * 1000
+
+        contents: bytes
+        while self.proc.poll() is None:
+            if self.proc.stdout is None:
+                break
+            contents = self.proc.stdout.read(frame_size)
+            self.encoder.outputs[PiVideoFrameType.frame][0].write(contents)
+        if self.proc.stdout is not None:
+            contents = self.proc.stdout.read()
+            self.encoder.outputs[PiVideoFrameType.frame][0].write(contents)

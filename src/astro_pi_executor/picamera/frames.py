@@ -13,8 +13,9 @@ class PiVideoFrameType:
 
 class PiVideoFrame(NamedTuple):
     index: int  # type: ignore
-    frame_type: PiVideoFrameType
+    frame_type: int
     frame_size: int
     video_size: int
     split_size: int
     timestamp: int
+    complete: bool

@@ -3,15 +3,15 @@ import ctypes
 import logging
 import platform
 import subprocess
+import threading
 import time
 from abc import abstractmethod, abstractproperty
 from fractions import Fraction
 from typing import BinaryIO, Iterable, Optional, Union
 
-import numpy as np
 from colorzero import Color
 
-from astro_pi_executor.custom_types import UV, XYWH
+from astro_pi_executor.custom_types import IO_TYPE, UV, XYWH
 from astro_pi_executor.executor import AstroPiExecutorException
 from astro_pi_executor.picamera.exc import PiCameraRuntimeError
 from astro_pi_executor.picamera.frames import PiVideoFrame
@@ -183,6 +183,7 @@ class PiCamera(abc.ABC):
         self.crop: XYWH = (0.0, 0.0, 1.0, 1.0)
         self.digital_gain: Fraction = Fraction(187, 128)  # TODO sample
         self.drc_strength: str = "off"
+        self._encoders_lock: threading.Lock = threading.Lock()
         self.exif_tags: dict[str, str] = PiCamera._DEFAULT_EXIF_TAGS
         self.exposure_compensation: int = 0
         self.exposure_mode: str = "auto"
@@ -255,7 +256,7 @@ class PiCamera(abc.ABC):
     @abstractmethod
     def capture(
         self,
-        output: Union[str, BinaryIO, np.ndarray],
+        output: IO_TYPE,
         format: Optional[str] = None,
         use_video_port: bool = False,
         resize: Optional[tuple[int, int]] = None,
@@ -268,7 +269,7 @@ class PiCamera(abc.ABC):
     @abstractmethod
     def capture_continuous(
         self,
-        output: Union[str, BinaryIO, np.ndarray],
+        output: IO_TYPE,
         format: Optional[str] = None,
         use_video_port: bool = False,
         resize: Optional[tuple[int, int]] = None,
@@ -282,7 +283,7 @@ class PiCamera(abc.ABC):
     @abstractmethod
     def capture_sequence(
         self,
-        outputs: Iterable[Union[str, BinaryIO, np.ndarray]],
+        outputs: Iterable[IO_TYPE],
         format: str = "jpeg",
         use_video_port: bool = False,
         resize: Optional[tuple[int, int]] = None,
@@ -327,12 +328,12 @@ class PiCamera(abc.ABC):
     @abstractmethod
     def record_sequence(
         self,
-        outputs: Iterable[Union[str, BinaryIO, np.ndarray]],
+        outputs: Iterable[IO_TYPE],
         format: str = "h264",
         resize: Optional[tuple[int, int]] = None,
         splitter_port: int = 1,
         **option,
-    ) -> None:
+    ) -> Iterable[IO_TYPE]:
         pass
 
     @property
@@ -347,8 +348,12 @@ class PiCamera(abc.ABC):
         pass
 
     @abstractmethod
-    # TODO type
-    def split_recording(self, output) -> None:
+    def split_recording(
+        self,
+        output: IO_TYPE,
+        splitter_port: int = 1,
+        **options,
+    ) -> Optional[PiVideoFrame]:
         pass
 
     @abstractmethod
@@ -361,7 +366,7 @@ class PiCamera(abc.ABC):
         self,
         # TODO create bufferable and writeable protocol types and a synonym
         # for this union
-        output: Union[str, BinaryIO, np.ndarray],
+        output: IO_TYPE,
         format: Optional[str] = None,
         resize: Optional[tuple[int, int]] = None,
         splitter_port: int = 1,
@@ -408,3 +413,14 @@ class PiCamera(abc.ABC):
     def wait_recording(self, timeout: int = 0, splitter_port: int = 1) -> None:
         if timeout > 0:
             time.sleep(timeout)
+
+    # private methods expected by picamera's internal implementation
+    def _stop_capture(self, port):
+        """
+        Stops the camera capturing frames.
+
+        This method stops the camera feeding frames to any attached encoders,
+        but only disables capture if the port is the camera's still port, or if
+        there's a single active encoder on the video splitter.
+        """
+        pass

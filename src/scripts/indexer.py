@@ -66,13 +66,18 @@ def create_video() -> None:
         raise RuntimeError("This method only works on Linux")
     command_list: list[str] = [
         "ffmpeg",
+        # Set input format to image2
         "-f",
         "image2",
+        # use the file access times as the frame timestamps
         "-ts_from_file",
         "2",
         "-i",
         "image%d.jpg",
-        "out.mp4",
+        # Set the framerate to 25
+        "-filter:v",
+        "fps=25",
+        "OrbitAz.mp4",  # mp4 preferred as time-slicable with -ss
     ]
     logger.debug(" ".join(command_list))
     subprocess.run(command_list, check=True)  # nosec B603

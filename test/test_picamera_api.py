@@ -18,6 +18,7 @@ import test_utils
 from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.picamera.array import PiRGBArray
 from astro_pi_executor.picamera.camera import PiCameraAdapter
+from astro_pi_executor.picamera.streams import PiCameraCircularIO
 from astro_pi_executor.resources import get_resource
 
 logger = logging.getLogger(__name__)
@@ -25,14 +26,15 @@ logger = logging.getLogger(__name__)
 # 4 formats are unsupported directly by PIL for now FIXME
 # formats: list[str] = ['jpg', 'jpeg', 'png', 'gif', 'bmp',
 #                        'yuv', 'rgb', 'rgba', 'bgr', 'bgra', 'raw']
-formats: list[str] = ["jpg", "jpeg", "png", "gif", "bmp", "rgb", "rgba"]
+photo_formats: list[str] = ["jpg", "jpeg", "png", "gif", "bmp", "rgb", "rgba"]
+video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
 ########
 # TESTS
 ########
 
 
-@pytest.mark.parametrize("format", formats)
+@pytest.mark.parametrize("format", photo_formats)
 def test_replay_capture_should_replay_captured_photos_in_given_format(
     tmp_path: Path, format: str
 ):
@@ -62,7 +64,7 @@ def test_replay_capture_should_replay_captured_photos_in_given_file(tmp_path: Pa
     file_path: Path = tmp_path / "example.jpg"
     cam = PiCameraAdapter(executor)
     with file_path.open("wb") as f:
-        cam.capture(f)
+        cam.capture(f, format="jpeg")
 
     assert file_path.exists()
     # TODO assert on content
@@ -191,19 +193,124 @@ def test_replay_capture_sequence_with_filenames(tmp_path: Path):
     # TODO assert on content
 
 
-def test_replay_start_recording(tmp_path: Path):
+@pytest.mark.parametrize("format", video_formats)
+def test_replay_start_recording_supports_all_video_formats(tmp_path: Path, format: str):
     cam = PiCameraAdapter()
-    output = tmp_path / "example.h264"
-    df = cam.start_recording(str(output), format="h264")
-    print(df)
-    # TODO
+    output = tmp_path / f"example.{format}"
+    # TODO make deterministic
+    cam.start_recording(str(output), format=format)
+    cam.wait_recording(1)
+    cam.stop_recording()
+    assert output.exists()
+    # TODO assert on content
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_replay_start_recording_resizes():
+    pass
+
+
+@pytest.mark.parametrize("format", video_formats)
+def test_replay_start_recording_into_stream(format: str):
+    # TODO make deterministic
+    cam = PiCameraAdapter()
+    stream = io.BytesIO()
+    cam.start_recording(stream, format=format, quality=23)
+    cam.wait_recording(1)
+    cam.stop_recording()
+    assert len(stream.getbuffer()) > 0
+    # TODO assert on content
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_replay_start_recording_writes_text_annotations():
+    pass
+
+
+def test_replay_split_recording_creates_multiple_files(tmp_path: Path):
+    cam = PiCameraAdapter()
+    # TODO make deterministic
+    cam.start_recording(str(tmp_path / "1.h264"))
+    cam.wait_recording(1)
+    cam.split_recording(str(tmp_path / "2.h264"))
+    cam.wait_recording(1)
+    cam.stop_recording()
+    assert len(os.listdir(tmp_path)) == 2
+    for filename in ["1.h264", "2.h264"]:
+        assert filename in os.listdir(tmp_path)
+        # TODO assert on content
+
+
+def test_replay_records_to_a_circular_stream(tmp_path: Path):
+    # TODO make deterministic
+    cam = PiCameraAdapter()
+    bytes_per_frame: int = cam.resolution[0] * cam.resolution[1] * 3
+
+    # TODO make the recording consumer silent and move it
+
+    stream = PiCameraCircularIO(cam, size=bytes_per_frame)
+    cam.start_recording(stream, format="rgb")
+    cam.wait_recording(1)
+    cam.stop_recording()
+
+    assert len(stream.getvalue()) == bytes_per_frame
+    # TODO assert on content
+
+    copied_output: Path = tmp_path / "example.rgb"
+    stream.copy_to(str(copied_output))
+    with copied_output.open("rb") as f:
+        assert len(f.read()) == bytes_per_frame
+
+
+def test_replay_record_sequence(tmp_path: Path):
+    cam = PiCameraAdapter()
+    # TODO make deterministic
+    outputs: list[str] = list(map(lambda x: str(tmp_path / x), ["1.h264", "2.h264"]))
+    for _ in cam.record_sequence(outputs):
+        cam.wait_recording(1)
+    cam.stop_recording()
+    assert len(os.listdir(tmp_path)) == 2
+    for output in outputs:
+        assert Path(output).exists()
+        # TODO assert on content
+
+
+@pytest.mark.skip(reason="GUI test")
+def test_start_preview_shows_preview():
+    # tkinter test
+    pass
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_start_preview_shows_annotations_if_present():
+    pass
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_start_preview_displays_overlays():
+    # test camera.add_overlay(pad.tobytes(), size=img.size)
+    # test camera.remove_overlay
+    pass
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_frames_returns_frame_info():
+    pass
+
+
+@pytest.mark.skip(reason="Not yet implemented")
+def test_camera_adapter_as_content_manager_does_not_leak_resource():
     pass
 
 
 def test_picamera_adapter_has_all_expected_methods():
     cam = PiCameraAdapter()
-    methods = []  # TODO
-    for method in methods:
+    with test_utils.get_test_resource("picamera_interface.json").open() as f:
+        expected_picamera_interface: dict[str, list[str]] = json.loads(f.read())
+
+    for method in filter(
+        lambda x: not x.startswith("_"), expected_picamera_interface["callables"]
+    ):
         assert hasattr(cam, method)
         func = getattr(cam, method)
         assert callable(func), f"Expecting {method} to be callable"
@@ -211,20 +318,16 @@ def test_picamera_adapter_has_all_expected_methods():
 
 def test_picamera_adapter_has_all_expected_attrs():
     cam = PiCameraAdapter()
-    attrs = []  # TODO
-    for attr in attrs:
+    with test_utils.get_test_resource("picamera_interface.json").open() as f:
+        expected_picamera_interface: dict[str, list[str]] = json.loads(f.read())
+    # led is not a readable attribute, and frame only works during video playback
+    for attr in filter(
+        lambda x: not x.startswith("_") and x not in ["frame", "led"],
+        expected_picamera_interface["attrs"],
+    ):
         assert hasattr(cam, attr), f"Expecting PiCameraAdapter to have {attr}"
 
 
 # TODO test custom objects e.g. renderers, streams, encoders?
 
-# TODO test camera.add_overlay(pad.tobytes(), size=img.size)
-
-# TODO test the rest of the API! e.g. video, capture sequence, attributes, etc.
-# TODO start_recording, wait_recording, stop_recording, split_recording
-# TODO start_recording with text annotation
-# TODO add annotation text to preview
-# TODO test capture with PiCameraCircularIO (stream)
-# TODO perhaps test preview calls tkinter?
-
-# TODO test preview processes close
+# TODO test preview processes close / resource closure...
