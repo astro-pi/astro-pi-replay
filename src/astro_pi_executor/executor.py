@@ -101,8 +101,6 @@ class AstroPiExecutor:
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename
-            # filename = kwargs["filename"]
-        # return self.replay(filename=filename, *args, **kwargs)
         return self.replay(*args, **kwargs)
 
     def replay(

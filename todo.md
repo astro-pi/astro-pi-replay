@@ -1,6 +1,5 @@
 Current:
 --------
-- Finish basic PiCamera API
 - Finish sense hat API coverage
   - I think it's just the raw methods left now?
 - Orbit support
@@ -12,17 +11,23 @@ the timestamps of the original).
 - skyfield support?
 
 Bonuses:
-- copy over exc
-- Bayer support
+- Fix the picamera previewer
+- copy over picamera exc
+- Bayer support for picamera
 - frames support (pyav, but it always segfaults for me...)
-- Annotation over video
+- Annotation over video for picamera
 - add proper process job control to the executor to ensure
 all processes are killed when the interpreter is killed (using module atexit)
+  - this includes the picamera previewer process and the sense hat displayer process
+- refactor picamera implementation (move around the state and ensure
+resources are closed properly)
 - add interpolation for sense hat
 - add photo interpolation or schedule another run...
 - implement encoders so to reduce the number of deviations from the original i.e. keep more original implementation
 - fix the name == main hack used for the picamera preview
 - misc refactoring (check for TODOs and FIXMes).
+- Replace ffmpeg subproc with either ffmpeg-python or pyav
+- PIR sensor?
 
 Admin & Best-practices:
 - add repo to RPF foundation in TestPypi

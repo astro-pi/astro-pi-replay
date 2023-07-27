@@ -3,6 +3,9 @@ pandas
 Pillow
 exif
 requests
+# for quaternions and euler angles:
+#ahrs
+
 #oem
 ## the below are transitive dependencies of oem
 #lxml

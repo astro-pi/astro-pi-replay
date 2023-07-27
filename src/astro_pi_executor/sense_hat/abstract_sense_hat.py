@@ -194,6 +194,7 @@ class SenseHatAPI:
     SETTINGS_HOME_PATH: str = str()
 
     def __init__(self, imu_settings_file: str, text_assets: str):
+        self._rotation = 0
         pass
 
     @property
@@ -231,11 +232,11 @@ class SenseHatAPI:
     def color(self) -> SenseHatColourSensorAPI:
         return self.colour
 
-    def flip_h(self, redraw: bool) -> None:
-        pass
+    def flip_h(self, redraw: bool = True) -> list[list[int]]:
+        return list()
 
-    def flip_v(self, redraw: bool) -> None:
-        pass
+    def flip_v(self, redraw: bool = True) -> list[list[int]]:
+        return list()
 
     @property
     def gamma(self) -> list[int]:
@@ -270,7 +271,7 @@ class SenseHatAPI:
         return self.humidity
 
     def get_orientation(self) -> RollPitchYawDict:
-        return self.orientation
+        return self.get_orientation_degrees()
 
     def get_orientation_degrees(self) -> RollPitchYawDict:
         return self.orientation
@@ -285,10 +286,10 @@ class SenseHatAPI:
         return list()
 
     def get_pressure(self) -> float:
-        return float()
+        return self.pressure
 
     def get_temperature(self) -> float:
-        return float()
+        return self.get_temperature_from_humidity()
 
     def get_temperature_from_humidity(self) -> float:
         return float()
@@ -319,7 +320,7 @@ class SenseHatAPI:
     def has_colour_sensor(self) -> bool:
         return bool()
 
-    def load_image(self, file_path: str, redraw: bool) -> list[list[int]]:
+    def load_image(self, file_path: str, redraw: bool = True) -> list[list[int]]:
         return list()
 
     @property
@@ -355,26 +356,29 @@ class SenseHatAPI:
     ) -> None:
         pass
 
-    def set_pixels(self, pixel_list: list[list[int]], intercept: bool) -> None:
+    def set_pixels(self, pixel_list: list[list[int]]) -> None:
         pass
 
     def set_pixel(self, x: int, y: int, *args) -> None:
         pass
 
-    def set_rotation(self, r: int, redraw: bool) -> None:
+    def set_rotation(self, r: int, redraw: bool = True) -> None:
         pass
 
     def show_letter(
-        self, s: str, text_colour: list[int], back_colour: list[int]
+        self,
+        s: str,
+        text_colour: list[int] = [255, 255, 255],
+        back_colour: list[int] = [0, 0, 0],
     ) -> None:
         pass
 
     def show_message(
         self,
         text_string: str,
-        scroll_speed: float,
-        text_colour: list[int],
-        back_colour: list[int],
+        scroll_speed: float = 0.1,
+        text_colour: list[int] = [255, 255, 255],
+        back_colour: list[int] = [0, 0, 0],
     ) -> None:
         pass
 
