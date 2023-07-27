@@ -1,7 +1,5 @@
 Current:
 --------
-- Finish sense hat API coverage
-  - I think it's just the raw methods left now?
 - Orbit support
   - Ensure from orbit import ISS gets the correct TLE file.
 - Add wait mode to capture method to ensure photo timestamps will match roughly
