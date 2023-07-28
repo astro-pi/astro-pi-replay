@@ -4,6 +4,7 @@ import subprocess
 import sys
 import uuid
 import venv
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -29,9 +30,9 @@ def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
         [
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
-            "rgb = sh.colour.rgb",
+            "rgb = sh.colour.colour",
             f"with open('{str(file_path)}', 'w') as f:",
-            "    f.write(repr(rgb))",
+            "    f.write(repr(rgb[:3]))",
             f"print('{uuid4}', rgb){os.linesep}",
         ]
     )
@@ -96,6 +97,10 @@ def live_venv(tmp_path_factory) -> Path:
 @pytest.fixture(autouse=True)
 def clear_caches():
     """
-    Ensure that each test always uses a fresh cache
+    Ensure that each test always starts with a fresh state.
+    This is run before each test.
     """
+    # fresh cache
     AstroPiExecutor._df_from_replay_file.cache_clear()
+    executor = AstroPiExecutor()
+    executor._state._start_time = datetime.now()

@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.executor import AstroPiExecutor
+from astro_pi_executor.resources import get_start_time
 from test_utils import ProgramFixture, prepare_executor_to_run_in_fake_live_venv
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,21 @@ def test_replay_when_capture_called_repeatedly_should_return_different_photos(
     tmp_path: Path,
 ):
     pass
+
+
+def test_executor_is_singleton():
+    executor1 = AstroPiExecutor()
+    executor2 = AstroPiExecutor()
+    assert hash(executor1) == hash(executor2)
+    assert executor1 is executor2
+    assert executor1 == executor2
+
+
+def test_time_since_start():
+    executor = AstroPiExecutor()
+    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+        mock_datetime.now.return_value = executor._state._start_time
+        assert executor.time_since_start() == get_start_time()
 
 
 ###########################################
@@ -46,7 +62,7 @@ def test_executor_live_mode_should_call_underlying_libraries(
     executor: AstroPiExecutor = AstroPiExecutor(replay_mode=False)
 
     executor.run(ExecutionMode.LIVE, tmp_path, sense_hat_program.main)
-    expected_regex = r"<MagicMock name='mock\(\)\.colour\.rgb' id='[0-9]+'>"
+    expected_regex = r"<MagicMock name='mock\(\)\.colour\.colour.*' id='[0-9]+'>"
     assert sense_hat_program.expected_file.exists()
     with sense_hat_program.expected_file.open() as f:
         contents = f.read()

@@ -3,10 +3,12 @@ pandas
 Pillow
 exif
 requests
+skyfield # for orbit
+tqdm
 # for quaternions and euler angles:
 #ahrs
 
-#oem
+#oem # to read the OEM file
 ## the below are transitive dependencies of oem
 #lxml
 #astropy

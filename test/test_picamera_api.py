@@ -213,8 +213,12 @@ def test_replay_start_recording_resizes():
 @pytest.mark.parametrize("format", video_formats)
 def test_replay_start_recording_into_stream(format: str):
     # TODO make deterministic
+    # executor = AstroPiExecutor()
+    # # TODO create an astro pi executor fixture
+    # executor._state._start_time = datetime.now()
     cam = PiCameraAdapter()
     stream = io.BytesIO()
+    # TODO make the ffmpeg process be quiet!
     cam.start_recording(stream, format=format, quality=23)
     cam.wait_recording(1)
     cam.stop_recording()

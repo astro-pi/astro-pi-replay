@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 import venv
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial, wraps
 from pathlib import Path
 from typing import Callable, Optional
@@ -17,7 +17,7 @@ import pandas as pd
 
 from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.custom_types import ExecutionMode
-from astro_pi_executor.resources import get_resource
+from astro_pi_executor.resources import get_resource, get_start_time
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,8 @@ class AstroPiExecutor:
     when ExecutionMode is REPLAY, in order control the replaying
     of data. Otherwise, its static methods are used to setup a
     venv and run main.py files.
+
+    The class is a singleton
     """
 
     # MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit", "skyfield"]
@@ -69,23 +71,42 @@ class AstroPiExecutor:
     as defined here in https://docs.python.org/3/library/venv.html#how-venvs-work
     """
     is_in_venv: bool = sys.prefix != sys.base_prefix
+    _instance: Optional["AstroPiExecutor"] = None
 
-    def __init__(
-        self,
+    # def __init__(
+    #     self,
+    #     datetime_col: str = "datetime",
+    #     # example: 2022-01-31 12:21:15.123456
+    #     datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
+    #     replay_mode: bool = True,
+    #     state: AstroPiExecutorState = AstroPiExecutorState(),
+    # ) -> None:
+    #        cls.datetime_col: str = datetime_col
+    #        cls.datetime_format: str = datetime_format
+    #        cls.replay_mode: bool = replay_mode
+    #        cls._state: AstroPiExecutorState = state
+
+    def __new__(
+        cls,
         datetime_col: str = "datetime",
         # example: 2022-01-31 12:21:15.123456
         datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
         replay_mode: bool = True,
         state: AstroPiExecutorState = AstroPiExecutorState(),
-    ) -> None:
-        self.datetime_col: str = datetime_col
-        self.datetime_format: str = datetime_format
-        self.replay_mode: bool = replay_mode
-        self._state: AstroPiExecutorState = state
+    ) -> "AstroPiExecutor":
+        if cls._instance is None:
+            cls._instance = super(AstroPiExecutor, cls).__new__(cls)
 
-        # TODO add option to be a bit like easyrandom / haskell type testing
-        # random_mode = False # whether or not to randomly generate data
-        # mode: ir or vis
+            cls.datetime_col: str = datetime_col
+            cls.datetime_format: str = datetime_format
+            cls.replay_mode: bool = replay_mode
+            cls._state: AstroPiExecutorState = state
+
+            # TODO add option to be a bit like easyrandom / haskell type testing
+            # random_mode = False # whether or not to randomly generate data
+            # mode: ir or vis
+
+        return cls._instance
 
     def picamera_replay(self) -> Callable:
         """
@@ -235,6 +256,18 @@ class AstroPiExecutor:
         logging.debug(f"Nearest i: {nearest_i}")
         self._state._last_sense_hat_row_index = nearest_i
         return nearest_i
+
+    def time_since_start(self) -> datetime:
+        """Time relative to the original start time, as specified
+        in the metadata.json file"""
+        execution_start_time: datetime = self._state._start_time
+        now: datetime = datetime.now()
+        delta: timedelta = now - execution_start_time
+
+        original_start_time: datetime = get_start_time()
+        return original_start_time + delta
+
+    # Static methods
 
     @staticmethod
     def _detect_execution_mode() -> ExecutionMode:

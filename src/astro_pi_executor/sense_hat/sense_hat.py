@@ -138,6 +138,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
     return _SenseHatColourSensorAdapter()
 
 
+# TODO this should load a singleton executor
 def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAPI:
     class _SenseHatAdapter(SenseHatAPI):
         """
