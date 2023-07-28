@@ -26,6 +26,7 @@ resources are closed properly)
 - misc refactoring (check for TODOs and FIXMes).
 - Replace ffmpeg subproc with either ffmpeg-python or pyav
 - PIR sensor?
+- move de421.bsp and tle files out of the github and into the resources download
 
 Admin & Best-practices:
 - add repo to RPF foundation in TestPypi
