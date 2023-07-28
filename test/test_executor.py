@@ -134,4 +134,8 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     picamera_path: Path = site_packages_path / "picamera"
     assert "camera.py" in os.listdir(picamera_path)
 
+    assert "orbit" in os.listdir(site_packages_path)
+    orbit_path: Path = site_packages_path / "orbit"
+    assert "telemetry.py" in os.listdir(orbit_path)
+
     # TODO add the other modules

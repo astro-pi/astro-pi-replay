@@ -33,6 +33,7 @@ class AstroPiExecutorState:
         self._start_time: datetime = datetime.now()
 
 
+# TODO move
 class AstroPiExecutorRuntimeError(RuntimeError):
     pass
 
@@ -63,7 +64,7 @@ class AstroPiExecutor:
     """
 
     # MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit", "skyfield"]
-    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera"]
+    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit"]
     NOT_FOUND = f"{PROGRAM_NAME} not found"
 
     """

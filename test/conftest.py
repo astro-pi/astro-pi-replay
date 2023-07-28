@@ -85,6 +85,7 @@ def live_venv(tmp_path_factory) -> Path:
     module_files: dict[str, list[str]] = {
         "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
         "picamera": ["from unittest.mock import MagicMock", "PiCamera = MagicMock()"],
+        "orbit": ["from unittest.mock import MagicMock", "ISS = MagicMock()"],
     }
 
     for module in AstroPiExecutor.MODULES_TO_STUB:
