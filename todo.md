@@ -1,7 +1,5 @@
 Current:
 --------
-- Orbit support
-  - Ensure from orbit import ISS gets the correct TLE file.
 - Add wait mode to capture method to ensure photo timestamps will match roughly
 the timestamps of the original).
 - Test velocity calculations using the library using the basic project
