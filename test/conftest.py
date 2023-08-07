@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
+def exception_program(tmp_path: Path) -> Path:
+    main_path: Path = tmp_path / (str(uuid.uuid4()) + ".txt")
+    contents: str = "raise Exception('Woops! Something went wrong')"
+    with main_path.open("w") as f:
+        f.write(contents)
+    return main_path
+
+
+@pytest.fixture
 def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
     """
     Writes a basic main.py program - file A - that reads from the SenseHat

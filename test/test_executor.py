@@ -9,10 +9,12 @@ import re
 import sys
 from datetime import timedelta
 from pathlib import Path
+from subprocess import CalledProcessError
+from typing import Callable
 from unittest.mock import Mock, patch
 
 from astro_pi_executor.custom_types import ExecutionMode
-from astro_pi_executor.executor import AstroPiExecutor
+from astro_pi_executor.executor import AstroPiExecutor, Lifecycle
 from astro_pi_executor.resources import get_start_time
 from test_utils import ProgramFixture, prepare_executor_to_run_in_fake_live_venv
 
@@ -138,4 +140,16 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     orbit_path: Path = site_packages_path / "orbit"
     assert "telemetry.py" in os.listdir(orbit_path)
 
-    # TODO add the other modules
+
+def test_teardowns_run_when_exception_thrown_by_program(
+    tmp_path: Path, exception_program: Path
+):
+    semaphore: Path = tmp_path / "semaphore"
+    callback: Callable = lambda: os.close(os.open(str(semaphore), os.O_CREAT))
+    executor: AstroPiExecutor = AstroPiExecutor()
+    executor._register_callback(Lifecycle.AFTER, callback)
+    try:
+        executor.run(ExecutionMode.REPLAY, tmp_path, exception_program)
+    except CalledProcessError:
+        pass
+    assert semaphore.exists()

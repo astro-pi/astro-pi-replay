@@ -1,3 +1,4 @@
+import collections
 import functools
 import importlib.util
 import logging
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import venv
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial, wraps
 from pathlib import Path
 from typing import Callable, Optional
@@ -20,6 +22,11 @@ from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.resources import get_resource, get_start_time
 
 logger = logging.getLogger(__name__)
+
+
+class Lifecycle(Enum):
+    BEFORE = "BEFORE"
+    AFTER = "AFTER"
 
 
 class AstroPiExecutorState:
@@ -72,20 +79,8 @@ class AstroPiExecutor:
     as defined here in https://docs.python.org/3/library/venv.html#how-venvs-work
     """
     is_in_venv: bool = sys.prefix != sys.base_prefix
-    _instance: Optional["AstroPiExecutor"] = None
-
-    # def __init__(
-    #     self,
-    #     datetime_col: str = "datetime",
-    #     # example: 2022-01-31 12:21:15.123456
-    #     datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
-    #     replay_mode: bool = True,
-    #     state: AstroPiExecutorState = AstroPiExecutorState(),
-    # ) -> None:
-    #        cls.datetime_col: str = datetime_col
-    #        cls.datetime_format: str = datetime_format
-    #        cls.replay_mode: bool = replay_mode
-    #        cls._state: AstroPiExecutorState = state
+    _instance: Optional["AstroPiExecutor"] = None  # singleton instance
+    _callbacks: dict[Lifecycle, list[Callable]] = collections.defaultdict(list)
 
     def __new__(
         cls,
@@ -93,7 +88,8 @@ class AstroPiExecutor:
         # example: 2022-01-31 12:21:15.123456
         datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
         replay_mode: bool = True,
-        state: AstroPiExecutorState = AstroPiExecutorState(),
+        state: Optional[AstroPiExecutorState] = None,
+        no_wait: bool = False,
     ) -> "AstroPiExecutor":
         if cls._instance is None:
             cls._instance = super(AstroPiExecutor, cls).__new__(cls)
@@ -101,7 +97,10 @@ class AstroPiExecutor:
             cls.datetime_col: str = datetime_col
             cls.datetime_format: str = datetime_format
             cls.replay_mode: bool = replay_mode
+            if state is None:
+                state = AstroPiExecutorState()
             cls._state: AstroPiExecutorState = state
+            cls.no_wait: bool = no_wait
 
             # TODO add option to be a bit like easyrandom / haskell type testing
             # random_mode = False # whether or not to randomly generate data
@@ -174,71 +173,6 @@ class AstroPiExecutor:
             logger.debug("Returning actual decorator")
         return decorator
 
-    @staticmethod
-    def run(
-        execution_mode: Optional[ExecutionMode],
-        venv_dirname: Optional[Path],
-        main: Path,
-    ) -> None:
-        """
-        This method runs the given main file using the given execution mode.
-        If the passed in execution mode is Replay mode, then creates a venv
-        in the venv_dirname if it does not already exist.
-
-        execution_mode: Whether to replay data or capture live data.
-        venv_dirname: The directory to create the venv in replay mode, if it does not
-        exist.
-        main: The filename to execute - generally called main.py.
-        """
-
-        if execution_mode is None:
-            execution_mode = AstroPiExecutor._detect_execution_mode()
-            logging.debug(f"Detected execution mode: {execution_mode}")
-        if not main.exists() or not main.is_file():
-            raise AstroPiExecutorException(f"File {main} is not a regular file")
-
-        env: Optional[dict[str, str]]
-        python3: str
-
-        # Conditionally create the venv
-        if execution_mode == ExecutionMode.REPLAY:
-            if venv_dirname is None:
-                logging.debug("venv_dirname is None - fetching value from env")
-                venv_dirname = (
-                    Path(os.environ.get("HOME", tempfile.gettempdir()))
-                    / f".{PROGRAM_NAME}"
-                )
-                logging.debug(f"Found {venv_dirname}")
-
-            venv_dir: Path = AstroPiExecutor._setup_venv(venv_dirname)
-
-            # Prepare the environment to be used in the subprocess.
-            env = os.environ.copy()
-            env["PATH"] = ":".join([str(Path(venv_dir) / "bin"), env["PATH"]])
-            env["VIRTUAL_ENV"] = str(venv_dir)
-
-            python3 = str(venv_dir / "bin" / "python3")
-        else:
-            logging.debug("Running in live mode")
-            env = None
-            python3 = "python3"
-
-        # Add if __name__ == "__main__" guard as needed
-        # (required by multiprocessing in CameraPreview currently FIXME)
-        main = AstroPiExecutor.add_name_is_main_guard(main)
-
-        # Run the program that was passed in
-        if platform.system() in ["Linux", "Darwin", "Windows"]:
-            # -u is for unbuffered Python, which is what is used on the
-            # Astro Pis on the ISS.
-            args: list[str] = [python3, "-u", str(main.resolve())]
-            logging.debug(f"Executing '{' '.join(args)}' in subprocess")
-            subprocess.run(
-                args, env=env if env is not None else env, check=True
-            )  # nosec B603: runs main as intended
-        else:
-            raise OSError(f"Unsupported system {os}")
-
     def _find_next_datum(self, df: pd.DataFrame) -> int:
         """
         Finds the next row in the given dataframe indexed by
@@ -257,29 +191,6 @@ class AstroPiExecutor:
         logging.debug(f"Nearest i: {nearest_i}")
         self._state._last_sense_hat_row_index = nearest_i
         return nearest_i
-
-    def time_since_start(self) -> datetime:
-        """Time relative to the original start time, as specified
-        in the metadata.json file"""
-        execution_start_time: datetime = self._state._start_time
-        now: datetime = datetime.now()
-        delta: timedelta = now - execution_start_time
-
-        original_start_time: datetime = get_start_time()
-        return original_start_time + delta
-
-    # Static methods
-
-    @staticmethod
-    def _detect_execution_mode() -> ExecutionMode:
-        return (
-            ExecutionMode.LIVE
-            if all(
-                importlib.util.find_spec(module) is not None
-                for module in AstroPiExecutor.MODULES_TO_STUB
-            )
-            else ExecutionMode.REPLAY
-        )
 
     @functools.cache
     def _df_from_replay_file(self, filename: str, datetime_col: str) -> pd.DataFrame:
@@ -349,6 +260,27 @@ class AstroPiExecutor:
         )
         return out
 
+    def time_since_start(self) -> datetime:
+        """Time relative to the original start time, as specified
+        in the metadata.json file"""
+        execution_start_time: datetime = self._state._start_time
+        now: datetime = datetime.now()
+        delta: timedelta = now - execution_start_time
+
+        original_start_time: datetime = get_start_time()
+        return original_start_time + delta
+
+    @staticmethod
+    def _detect_execution_mode() -> ExecutionMode:
+        return (
+            ExecutionMode.LIVE
+            if all(
+                importlib.util.find_spec(module) is not None
+                for module in AstroPiExecutor.MODULES_TO_STUB
+            )
+            else ExecutionMode.REPLAY
+        )
+
     @staticmethod
     def add_name_is_main_guard(main: Path) -> Path:
         """
@@ -370,21 +302,51 @@ class AstroPiExecutor:
                 includes_guard = True
         logger.debug(f"Main file includes guard: {includes_guard}")
 
-        if includes_guard:
-            return main
-        else:
+        if not includes_guard:
+            # 1. Copy the original file to a temp folder
+            tempdir = Path(tempfile.gettempdir())
+            executor_temp_dir: Path = tempdir / PROGRAM_NAME
+            executor_temp_dir.mkdir(exist_ok=True)
+            original_main: Path = executor_temp_dir / "original_main.py"
+            shutil.copy2(main, original_main)
+
+            # 2. Write modifications to a temp file
             tabbed = os.linesep.join([f"    {line}" for line in contents.splitlines()])
             if len(tabbed) == 0:
                 tabbed = "    pass"
-
-            tempdir = Path(tempfile.gettempdir())
             main_copy: Path = tempdir / "main.py"
-            if main_copy.exists():
-                os.remove(main_copy)
             with main_copy.open("w") as f:
                 f.write(substrings[0] + os.linesep)
                 f.write(tabbed)
-            return main_copy
+
+            # 3. Temporarily overwrite the main.py in the original location
+            # with the modified version
+            shutil.copy2(main_copy, main)
+
+            # 4. Add teardown to replace the modified main.py with the
+            # original after execution
+            AstroPiExecutor._register_callback(
+                Lifecycle.AFTER, lambda: shutil.copy2(original_main, main)
+            )
+
+        return main
+
+    @staticmethod
+    def _register_callback(lifecycle: Lifecycle, callback: Callable) -> None:
+        """
+        Registers a callback to be executed at a specific point in
+        the executor lifecycle
+        """
+        AstroPiExecutor._callbacks[lifecycle].append(callback)
+
+    @staticmethod
+    def _run_callbacks(lifecycle: Lifecycle) -> None:
+        """
+        Runs the registered callbacks for the specified point in the executor
+        lifecycle
+        """
+        for callback in AstroPiExecutor._callbacks[lifecycle]:
+            callback()
 
     @staticmethod
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
@@ -452,6 +414,76 @@ class AstroPiExecutor:
             )
 
         return venv_dir
+
+    @staticmethod
+    def run(
+        execution_mode: Optional[ExecutionMode],
+        venv_dirname: Optional[Path],
+        main: Path,
+    ) -> None:
+        """
+        This method runs the given main file using the given execution mode.
+        If the passed in execution mode is Replay mode, then creates a venv
+        in the venv_dirname if it does not already exist.
+
+        execution_mode: Whether to replay data or capture live data.
+        venv_dirname: The directory to create the venv in replay mode, if it does not
+        exist.
+        main: The filename to execute - generally called main.py.
+        """
+
+        if execution_mode is None:
+            execution_mode = AstroPiExecutor._detect_execution_mode()
+            logging.debug(f"Detected execution mode: {execution_mode}")
+        if not main.exists() or not main.is_file():
+            raise AstroPiExecutorException(f"File {main} is not a regular file")
+
+        env: Optional[dict[str, str]]
+        python3: str
+
+        # Conditionally create the venv
+        # TODO create spinner/progress bar for this
+        if execution_mode == ExecutionMode.REPLAY:
+            if venv_dirname is None:
+                logging.debug("venv_dirname is None - fetching value from env")
+                venv_dirname = (
+                    # TODO extract this into astro_pi_executor.config
+                    Path(os.environ.get("HOME", tempfile.gettempdir()))
+                    / f".{PROGRAM_NAME}"
+                )
+                logging.debug(f"Found {venv_dirname}")
+
+            venv_dir: Path = AstroPiExecutor._setup_venv(venv_dirname)
+
+            # Prepare the environment to be used in the subprocess.
+            env = os.environ.copy()
+            env["PATH"] = ":".join([str(Path(venv_dir) / "bin"), env["PATH"]])
+            env["VIRTUAL_ENV"] = str(venv_dir)
+
+            python3 = str(venv_dir / "bin" / "python3")
+        else:
+            logging.debug("Running in live mode")
+            env = None
+            python3 = "python3"
+
+        # Add if __name__ == "__main__" guard as needed
+        # (required by multiprocessing in CameraPreview currently FIXME)
+        main = AstroPiExecutor.add_name_is_main_guard(main)
+
+        try:
+            # Run the program that was passed in
+            if platform.system() in ["Linux", "Darwin", "Windows"]:
+                # -u is for unbuffered Python, which is what is used on the
+                # Astro Pis on the ISS.
+                args: list[str] = [python3, "-u", str(main.resolve())]
+                logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+                subprocess.run(
+                    args, env=env if env is not None else env, check=True
+                )  # nosec B603: runs main as intended
+            else:
+                raise OSError(f"Unsupported system {os}")
+        finally:
+            AstroPiExecutor._run_callbacks(Lifecycle.AFTER)  # teardown
 
 
 # TODO check that sense_hat can be imported when executed via astro_pi_executor

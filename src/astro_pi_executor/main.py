@@ -33,16 +33,17 @@ def main() -> None:
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
     run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
     run_parser.add_argument(
-        "--match-original-photo-intervals",
+        "--no-match-original-photo-intervals",
         action="store_true",
-        help="Enable this mode to sleep in between successive captures to "
+        default=False,
+        help="Disable this mode to stop sleeping in between successive captures to "
         + "try and match the timestamps of the original photos.",
     )
     run_parser.add_argument(
         "--mode",
         type=ExecutionMode,
         required=False,
-        help="Whether to replay data or fetch" + "live data",
+        help="Whether to replay data (REPLAY) or fetch" + "live data (LIVE)",
     )
     run_parser.add_argument(
         "--venv_dir",
@@ -66,6 +67,8 @@ def main() -> None:
                 )
             with get_resource("motd").open("r") as f:
                 sys.stdout.write(f.read())
+
+            # TODO write out to the config dir
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main)
         elif args.cmd == "download":
             downloader.download(RESOURCE_DIR)

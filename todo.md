@@ -1,6 +1,6 @@
 Current:
 --------
-- Add wait mode to capture method to ensure photo timestamps will match roughly
+* Add wait mode to capture method to ensure photo timestamps will match roughly
 the timestamps of the original).
 - Test velocity calculations using the library using the basic project
 - Add picamera2 support
