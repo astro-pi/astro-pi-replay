@@ -40,6 +40,9 @@
             pkgs.gnused
             pkgs.ffmpeg
 
+            # For development only
+            pkgs.graphviz
+
             pythonPkgs.python
             pythonPkgs.tkinter
             pythonPkgs.venvShellHook
