@@ -11,7 +11,7 @@ their code will work
 
 ## Usage
 
-Change to your project directory (`cd my-project`) and execute it with `astro_pi_executor run main.py`.
+Change to your project directory (`cd my-project`), install the `astro_pi_executor`, and download the assets using `astro_pi_executor download`. Then execute your program with `astro_pi_executor run main.py`.
 
 This will prepare a sequence of near-infrared images (NIR) images, together with the corresponding
 data collected from the Sense Hat, to be returned by all calls to `picamera`, `sense_hat`, etc.
