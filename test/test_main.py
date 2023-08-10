@@ -1,3 +1,80 @@
-# TODO test commandline arg parse
-def test_main_parses_args_correctly():
+import argparse
+import os
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from astro_pi_executor import PROGRAM_NAME
+from astro_pi_executor.main import _main, main
+from test_utils import ProgramFixture
+
+
+@pytest.mark.skip(reason="TODO")
+@patch("sys.argv", [PROGRAM_NAME, "download"])
+def test_main_cli_downloads():
+    pass
+
+
+@patch("sys.argv", [PROGRAM_NAME, "run"])
+def test_main_cli_when_run_given_but_no_main_should_error(capsys):
+    try:
+        main()
+    except SystemExit:
+        pass
+    output = capsys.readouterr()
+    assert "the following arguments are required: main" in output.err
+
+
+@patch("astro_pi_executor.main._main")
+def test_main_cli_when_run_given_supplies_default_args(
+    mock_main, sense_hat_program: ProgramFixture
+):
+    args = [PROGRAM_NAME, "run", str(sense_hat_program.main)]
+    with patch("sys.argv", args):
+        try:
+            main()
+        except SystemExit:
+            pass
+        assert len(mock_main.call_args.args) == 1
+        namespace = mock_main.call_args.args[0]
+        assert namespace.main == sense_hat_program.main
+        assert namespace.cmd == args[1]
+        assert namespace.debug is False
+        assert namespace.mode is None
+        assert namespace.no_match_original_photo_intervals is False
+        assert namespace.venv_dir is None
+
+
+def test_main_saves_configuration(tmp_path: Path):
+    main: Path = tmp_path / "main.py"
+    os.close(os.open(str(main), flags=os.O_CREAT))
+    # Given
+    args: dict = {
+        "debug": True,
+        "main": main,
+        "no_match_original_photo_intervals": True,
+        "cmd": "run",
+        "mode": None,
+        "venv_dir": None,
+    }
+    namespace: argparse.Namespace = argparse.Namespace(**args)
+
+    expected_file: Path = tmp_path / "test_config.json"
+    # When
+    with patch("astro_pi_executor.configuration.CONFIG_FILE", expected_file):
+        _main(namespace)
+    assert expected_file.exists()
+
+
+@pytest.mark.skip(reason="TODO")
+def test_calls_executor_run_with_correct_args():
+    pass
+
+
+@pytest.mark.skip(reason="TODO")
+def test_when_main_raises_exception_should_raise_errors_correctly(
+    exception_program: Path, capsys
+):
+    # the stack trace should be pruned so as to not show the internals of the executor
     pass

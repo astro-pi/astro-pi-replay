@@ -40,6 +40,7 @@ GITHUB_CONTAINER_REGISTRY_URL:=ghcr.io
 
 GREP_REGEX_ENGINE:=$(shell $(GREP) "-P" Makefile &> /dev/null && echo "P" || echo "E")
 MAIN_BRANCH:=main
+PROFILE_DIR:=prof
 PYFLAGS=
 PYPROJECT:=pyproject.toml
 ifdef PYTEST_DEBUG
@@ -47,7 +48,8 @@ PYTEST_FLAGS:=-s --log-cli-level=DEBUG
 else
 PYTEST_FLAGS:=-s
 endif
-REQUIREMENTS_TXT:=requirements-dev.txt
+REQUIREMENTS_DEV_TXT:=requirements-dev.txt
+REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
 VENV_NAME:=venv
@@ -143,7 +145,7 @@ build_docs: $(VENV) $(DOC_SOURCES)
 build_python: $(DIST_DIR)
 
 clean:
-	@$(RM) -rf $(VENV_NAME) $(DIST_DIR) $(SITE_DIR)
+	@$(RM) -rf $(VENV_NAME) $(DIST_DIR) $(SITE_DIR) $(PROFILE_DIR)
 	@$(FIND) . -iname "__pycache__" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
 	@$(FIND) . -iname "*.pyc" | $(SORT) -r | $(XARGS) -I{} rm -f {}
 	@$(FIND) . -iname "*.egg-info" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
@@ -227,6 +229,7 @@ uninstall:
 $(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
 	$(TEST) -d $(VENV_NAME) || $(PYTHON3) $(PYFLAGS) -m $(VENV) $(VENV_NAME) && \
 	. $(VENV_NAME)/bin/activate ; \
+	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
 	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_TXT) ; \
 	$(VENV_PIP) install --editable . ; \
 	$(TOUCH) $(VENV_NAME)/touchfile

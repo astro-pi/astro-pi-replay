@@ -1,0 +1,17 @@
+typing_extensions==4.7.1
+pandas==2.0.3
+Pillow==10.0.0
+exif==1.6.0
+requests==2.31.0
+skyfield==1.46 # for orbit
+tqdm==4.65.0
+# the below are transitive dependencies of picamera
+colorzero==2.0
+# for quaternions and euler angles:
+#ahrs
+# to read the OEM file, if using
+#oem
+## the below are transitive dependencies of oem
+#lxml
+#astropy
+#defusedxml

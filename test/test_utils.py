@@ -1,4 +1,5 @@
 import collections
+import functools
 import importlib
 import inspect
 import logging
@@ -6,7 +7,9 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from unittest.mock import MagicMock, _patch, patch
 
+import pandas as pd
 import pytest
 
 from astro_pi_executor.executor import AstroPiExecutor
@@ -160,3 +163,40 @@ def prepare_executor_to_run_in_fake_live_venv(func):
             sys.path = sys_path_before
 
     return wrapper
+
+
+def set_index_side_effect(indices: list[int] = [0, 1]):
+    """Workaround to patch pd.Index.get_indexer() since directly patching
+    astro_pi_executor.executor.pd.DataFrame.index.get_indexer didn't work.
+    """
+
+    def _set_index_side_effect(method, col):
+        """Workaround to patch pd.Index.get_indexer() since directly patching
+        astro_pi_executor.executor.pd.DataFrame.index.get_indexer didn't work.
+        """
+        logger.debug("Mocked method")
+        x = method(col)
+        mock = MagicMock()
+        # e.g. first element, then second
+        mock.side_effect = [[i] for i in indices]
+        x.index.get_indexer = mock
+        return x
+
+    return _set_index_side_effect
+
+
+def _get_datetime_df(resource_name: str):
+    df = pd.read_csv(get_test_resource(resource_name), parse_dates=["datetime"])
+    return df
+
+
+def patch_photo_indices(indices: list[int]) -> _patch:
+    """
+    Makes the indexer for the photo-indexing dataframe return the given indices
+    """
+    df: pd.DataFrame = _get_datetime_df("photo_indexes.csv")
+    original_method = df.set_index
+    return patch(
+        "pandas.DataFrame.set_index",
+        side_effect=functools.partial(set_index_side_effect(indices), original_method),
+    )

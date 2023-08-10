@@ -43,4 +43,5 @@ repos:
     - id: mypy
       files: ^src/
       types: [python]
+      additional_dependencies: [ "types-requests", "types-Pillow" ]
 

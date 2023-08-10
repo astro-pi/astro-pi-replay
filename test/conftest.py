@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import uuid
@@ -8,10 +9,35 @@ from pathlib import Path
 
 import pytest
 
+from astro_pi_executor.configuration import CONFIG_FILE
 from astro_pi_executor.executor import AstroPiExecutor
 from test_utils import TEST_PYPI_URL, ProgramFixture
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture
+def exception_program(tmp_path: Path) -> Path:
+    main_path: Path = tmp_path / (str(uuid.uuid4()) + ".py")
+    contents: str = "raise Exception('Woops! Something went wrong')"
+    with main_path.open("w") as f:
+        f.write(contents)
+    return main_path
+
+
+@pytest.fixture
+def debug_log_program(tmp_path: Path) -> Path:
+    main_path: Path = tmp_path / (str(uuid.uuid4()) + ".py")
+    contents: str = os.linesep.join(
+        [
+            "import logging",
+            "logger = logging.getLogger(__name__)",
+            "logger.debug('foo')",
+        ]
+    )
+    with main_path.open("w") as f:
+        f.write(contents)
+    return main_path
 
 
 @pytest.fixture
@@ -29,9 +55,9 @@ def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
         [
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
-            "rgb = sh.colour.rgb",
+            "rgb = sh.colour.colour",
             f"with open('{str(file_path)}', 'w') as f:",
-            "    f.write(repr(rgb))",
+            "    f.write(repr(rgb[:3]))",
             f"print('{uuid4}', rgb){os.linesep}",
         ]
     )
@@ -82,7 +108,9 @@ def live_venv(tmp_path_factory) -> Path:
     packages_dir: Path = venv_dir / "lib" / python_version / "site-packages"
 
     module_files: dict[str, list[str]] = {
-        "sense_hat": ["from unittest.mock import Mock", "SenseHat = Mock()"]
+        "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
+        "picamera": ["from unittest.mock import MagicMock", "PiCamera = MagicMock()"],
+        "orbit": ["from unittest.mock import MagicMock", "ISS = MagicMock()"],
     }
 
     for module in AstroPiExecutor.MODULES_TO_STUB:
@@ -90,3 +118,34 @@ def live_venv(tmp_path_factory) -> Path:
         with module_file.open("w") as f:
             f.write(os.linesep.join(module_files[module]))
     return venv_dir
+
+
+@pytest.fixture(autouse=True)
+def clear_caches(tmp_path: Path):
+    """
+    Ensure that each test always starts with a fresh state.
+    This is run before each test.
+    """
+    # Before
+
+    # ensure fresh cache
+    AstroPiExecutor._instance = None
+    AstroPiExecutor._df_from_replay_file.cache_clear()
+    # executor = AstroPiExecutor()
+    # executor._state._start_time = datetime.now()
+
+    # temporarily move the config to avoid it affecting the tests
+
+    tmp_config: Path = tmp_path / str(uuid.uuid4()) / CONFIG_FILE.name
+    tmp_config.parent.mkdir(exist_ok=True)
+
+    if CONFIG_FILE.exists():
+        shutil.copy2(CONFIG_FILE, tmp_config)
+        os.remove(CONFIG_FILE)
+
+    yield
+
+    # After
+    if tmp_config.exists():
+        shutil.copy2(tmp_config, CONFIG_FILE)
+        os.remove(tmp_config)

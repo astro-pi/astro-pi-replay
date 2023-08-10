@@ -1,18 +1,18 @@
 #!/usr/bin/python
 from typing import Callable, Optional
 
-from astro_pi_executor.types import RGB, RGBC, InputEvent, RollPitchYawDict, XYZDict
-
-# Type synonyms
-
-# default values
-DEFAULT_ROLL_PITCH_YAW_DICT = {"roll": float(), "pitch": float(), "yaw": float()}
-DEFAULT_RGB_TUPLE = (int(), int(), int())
-DEFAULT_RGBC_TUPLE = (int(), int(), int(), int())
-DEFAULT_X_Y_Z_DICT = {"x": float(), "y": float(), "z": float()}
-DEFAULT_CALLABLE = (
-    lambda x: x
-)  # TODO could use inspect module to check type annotations at runtime
+from astro_pi_executor.custom_types import (
+    DEFAULT_CALLABLE,
+    DEFAULT_RGB_TUPLE,
+    DEFAULT_RGBC_TUPLE,
+    DEFAULT_ROLL_PITCH_YAW_DICT,
+    DEFAULT_X_Y_Z_DICT,
+    RGB,
+    RGBC,
+    InputEvent,
+    RollPitchYawDict,
+    XYZDict,
+)
 
 
 class SenseHatColourSensorAPI:
@@ -194,6 +194,7 @@ class SenseHatAPI:
     SETTINGS_HOME_PATH: str = str()
 
     def __init__(self, imu_settings_file: str, text_assets: str):
+        self._rotation = 0
         pass
 
     @property
@@ -231,11 +232,11 @@ class SenseHatAPI:
     def color(self) -> SenseHatColourSensorAPI:
         return self.colour
 
-    def flip_h(self, redraw: bool) -> None:
-        pass
+    def flip_h(self, redraw: bool = True) -> list[list[int]]:
+        return list()
 
-    def flip_v(self, redraw: bool) -> None:
-        pass
+    def flip_v(self, redraw: bool = True) -> list[list[int]]:
+        return list()
 
     @property
     def gamma(self) -> list[int]:
@@ -249,34 +250,34 @@ class SenseHatAPI:
         pass
 
     def get_accelerometer(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.accelerometer
 
     def get_accelerometer_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.accelerometer_raw
 
     def get_compass(self) -> float:
-        return float()
+        return self.compass
 
     def get_compass_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.compass_raw
 
     def get_gyroscope(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.gyroscope
 
     def get_gyroscope_raw(self) -> XYZDict:
-        return DEFAULT_X_Y_Z_DICT
+        return self.gyroscope_raw
 
     def get_humidity(self) -> float:
-        return float()
+        return self.humidity
 
     def get_orientation(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.get_orientation_degrees()
 
     def get_orientation_degrees(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.orientation
 
     def get_orientation_radians(self) -> RollPitchYawDict:
-        return DEFAULT_ROLL_PITCH_YAW_DICT
+        return self.orientation_radians
 
     def get_pixel(self, x: int, y: int) -> list[int]:
         return list()
@@ -285,10 +286,10 @@ class SenseHatAPI:
         return list()
 
     def get_pressure(self) -> float:
-        return float()
+        return self.pressure
 
     def get_temperature(self) -> float:
-        return float()
+        return self.get_temperature_from_humidity()
 
     def get_temperature_from_humidity(self) -> float:
         return float()
@@ -319,7 +320,7 @@ class SenseHatAPI:
     def has_colour_sensor(self) -> bool:
         return bool()
 
-    def load_image(self, file_path: str, redraw: bool) -> list[list[int]]:
+    def load_image(self, file_path: str, redraw: bool = True) -> list[list[int]]:
         return list()
 
     @property
@@ -355,26 +356,29 @@ class SenseHatAPI:
     ) -> None:
         pass
 
-    def set_pixels(self, pixel_list: list[list[int]], intercept: bool) -> None:
+    def set_pixels(self, pixel_list: list[list[int]]) -> None:
         pass
 
     def set_pixel(self, x: int, y: int, *args) -> None:
         pass
 
-    def set_rotation(self, r: int, redraw: bool) -> None:
+    def set_rotation(self, r: int, redraw: bool = True) -> None:
         pass
 
     def show_letter(
-        self, s: str, text_colour: list[int], back_colour: list[int]
+        self,
+        s: str,
+        text_colour: list[int] = [255, 255, 255],
+        back_colour: list[int] = [0, 0, 0],
     ) -> None:
         pass
 
     def show_message(
         self,
         text_string: str,
-        scroll_speed: float,
-        text_colour: list[int],
-        back_colour: list[int],
+        scroll_speed: float = 0.1,
+        text_colour: list[int] = [255, 255, 255],
+        back_colour: list[int] = [0, 0, 0],
     ) -> None:
         pass
 
