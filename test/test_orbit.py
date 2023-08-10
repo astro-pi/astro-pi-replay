@@ -11,14 +11,10 @@ from astro_pi_executor.orbit import ephemeris
 from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patched_iss
 from astro_pi_executor.resources import get_start_time
 
-# FIXME the AstroPiExecutor is being instantiated at
-# import time which is affecting the tests
-# and making them non-deterministic
-
 
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
-    ISS: EarthSatellite = _get_iss(executor)
+    ISS = _get_iss(executor)
     pos: GeographicPosition = ISS.coordinates()
     assert pos.latitude.radians == 0.7367376918681074
     assert pos.longitude.radians == 0.6975267490346151

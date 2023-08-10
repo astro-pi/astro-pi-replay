@@ -9,4 +9,4 @@ __requires__ = ["gpiozero", "skyfield"]
 __entry_points__: dict[str, list[str]] = {}
 __scripts__: list[str] = []
 
-__all__ = ["ISS", "ephemeris"]
+__all__ = ["ephemeris", "ISS"]

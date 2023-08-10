@@ -1,4 +1,4 @@
-import functools
+# import functools
 import logging
 import typing
 from datetime import datetime, timezone
@@ -13,6 +13,9 @@ from astro_pi_executor.executor import AstroPiExecutor
 from .telemetry import ISS as _ISS
 from .telemetry import _timescale, coordinates
 
+# from unittest.mock import patch
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,15 +25,24 @@ class EarthSatellite(skyfield.api.EarthSatellite):
     def coordinates(self) -> GeographicPosition:
         return coordinates(self)
 
+    def at(self, _: Time) -> typing.Union[Barycentric, Geocentric, ICRF]:
+        new_t: Time = self._now(self.get_executor())
+        return super().at(new_t)
 
-def now(executor: AstroPiExecutor) -> Time:
-    """
-    Gets the relative time since the start from the executor
-    and converts it.
-    """
-    new_time: datetime = executor.time_since_start()
-    new_time = new_time.replace(tzinfo=timezone.utc)
-    return _timescale.from_datetime(new_time)
+    def _now(self, executor: AstroPiExecutor) -> Time:
+        """
+        Gets the relative time since the start from the executor
+        and converts it.
+        """
+        new_time: datetime = executor.time_since_start()
+        new_time = new_time.replace(tzinfo=timezone.utc)
+        return _timescale.from_datetime(new_time)
+
+    def set_executor(self, executor: AstroPiExecutor):
+        self.executor = executor
+
+    def get_executor(self) -> AstroPiExecutor:
+        return self.executor
 
 
 def get_patched_iss(
@@ -44,26 +56,15 @@ def get_patched_iss(
     if executor is None:
         executor = AstroPiExecutor()
 
-    # TODO refactor this and use a private instance attribute instead
-    global _timescale
-    _timescale.now = functools.partial(now, executor)
+    b = _ISS
+    b.__class__ = EarthSatellite
+    b = typing.cast(EarthSatellite, b)
+    b.set_executor(executor)
+    b.at = EarthSatellite.at.__get__(b)
 
-    # Override the original at method to ignore the time given and instead
-    # use the relative time since the execution started
-    original_at: typing.Callable[
-        [Time], typing.Union[Barycentric, Geocentric, ICRF]
-    ] = _ISS.at
-
-    # TODO The problem is here - the executor patch is not working.
-    def at(t) -> typing.Union[Barycentric, Geocentric, ICRF]:
-        new_t: Time = now(typing.cast(AstroPiExecutor, executor))
-        # seems to be recursing instead of calling the original method.
-        return original_at(new_t)
-
-    _ISS.at = at
-
-    print("Done")
-    return typing.cast(EarthSatellite, _ISS)
+    return b
 
 
 ISS: EarthSatellite = get_patched_iss()
+
+# Instead of doing at from the time given, instead do it from time_since_start
