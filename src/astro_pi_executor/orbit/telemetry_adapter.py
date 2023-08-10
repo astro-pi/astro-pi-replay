@@ -33,13 +33,17 @@ def now(executor: AstroPiExecutor) -> Time:
     return _timescale.from_datetime(new_time)
 
 
-def get_patched_iss(executor: AstroPiExecutor = AstroPiExecutor()) -> EarthSatellite:
+def get_patched_iss(
+    executor: typing.Optional[AstroPiExecutor] = None,
+) -> EarthSatellite:
     """
     Patches the timescale object used by the ISS EarthSatellite so that
     times are relative to the start time of the replayed experiment.
     The start time is stored in the metadata.json file
     """
-    print(executor)
+    if executor is None:
+        executor = AstroPiExecutor()
+
     # TODO refactor this and use a private instance attribute instead
     global _timescale
     _timescale.now = functools.partial(now, executor)
@@ -52,7 +56,8 @@ def get_patched_iss(executor: AstroPiExecutor = AstroPiExecutor()) -> EarthSatel
 
     # TODO The problem is here - the executor patch is not working.
     def at(t) -> typing.Union[Barycentric, Geocentric, ICRF]:
-        new_t: Time = now(executor)
+        new_t: Time = now(typing.cast(AstroPiExecutor, executor))
+        # seems to be recursing instead of calling the original method.
         return original_at(new_t)
 
     _ISS.at = at

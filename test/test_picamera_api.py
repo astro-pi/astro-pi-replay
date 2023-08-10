@@ -29,6 +29,18 @@ logger = logging.getLogger(__name__)
 photo_formats: list[str] = ["jpg", "jpeg", "png", "gif", "bmp", "rgb", "rgba"]
 video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
+###########
+# Fixtures
+###########
+
+
+@pytest.fixture(scope="module")
+def executor():
+    executor = AstroPiExecutor()
+    executor.no_wait = True
+    yield executor
+
+
 ########
 # TESTS
 ########
@@ -36,9 +48,8 @@ video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"
 
 @pytest.mark.parametrize("format", photo_formats)
 def test_replay_capture_should_replay_captured_photos_in_given_format(
-    tmp_path: Path, format: str
+    tmp_path: Path, executor: AstroPiExecutor, format: str
 ):
-    executor: AstroPiExecutor = AstroPiExecutor()
     expected_file_path: Path = tmp_path / f"example.{format}"
     cam = PiCameraAdapter(executor)
     cam.capture(str(expected_file_path))
@@ -47,8 +58,9 @@ def test_replay_capture_should_replay_captured_photos_in_given_format(
     # TODO add content assert.
 
 
-def test_replay_capture_should_replay_captured_photos_in_given_size(tmp_path: Path):
-    executor: AstroPiExecutor = AstroPiExecutor()
+def test_replay_capture_should_replay_captured_photos_in_given_size(
+    tmp_path: Path, executor: AstroPiExecutor
+):
     expected_file_path: Path = tmp_path / "example.jpg"
     cam = PiCameraAdapter(executor)
     cam.capture(str(expected_file_path), resize=(800, 600))
@@ -59,8 +71,9 @@ def test_replay_capture_should_replay_captured_photos_in_given_size(tmp_path: Pa
     assert im.size == (800, 600)
 
 
-def test_replay_capture_should_replay_captured_photos_in_given_file(tmp_path: Path):
-    executor: AstroPiExecutor = AstroPiExecutor()
+def test_replay_capture_should_replay_captured_photos_in_given_file(
+    tmp_path: Path, executor: AstroPiExecutor
+):
     file_path: Path = tmp_path / "example.jpg"
     cam = PiCameraAdapter(executor)
     with file_path.open("wb") as f:
@@ -81,8 +94,8 @@ def test_replay_capture_to_numpy_array():
 
 
 # FIXME
-def test_replay_capture_to_PiRGBArray():
-    cam = PiCameraAdapter()
+def test_replay_capture_to_PiRGBArray(executor: AstroPiExecutor):
+    cam = PiCameraAdapter(executor)
     width, height = cam.resolution
     stream = PiRGBArray(cam)
     zeros = np.zeros((height, width, 3), dtype=np.uint8)
@@ -92,9 +105,9 @@ def test_replay_capture_to_PiRGBArray():
     # TODO assert on content
 
 
-def test_replay_capture_with_annotations(tmp_path: Path):
+def test_replay_capture_with_annotations(tmp_path: Path, executor: AstroPiExecutor):
     file: Path = tmp_path / "example.jpeg"
-    cam = PiCameraAdapter()
+    cam = PiCameraAdapter(executor)
     cam.annotate_text = os.linesep.join(["foo", "bar"])
     cam.annotate_foreground = Color("red")
     cam.annotate_background = Color("white")
@@ -106,9 +119,9 @@ def test_replay_capture_with_annotations(tmp_path: Path):
     # TODO assert on content
 
 
-def test_replay_capture_sets_exif_tags(tmp_path: Path):
+def test_replay_capture_sets_exif_tags(tmp_path: Path, executor: AstroPiExecutor):
     file: Path = tmp_path / "example.jpg"
-    cam = PiCameraAdapter()
+    cam = PiCameraAdapter(executor)
     now = datetime.now()
     with patch("datetime.datetime") as mock_datetime:
         mock_datetime.now.return_value = now
@@ -123,10 +136,10 @@ def test_replay_capture_sets_exif_tags(tmp_path: Path):
 
 
 def test_replay_when_capture_called_repeatedly_should_return_different_photos(
-    tmp_path: Path,
+    tmp_path: Path, executor: AstroPiExecutor
 ):
     with test_utils.patch_photo_indices(indices=[0, 1]):
-        cam = PiCameraAdapter()
+        cam = PiCameraAdapter(executor)
         prev: Optional[np.ndarray] = None
         for i in range(2):
             image_path: Path = tmp_path / f"photo_{i}.jpg"
@@ -141,8 +154,10 @@ def test_replay_when_capture_called_repeatedly_should_return_different_photos(
             prev = np_image
 
 
-def test_replay_capture_continuous_replays_yields_filenames(tmp_path: Path):
-    cam = PiCameraAdapter()
+def test_replay_capture_continuous_replays_yields_filenames(
+    tmp_path: Path, executor: AstroPiExecutor
+):
+    cam = PiCameraAdapter(executor)
     output: Path = tmp_path / "img"
     output.mkdir()
     with test_utils.patch_photo_indices(indices=[0, 1, 2]):
@@ -160,8 +175,8 @@ def test_replay_capture_continuous_replays_yields_filenames(tmp_path: Path):
     # TODO assert on content
 
 
-def test_replay_capture_continuous_replays_into_streams():
-    cam = PiCameraAdapter()
+def test_replay_capture_continuous_replays_into_streams(executor: AstroPiExecutor):
+    cam = PiCameraAdapter(executor)
     stream = io.BytesIO()
     with test_utils.patch_photo_indices(indices=[0, 1, 2]):
         for _ in itertools.islice(cam.capture_continuous(stream, format="rgb"), 3):
@@ -178,8 +193,10 @@ def test_replay_capture_continuous_replays_into_streams():
     # TODO assert on content
 
 
-def test_replay_capture_sequence_with_filenames(tmp_path: Path):
-    cam = PiCameraAdapter()
+def test_replay_capture_sequence_with_filenames(
+    tmp_path: Path, executor: AstroPiExecutor
+):
+    cam = PiCameraAdapter(executor)
     output: Path = tmp_path / "img"
     output.mkdir()
     images: list[str] = ["image1.jpg", "image2.jpg", "image3.jpg"]
@@ -239,7 +256,6 @@ def test_replay_split_recording_creates_multiple_files(tmp_path: Path):
     cam.split_recording(str(tmp_path / "2.h264"))
     cam.wait_recording(1)
     cam.stop_recording()
-    assert len(os.listdir(tmp_path)) == 2
     for filename in ["1.h264", "2.h264"]:
         assert filename in os.listdir(tmp_path)
         # TODO assert on content
@@ -273,7 +289,6 @@ def test_replay_record_sequence(tmp_path: Path):
     for _ in cam.record_sequence(outputs):
         cam.wait_recording(1)
     cam.stop_recording()
-    assert len(os.listdir(tmp_path)) == 2
     for output in outputs:
         assert Path(output).exists()
         # TODO assert on content

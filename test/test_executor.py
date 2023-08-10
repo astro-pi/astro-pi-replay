@@ -3,6 +3,7 @@ These tests ensure that data is replayed correctly or
 accessed live correctly
 """
 
+import json
 import logging
 import os
 import re
@@ -13,19 +14,58 @@ from subprocess import CalledProcessError
 from typing import Callable
 from unittest.mock import Mock, patch
 
+import pandas as pd
+import pytest
+
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.executor import AstroPiExecutor, Lifecycle
 from astro_pi_executor.resources import get_start_time
-from test_utils import ProgramFixture, prepare_executor_to_run_in_fake_live_venv
+from test_utils import (
+    ProgramFixture,
+    get_test_resource,
+    prepare_executor_to_run_in_fake_live_venv,
+)
 
 logger = logging.getLogger(__name__)
 
 
-# TODO test the new (_replay_next, etc.) 'private' methods...
-def test_replay_when_capture_called_repeatedly_should_return_different_photos(
-    tmp_path: Path,
-):
-    pass
+@patch("astro_pi_executor.executor.time")
+def test_replay_should_sleep_when_nowait_false_and_delta_is_positive(mock_time):
+    executor = AstroPiExecutor(no_wait=False)
+
+    resource: Path = get_test_resource("photo_indexes.csv")
+    df = pd.read_csv(resource, parse_dates=["datetime"])
+
+    # Given
+    first: pd.Timestamp = df["datetime"].iloc[0]
+    executor._state._start_time = first.to_pydatetime()
+
+    decorator = executor.replay(filename=str(resource), col_names=["name"])
+    inner_decorator = decorator(lambda: ...)
+    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+        mock_datetime.now.return_value = (first + timedelta(seconds=5)).to_pydatetime()
+        inner_decorator()
+    assert mock_time.sleep.call_count == 1
+
+
+@patch("astro_pi_executor.executor.time")
+def test_replay_replayed_index_should_always_increase_when_no_wait_is_False(_):
+    executor = AstroPiExecutor(no_wait=False)
+
+    resource: Path = get_test_resource("photo_indexes.csv")
+    df = pd.read_csv(resource, parse_dates=["datetime"])
+    df.set_index("datetime", inplace=True)
+
+    # Given
+    first: pd.Timestamp = df.iloc[0].name
+    executor._state._start_time = first.to_pydatetime()
+
+    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+            seconds=1
+        )
+        i = executor._find_next_datum(df)
+        assert i == 1
 
 
 def test_executor_is_singleton():
@@ -61,9 +101,7 @@ def test_replay_data_should_be_mutually_consistent():
 def test_executor_live_mode_should_call_underlying_libraries(
     tmp_path: Path, sense_hat_program: ProgramFixture
 ):
-    executor: AstroPiExecutor = AstroPiExecutor(replay_mode=False)
-
-    executor.run(ExecutionMode.LIVE, tmp_path, sense_hat_program.main)
+    AstroPiExecutor.run(ExecutionMode.LIVE, tmp_path, sense_hat_program.main)
     expected_regex = r"<MagicMock name='mock\(\)\.colour\.colour.*' id='[0-9]+'>"
     assert sense_hat_program.expected_file.exists()
     with sense_hat_program.expected_file.open() as f:
@@ -75,7 +113,7 @@ def test_executor_live_mode_should_call_underlying_libraries(
 def test_executor_replay_mode_should_replay_data(
     tmp_path: Path, sense_hat_program: ProgramFixture
 ):
-    executor: AstroPiExecutor = AstroPiExecutor()
+    executor: AstroPiExecutor = AstroPiExecutor(no_wait=True)
 
     # make the test deterministic
     with patch("astro_pi_executor.executor.datetime") as mock_datetime:
@@ -87,7 +125,16 @@ def test_executor_replay_mode_should_replay_data(
     with sense_hat_program.expected_file.open() as f:
         contents = f.read()
     logger.debug(f"File contents: {contents}")
-    assert re.search(r"(12, 11, 11)", contents) is not None
+    assert re.search(r"(13, 12, 12)", contents) is not None
+
+
+def test_executor_loads_config_when_instantiated(tmp_path: Path):
+    expected_file: Path = tmp_path / "test_config.json"
+    with expected_file.open("w") as f:
+        f.write(json.dumps({"no_wait": True, "debug": False}))
+    with patch("astro_pi_executor.configuration.CONFIG_FILE", expected_file):
+        executor: AstroPiExecutor = AstroPiExecutor()
+        assert executor.no_wait is True
 
 
 ###########################################
@@ -144,12 +191,44 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
 def test_teardowns_run_when_exception_thrown_by_program(
     tmp_path: Path, exception_program: Path
 ):
+    AstroPiExecutor(no_wait=True)
     semaphore: Path = tmp_path / "semaphore"
     callback: Callable = lambda: os.close(os.open(str(semaphore), os.O_CREAT))
-    executor: AstroPiExecutor = AstroPiExecutor()
-    executor._register_callback(Lifecycle.AFTER, callback)
+    AstroPiExecutor._register_callback(Lifecycle.AFTER, callback)
     try:
-        executor.run(ExecutionMode.REPLAY, tmp_path, exception_program)
+        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, exception_program)
     except CalledProcessError:
         pass
     assert semaphore.exists()
+
+
+@pytest.mark.skip(reason="TODO")
+def test_replay_venv_includes_external_libs():
+    # TODO decide if it should be symlinked so that the users that install
+    # libraries AFTER running astro_pi_executor run for the first time
+    # will also get the installed lib in the executor venv?
+    pass
+
+
+@pytest.mark.skip(reason="TODO")
+def test_replay_should_stream_stdout_immediately():
+    pass
+
+
+@pytest.mark.skip(reason="TODO")
+def test_logging_is_outputted_regularly():
+    pass
+
+
+@pytest.mark.skip(reason="TODO")
+def test_executor_should_read_from_config_if_not_supplied():
+    pass
+
+
+def test_replay_mode_when_debug_mode_logger_should_emit(
+    tmp_path: Path, debug_log_program: Path, capfd
+):
+    AstroPiExecutor(no_wait=True, debug=True)
+    AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, debug_log_program, debug=True)
+    output = capfd.readouterr()
+    assert "foo" in output.err

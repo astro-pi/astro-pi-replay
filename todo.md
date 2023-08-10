@@ -1,19 +1,22 @@
 Current:
 --------
-* Add wait mode to capture method to ensure photo timestamps will match roughly
-the timestamps of the original).
 - Test velocity calculations using the library using the basic project
 - Add picamera2 support
-- skyfield support?
 
+- check upload in s3
 Bonuses:
+- profile mode to profile the main.py being executed
+- remote attach to the executor subprocess
+  python3 -m debugpy --listen 1.2.3.4:5678 --wait-for-client -m main
+- profile tests to identify easy winnings
+- Refactor the stubbing of no_wait to make the tests cleaner and more isolated.
 - Fix the picamera previewer
 - copy over picamera exc
 - Bayer support for picamera
 - frames support (pyav, but it always segfaults for me...)
 - Annotation over video for picamera
 - add proper process job control to the executor to ensure
-all processes are killed when the interpreter is killed (using module atexit)
+all processes are killed when the interpreter is killed (using module atexit) or a finally clause
   - this includes the picamera previewer process and the sense hat displayer process
 - refactor picamera implementation (move around the state and ensure
 resources are closed properly)

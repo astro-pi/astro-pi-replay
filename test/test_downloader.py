@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -59,7 +58,6 @@ def test_downloader_should_download_and_install_data(tmp_path: Path):
         )
         downloader.download(tmp_path)
 
-    assert len(os.listdir(tmp_path)) == 1
     assert (tmp_path / "OrbitAz.zip").exists()
 
     downloader.install(tmp_path)

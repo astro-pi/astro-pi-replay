@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import venv
 from datetime import datetime, timedelta
 from enum import Enum
@@ -18,6 +19,7 @@ from typing import Callable, Optional
 import pandas as pd
 
 from astro_pi_executor import PROGRAM_NAME
+from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.resources import get_resource, get_start_time
 
@@ -70,7 +72,6 @@ class AstroPiExecutor:
     The class is a singleton
     """
 
-    # MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit", "skyfield"]
     MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit"]
     NOT_FOUND = f"{PROGRAM_NAME} not found"
 
@@ -89,7 +90,8 @@ class AstroPiExecutor:
         datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
         replay_mode: bool = True,
         state: Optional[AstroPiExecutorState] = None,
-        no_wait: bool = False,
+        no_wait: Optional[bool] = None,
+        debug: Optional[bool] = None,
     ) -> "AstroPiExecutor":
         if cls._instance is None:
             cls._instance = super(AstroPiExecutor, cls).__new__(cls)
@@ -100,7 +102,19 @@ class AstroPiExecutor:
             if state is None:
                 state = AstroPiExecutorState()
             cls._state: AstroPiExecutorState = state
-            cls.no_wait: bool = no_wait
+
+            args = {"no_wait": no_wait, "debug": debug}
+            for key in args.keys():
+                if args[key] is None:
+                    try:
+                        persistent_configuration = Configuration.load()
+                        setattr(cls, key, getattr(persistent_configuration, key))
+                    except FileNotFoundError:
+                        setattr(cls, key, False)
+                else:
+                    setattr(cls, key, args[key])
+            # TODO provide static types for both cls.no_wait and cls.debug
+            # probably using typing.Protocol
 
             # TODO add option to be a bit like easyrandom / haskell type testing
             # random_mode = False # whether or not to randomly generate data
@@ -178,18 +192,43 @@ class AstroPiExecutor:
         Finds the next row in the given dataframe indexed by
         datetime, based on the elapsed time.
         """
-        start_time = self._state._start_time
-        now = datetime.now()
-        delta_in_seconds = pd.Timedelta(
-            round((now - start_time).total_seconds()), "seconds"
+        start_time: datetime = self._state._start_time
+        logger.debug(f"Start_time: {start_time}")
+        now: datetime = datetime.now()
+        # TODO manually code the first call to return index 0 to not
+        # skip the first index...not rounding
+        # as that would make it get stuck
+        delta_in_seconds: pd.Timedelta = pd.Timedelta(
+            (now - start_time).total_seconds(), "seconds"
         )
-        first_time = df.iloc[0].name
-        proposed_time = first_time + delta_in_seconds
+        first_time: pd.Timestamp = df.iloc[0].name
+        proposed_time: pd.Timestamp = first_time + delta_in_seconds
 
         # Find the nearest time using the proposed time
-        nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="nearest")[0]
+        nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="backfill")[
+            0
+        ]
         logging.debug(f"Nearest i: {nearest_i}")
+        logger.debug(f"now: {now}")
+        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
+        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+        logger.debug(f"first_time: {first_time}")
+        logger.debug(f"proposed_time: {proposed_time}")
         self._state._last_sense_hat_row_index = nearest_i
+
+        if not self.no_wait:  # type: ignore
+            actual_time = df.iloc[nearest_i].name
+            logger.debug(f"Actual time: {actual_time}")
+            actual_delta: int = (actual_time - first_time).total_seconds()
+            logger.debug(f"Actual delta: {actual_delta}")
+            cutoff: datetime = self._state._start_time + timedelta(seconds=actual_delta)
+            logger.debug(f"Cutoff: {cutoff}")
+            delta = (cutoff - datetime.now()).total_seconds()
+            logger.debug(f"Replay delta: {delta}")
+            if delta > 0:
+                logger.debug("Sleeping until delta has passed")
+                time.sleep(delta)
+
         return nearest_i
 
     @functools.cache
@@ -308,6 +347,7 @@ class AstroPiExecutor:
             executor_temp_dir: Path = tempdir / PROGRAM_NAME
             executor_temp_dir.mkdir(exist_ok=True)
             original_main: Path = executor_temp_dir / "original_main.py"
+            logger.debug(f"Copying original main to {original_main}")
             shutil.copy2(main, original_main)
 
             # 2. Write modifications to a temp file
@@ -321,6 +361,7 @@ class AstroPiExecutor:
 
             # 3. Temporarily overwrite the main.py in the original location
             # with the modified version
+            logger.debug(f"Overwriting {main} with {main_copy}")
             shutil.copy2(main_copy, main)
 
             # 4. Add teardown to replace the modified main.py with the
@@ -329,6 +370,22 @@ class AstroPiExecutor:
                 Lifecycle.AFTER, lambda: shutil.copy2(original_main, main)
             )
 
+        return main
+
+    @staticmethod
+    def add_debug_logging_config(main: Path) -> Path:
+        logger.debug("Setting log level inside main")
+        tempdir: Path = Path(tempfile.gettempdir()) / PROGRAM_NAME
+        main_copy: Path = tempdir / "main_debug_copy.py"
+        with main.open() as f:
+            contents = f.read()
+        with main_copy.open("w") as f:
+            f.write("import logging" + os.linesep)
+            f.write("logging.basicConfig(level=logging.DEBUG)" + os.linesep)
+            f.write(contents)
+
+        shutil.copy2(main_copy, main)
+        # Teardown is taken care of in add_name_is_main_guard
         return main
 
     @staticmethod
@@ -420,6 +477,7 @@ class AstroPiExecutor:
         execution_mode: Optional[ExecutionMode],
         venv_dirname: Optional[Path],
         main: Path,
+        debug: bool = False,
     ) -> None:
         """
         This method runs the given main file using the given execution mode.
@@ -470,6 +528,9 @@ class AstroPiExecutor:
         # (required by multiprocessing in CameraPreview currently FIXME)
         main = AstroPiExecutor.add_name_is_main_guard(main)
 
+        if debug:
+            AstroPiExecutor.add_debug_logging_config(main)
+
         try:
             # Run the program that was passed in
             if platform.system() in ["Linux", "Darwin", "Windows"]:
@@ -485,8 +546,6 @@ class AstroPiExecutor:
         finally:
             AstroPiExecutor._run_callbacks(Lifecycle.AFTER)  # teardown
 
-
-# TODO check that sense_hat can be imported when executed via astro_pi_executor
 
 # Integration tests:
 # - using qemu?

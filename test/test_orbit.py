@@ -11,6 +11,10 @@ from astro_pi_executor.orbit import ephemeris
 from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patched_iss
 from astro_pi_executor.resources import get_start_time
 
+# FIXME the AstroPiExecutor is being instantiated at
+# import time which is affecting the tests
+# and making them non-deterministic
+
 
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
@@ -54,10 +58,12 @@ def test_ISS_is_sunlit_works_as_advertised():
 
 
 def _get_iss(executor: AstroPiExecutor) -> EarthSatellite:
-    # makes the test deterministic by hardcoding
-    # the executor start time and executor elapsed time
+    """
+    Makes the test deterministic by hardcoding
+    the executor start time and executor elapsed time
+    """
     # Note: mocks are not used since the executor is a default argument
-    # to get_patche_iss and so would be loaded at collection time anyway
+    # to get_patched_iss and so would be loaded at collection time anyway
     executor.time_since_start = lambda: get_start_time()
     ISS = get_patched_iss(executor)
     return ISS

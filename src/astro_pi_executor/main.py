@@ -4,6 +4,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from astro_pi_executor import PROGRAM_NAME
+from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.downloader import Downloader
 from astro_pi_executor.executor import AstroPiExecutor, AstroPiExecutorException
@@ -15,7 +16,7 @@ RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
 
 
-def main() -> None:
+def get_argument_parser() -> ArgumentParser:
     arg_parser = ArgumentParser(prog=PROGRAM_NAME, description="")
     arg_parser.add_argument("--debug", action="store_true", help="Emit debug messages")
     subparsers = arg_parser.add_subparsers(help="sub-command help")
@@ -25,9 +26,6 @@ def main() -> None:
     )
     # download_parser.add_argument("--force-reinstall", action="store_true",
     #                            help="Forcibly reinstall the venv used to replay data")
-    # download_parser.add_argument("--venv_dir", type=Path, required=False,
-    #     help="Path to place the venv",
-    # )
     download_parser.set_defaults(cmd="download")
 
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
@@ -53,7 +51,10 @@ def main() -> None:
     )
     run_parser.set_defaults(cmd="run")
 
-    args: Namespace = arg_parser.parse_args()
+    return arg_parser
+
+
+def _main(args: Namespace) -> None:
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
     logger.debug(args)
@@ -68,13 +69,19 @@ def main() -> None:
             with get_resource("motd").open("r") as f:
                 sys.stdout.write(f.read())
 
-            # TODO write out to the config dir
-            AstroPiExecutor.run(args.mode, args.venv_dir, args.main)
+            Configuration.from_args(args).save()
+            AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
             downloader.download(RESOURCE_DIR)
             logger.info("Installing images...")
             downloader.install(RESOURCE_DIR)
             logger.info("Installation complete")
         else:
-            arg_parser.print_usage()
+            get_argument_parser().print_usage()
             sys.exit(1)
+
+
+def main() -> None:
+    arg_parser = get_argument_parser()
+    args: Namespace = arg_parser.parse_args(sys.argv[1:])
+    _main(args)

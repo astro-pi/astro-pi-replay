@@ -33,7 +33,6 @@ from astro_pi_executor.picamera.preview import CameraPreview
 from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_executor.resources import get_resource
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 photo_formats = [

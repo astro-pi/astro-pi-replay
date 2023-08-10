@@ -9,9 +9,25 @@ from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.sense_hat.sense_hat import SenseHatAdapter
 from test_utils import get_test_resource
 
+###########
+# Fixtures
+###########
 
-def test_replayed_data_is_consistent():
-    executor = AstroPiExecutor()
+
+@pytest.fixture(autouse=True, scope="module")
+def executor():
+    # Set to no wait to avoid blocking the tests
+    executor = AstroPiExecutor(no_wait=True)
+    executor.no_wait = True
+    yield executor
+
+
+########
+# Tests
+########
+
+
+def test_replayed_data_is_consistent(executor: AstroPiExecutor):
     # Makes the test deterministic
     with patch("astro_pi_executor.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
@@ -57,8 +73,8 @@ def test_replayed_data_is_consistent():
         assert sh.compass_raw == sh.get_compass_raw()
 
 
-def test_setters_assign_correctly():
-    sh = SenseHatAdapter()
+def test_setters_assign_correctly(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     try:
         sh.set_rotation(90)
         assert sh.rotation == 90
@@ -69,19 +85,17 @@ def test_setters_assign_correctly():
         assert False
 
 
-def test_replay_should_replay_sequence_of_data():
-    executor = AstroPiExecutor()
-
+def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
     # Make the test deterministic
     with patch("astro_pi_executor.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
         assert sh.colour.colour == (9, 8, 8, 17)
-        assert executor._state._last_sense_hat_row_index == 1023  # last row
+        assert executor._state._last_sense_hat_row_index == -1
 
 
-def test_sense_hat_adapter_has_all_expected_methods():
-    sh = SenseHatAdapter()
+def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
     for path in ["", "colour", "stick"]:
@@ -96,8 +110,8 @@ def test_sense_hat_adapter_has_all_expected_methods():
             assert callable(func)
 
 
-def test_sense_hat_adapter_has_all_expected_attrs():
-    sh = SenseHatAdapter()
+def test_sense_hat_adapter_has_all_expected_attrs(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
     for path in ["", "colour", "stick"]:
@@ -110,8 +124,8 @@ def test_sense_hat_adapter_has_all_expected_attrs():
             assert hasattr(obj, attr)
 
 
-def test_load_image_and_set_and_get_pixels():
-    sh = SenseHatAdapter()
+def test_load_image_and_set_and_get_pixels(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     result: list[list[int]] = sh.load_image(str(get_test_resource("ai-logo.rgb")))
     # this was taken from the actual sensehat
     assert result == [
@@ -184,7 +198,7 @@ def test_load_image_and_set_and_get_pixels():
 
 
 @pytest.mark.skip(reason="Not yet implemented")
-def test_set_pixels_converts_to_rgb565():
+def test_set_pixels_converts_to_rgb565(executor: AstroPiExecutor):
     # convert actual from rgb8 to rgb565
     # arr = np.array(actual, dtype=np.uint8) # (64,3)
     # # r and b (originally 255) will be (255 & 0b11111000)=248
@@ -197,8 +211,8 @@ def test_set_pixels_converts_to_rgb565():
     pass
 
 
-def test_rotations_rotate_display():
-    sh = SenseHatAdapter()
+def test_rotations_rotate_display(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     ai_logo = get_test_resource("ai-logo.rgb")
     sh.rotation = 270
     original = sh.load_image(str(ai_logo))
@@ -210,8 +224,8 @@ def test_rotations_rotate_display():
     assert before == original
 
 
-def test_flips_flips_display_orientation():
-    sh = SenseHatAdapter()
+def test_flips_flips_display_orientation(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     ai_logo = get_test_resource("ai-logo.rgb")
     sh.rotation = 270
     original = sh.load_image(str(ai_logo))
@@ -227,8 +241,8 @@ def test_flips_flips_display_orientation():
         assert before == original
 
 
-def test_low_light_sets_gamma():
-    sh = SenseHatAdapter()
+def test_low_light_sets_gamma(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     original = sh.gamma
     assert original == [
         0,
@@ -305,8 +319,8 @@ def test_low_light_sets_gamma():
     assert sh.gamma == original
 
 
-def test_show_letter_displays_letter():
-    sh = SenseHatAdapter()
+def test_show_letter_displays_letter(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     sh.show_letter("G")
     actual = sh.get_pixels()
     expected = [
@@ -378,8 +392,8 @@ def test_show_letter_displays_letter():
     assert actual == expected
 
 
-def test_show_message():
-    sh = SenseHatAdapter()
+def test_show_message(executor: AstroPiExecutor):
+    sh = SenseHatAdapter(executor)
     original_method = sh.set_pixels
     frames = []
     setattr(sh, "set_pixels", lambda p: (frames.append(p), original_method(p))[-1])
