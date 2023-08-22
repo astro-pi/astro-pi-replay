@@ -232,3 +232,19 @@ def test_replay_mode_when_debug_mode_logger_should_emit(
     AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, debug_log_program, debug=True)
     output = capfd.readouterr()
     assert "foo" in output.err
+
+
+def test_when_main_raises_exception_should_raise_errors_correctly(
+    tmp_path: Path, exception_program: Path, capfd
+):
+    # the stack trace should be pruned so as to not reveal
+    # the internals of the executor
+    AstroPiExecutor(no_wait=True, debug=False)
+    try:
+        AstroPiExecutor.run(ExecutionMode.LIVE, tmp_path, exception_program)
+    except BaseException:
+        output = capfd.readouterr()
+        assert "Something went wrong" in output.err
+        assert "CalledProcessError" not in output.err
+    else:
+        assert False

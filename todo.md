@@ -2,9 +2,11 @@ Current:
 --------
 - Test velocity calculations using the library using the basic project
 - Add picamera2 support
+- Fix CI pipeline to download assets / autodownload
 
 - check upload in s3
 Bonuses:
+- detect if user venv / env has changed and do not use cached executor venv in that scenario (could hash output of pip freeze for example? or else traverse the python path to get version info)
 - profile mode to profile the main.py being executed
 - remote attach to the executor subprocess
   python3 -m debugpy --listen 1.2.3.4:5678 --wait-for-client -m main

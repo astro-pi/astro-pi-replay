@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import venv
 from datetime import datetime, timedelta
 from enum import Enum
@@ -538,9 +539,18 @@ class AstroPiExecutor:
                 # Astro Pis on the ISS.
                 args: list[str] = [python3, "-u", str(main.resolve())]
                 logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+
+                def custom_excepthook(type, value, tb):
+                    """Hides the internals of the lib
+                    from the stack trace"""
+                    size = len(list(traceback.walk_tb(tb)))
+                    traceback.print_tb(tb, size - 5)
+
+                sys.excepthook = custom_excepthook
                 subprocess.run(
                     args, env=env if env is not None else env, check=True
                 )  # nosec B603: runs main as intended
+
             else:
                 raise OSError(f"Unsupported system {os}")
         finally:
