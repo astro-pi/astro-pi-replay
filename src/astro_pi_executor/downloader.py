@@ -202,7 +202,10 @@ class Downloader:
         return f"{ASSET_NAME}" in os.listdir(self.tempdir)
 
     def has_installed(self) -> bool:
-        return get_resource(Path(ASSET_NAME).stem).exists()
+        try:
+            return get_resource(Path(ASSET_NAME).stem).exists()
+        except FileNotFoundError:
+            return False
 
     def install(self, destination_dir: Path) -> None:
         if not self.has_downloaded():

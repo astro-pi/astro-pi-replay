@@ -14,7 +14,9 @@ def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
 
     path = RESOURCE_DIR / path_relative_to_resources_dir
     if not path.exists():
-        raise FileNotFoundError("Could not find " + f"in '{path}'")
+        raise FileNotFoundError(
+            f"Could not find {path_relative_to_resources_dir}" + f" in '{RESOURCE_DIR}'"
+        )
     return path
 
 

@@ -3,6 +3,7 @@ Current:
 - Add picamera2 support
 
 Bonuses:
+- check stdout is not being polluted
 - profile mode to profile the main.py being executed
 - remote attach to the executor subprocess
   python3 -m debugpy --listen 1.2.3.4:5678 --wait-for-client -m main
@@ -26,6 +27,7 @@ resources are closed properly)
 - Replace ffmpeg subproc with either ffmpeg-python or pyav
 - PIR sensor?
 - move de421.bsp and tle files out of the github and into the resources download
+- add more photos to help children
 
 Admin & Best-practices:
 - add repo to RPF foundation in TestPypi
