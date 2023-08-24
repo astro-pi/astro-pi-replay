@@ -416,19 +416,45 @@ class AstroPiExecutor:
         # already in one
         venv_dir: Path = venv_dirname / name
 
+        def list_dependencies(
+            python: Path = Path(sys.prefix) / "bin" / "python",
+        ) -> str:
+            """
+            pip: Path to pip - defaults to the sys.prefix pip (i.e. the current venv)
+            Runs pip freeze and pipes the output into md5sum
+            """
+            args: list[str] = [str(python), "-m", "pip", "freeze"]
+            out = subprocess.run(
+                args, text=True, check=True, capture_output=True, shell=False
+            )  # nosec B603
+            logger.debug(out)
+            return out.stdout
+
         if venv_dir.exists():
-            logger.debug("venv already created - skipping")
-            return venv_dir
-        else:
-            logging.debug("Creating venv")
+            current_deps = list_dependencies()  # current venv
+            logger.debug(f"current_deps: {current_deps}")
+            logger.debug("")
+            executor_venv_deps = list_dependencies(python=venv_dir / "bin" / "python")
+            logger.debug(f"executor_venv_deps: {executor_venv_deps}")
+            if current_deps == executor_venv_deps:
+                logger.debug("venv already created - skipping")
+                return venv_dir
+            else:
+                logger.debug(
+                    "Dependencies have changed - deleting "
+                    + f"old venv at {venv_dir} and recreating..."
+                )
+                shutil.rmtree(venv_dir)
+        logging.debug("Creating venv")
 
         if AstroPiExecutor.is_in_venv:
-            logger.info(
+            logger.debug(
                 "Detected that you running in a venv:"
                 + f"\n\t{sys.prefix}.\n"
                 + "However, running in replay mode will use a "
                 + "separate copied (modified) venv."
             )
+            logger.info("Preparing environment (this may take a few moments)...")
             shutil.copytree(sys.prefix, venv_dir, symlinks=True)
         else:
             venv.create(
