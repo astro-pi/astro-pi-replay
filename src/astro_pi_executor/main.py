@@ -72,10 +72,13 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
-            downloader.download(RESOURCE_DIR)
-            logger.info("Installing images...")
-            downloader.install(RESOURCE_DIR)
-            logger.info("Installation complete")
+            if downloader.has_installed():
+                logger.info("Assets already downloaded and installed - skipping")
+            else:
+                downloader.download(RESOURCE_DIR)
+                logger.info("Installing images...")
+                downloader.install(RESOURCE_DIR)
+                logger.info("Installation complete")
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
