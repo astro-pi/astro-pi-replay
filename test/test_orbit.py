@@ -4,6 +4,7 @@ import typing
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
 from skyfield.api import Timescale, load
 from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time
@@ -43,8 +44,8 @@ def test_ISS_coordinates_returns_coordinates():
     sys.settrace(trace)
     pos: GeographicPosition = ISS.coordinates()
     sys.settrace(None)
-    assert pos.latitude.radians == 0.7367376918681074
-    assert pos.longitude.radians == 0.6975267490346151
+    assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
+    assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
     assert pos.model.name == "IERS2010"
     assert pos.center == 399  # Earth. See:
     # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html
@@ -71,8 +72,8 @@ def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     t: Time = timescale.from_datetime(datetime.max.replace(tzinfo=timezone.utc))
     pos: GeographicPosition = typing.cast(Geocentric, ISS.at(t)).subpoint()
     assert pos is not None
-    assert pos.latitude.radians == 0.7367376918681074
-    assert pos.longitude.radians == 0.6975267490346151
+    assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
+    assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
     assert pos.elevation.km == 421.6127652392057
 
 
