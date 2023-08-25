@@ -94,17 +94,9 @@ class Downloader:
 
     def _check_gpg_signature(self, gpg_sig_file: Path) -> Optional[bool]:
         logger.debug("Checking if gpg is installed...")
-        command_args: list[str] = ["type", "-P", "gpg"]
-        logger.debug(" ".join(command_args))
-        proc = subprocess.run(
-            command_args, capture_output=True, text=True
-        )  # nosec B603
+        gpg_path = shutil.which("gpg")
 
-        if (
-            proc.returncode == 0
-            and len(proc.stdout) > 0
-            and Path(proc.stdout.strip()).exists()
-        ):
+        if gpg_path is not None and Path(gpg_path).exists():
             logger.debug("Checking if the astro pi GPG key has been imported...")
             command_args = ["gpg", "--list-public-keys", f"<{GPG_EMAIL}>"]
             logger.debug(" ".join(command_args))
@@ -202,7 +194,10 @@ class Downloader:
         return f"{ASSET_NAME}" in os.listdir(self.tempdir)
 
     def has_installed(self) -> bool:
-        return get_resource(Path(ASSET_NAME).stem).exists()
+        try:
+            return get_resource(Path(ASSET_NAME).stem).exists()
+        except FileNotFoundError:
+            return False
 
     def install(self, destination_dir: Path) -> None:
         if not self.has_downloaded():

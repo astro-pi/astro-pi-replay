@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import venv
 from datetime import datetime, timedelta
 from enum import Enum
@@ -94,6 +95,7 @@ class AstroPiExecutor:
         debug: Optional[bool] = None,
     ) -> "AstroPiExecutor":
         if cls._instance is None:
+            logger.debug("Creating new instance")
             cls._instance = super(AstroPiExecutor, cls).__new__(cls)
 
             cls.datetime_col: str = datetime_col
@@ -415,19 +417,45 @@ class AstroPiExecutor:
         # already in one
         venv_dir: Path = venv_dirname / name
 
+        def list_dependencies(
+            python: Path = Path(sys.prefix) / "bin" / "python",
+        ) -> str:
+            """
+            pip: Path to pip - defaults to the sys.prefix pip (i.e. the current venv)
+            Runs pip freeze and pipes the output into md5sum
+            """
+            args: list[str] = [str(python), "-m", "pip", "freeze"]
+            out = subprocess.run(
+                args, text=True, check=True, capture_output=True, shell=False
+            )  # nosec B603
+            logger.debug(out)
+            return out.stdout
+
         if venv_dir.exists():
-            logger.debug("venv already created - skipping")
-            return venv_dir
-        else:
-            logging.debug("Creating venv")
+            current_deps = list_dependencies()  # current venv
+            logger.debug(f"current_deps: {current_deps}")
+            logger.debug("")
+            executor_venv_deps = list_dependencies(python=venv_dir / "bin" / "python")
+            logger.debug(f"executor_venv_deps: {executor_venv_deps}")
+            if current_deps == executor_venv_deps:
+                logger.debug("venv already created - skipping")
+                return venv_dir
+            else:
+                logger.debug(
+                    "Dependencies have changed - deleting "
+                    + f"old venv at {venv_dir} and recreating..."
+                )
+                shutil.rmtree(venv_dir)
+        logging.debug("Creating venv")
 
         if AstroPiExecutor.is_in_venv:
-            logger.info(
+            logger.debug(
                 "Detected that you running in a venv:"
                 + f"\n\t{sys.prefix}.\n"
                 + "However, running in replay mode will use a "
                 + "separate copied (modified) venv."
             )
+            logger.info("Preparing environment (this may take a few moments)...")
             shutil.copytree(sys.prefix, venv_dir, symlinks=True)
         else:
             venv.create(
@@ -538,9 +566,18 @@ class AstroPiExecutor:
                 # Astro Pis on the ISS.
                 args: list[str] = [python3, "-u", str(main.resolve())]
                 logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+
+                def custom_excepthook(type, value, tb):
+                    """Hides the internals of the lib
+                    from the stack trace"""
+                    size = len(list(traceback.walk_tb(tb)))
+                    traceback.print_tb(tb, size - 5)
+
+                sys.excepthook = custom_excepthook
                 subprocess.run(
                     args, env=env if env is not None else env, check=True
                 )  # nosec B603: runs main as intended
+
             else:
                 raise OSError(f"Unsupported system {os}")
         finally:

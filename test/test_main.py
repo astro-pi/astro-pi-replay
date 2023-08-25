@@ -70,11 +70,3 @@ def test_main_saves_configuration(tmp_path: Path):
 @pytest.mark.skip(reason="TODO")
 def test_calls_executor_run_with_correct_args():
     pass
-
-
-@pytest.mark.skip(reason="TODO")
-def test_when_main_raises_exception_should_raise_errors_correctly(
-    exception_program: Path, capsys
-):
-    # the stack trace should be pruned so as to not show the internals of the executor
-    pass

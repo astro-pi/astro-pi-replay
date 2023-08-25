@@ -1,5 +1,4 @@
 # import functools
-import logging
 import typing
 from datetime import datetime, timezone
 
@@ -12,11 +11,6 @@ from astro_pi_executor.executor import AstroPiExecutor
 
 from .telemetry import ISS as _ISS
 from .telemetry import _timescale, coordinates
-
-# from unittest.mock import patch
-
-
-logger = logging.getLogger(__name__)
 
 
 class EarthSatellite(skyfield.api.EarthSatellite):

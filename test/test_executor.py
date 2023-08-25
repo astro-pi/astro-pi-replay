@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -188,6 +189,58 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     assert "telemetry.py" in os.listdir(orbit_path)
 
 
+# TODO speed up this test!
+def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: Path):
+    output_file: Path = tmp_path / "version.txt"
+
+    # 1. execute the main.py once in replay mode
+    main: Path = tmp_path / "main.py"
+    with main.open("w") as f:
+        f.write(
+            os.linesep.join(
+                [
+                    "import os",
+                    "import fake_dep",
+                    "",
+                    f"with open('{str(output_file)}', 'w') as f:",
+                    "    f.write(fake_dep.__version__ + os.linesep)",
+                ]
+            )
+        )
+    # The problem is that sys.prefix is used in .run - which has already been altered
+    # so there is no pip...
+    try:
+        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
+    except CalledProcessError:
+        pass  # expected
+
+    # 2. Install a fake dep into the current venv
+    current_python: Path = Path(sys.prefix) / "bin" / "python"
+    fake_dep: Path = get_test_resource("fake_dep")
+    installed = False
+    try:
+        # TODO override sys.prefix to install to the non-real site-packages
+        subprocess.run(
+            [current_python, "-m", "pip", "install", str(fake_dep)], check=True
+        )  # nosec B603
+        installed = True
+
+        # 3. Re-execute and confirm that it now works
+        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
+
+        assert output_file.exists()
+        with output_file.open() as f:
+            output_file_contents = f.read().strip()
+        assert output_file_contents == "0.0.1"
+
+    finally:
+        # Cleanup
+        if installed:
+            subprocess.run(
+                [current_python, "-m", "pip", "uninstall", "-y", "fake_dep"], check=True
+            )  # nosec B603
+
+
 def test_teardowns_run_when_exception_thrown_by_program(
     tmp_path: Path, exception_program: Path
 ):
@@ -232,3 +285,19 @@ def test_replay_mode_when_debug_mode_logger_should_emit(
     AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, debug_log_program, debug=True)
     output = capfd.readouterr()
     assert "foo" in output.err
+
+
+def test_when_main_raises_exception_should_raise_errors_correctly(
+    tmp_path: Path, exception_program: Path, capfd
+):
+    # the stack trace should be pruned so as to not reveal
+    # the internals of the executor
+    AstroPiExecutor(no_wait=True, debug=False)
+    try:
+        AstroPiExecutor.run(ExecutionMode.LIVE, tmp_path, exception_program)
+    except BaseException:
+        output = capfd.readouterr()
+        assert "Something went wrong" in output.err
+        assert "CalledProcessError" not in output.err
+    else:
+        assert False

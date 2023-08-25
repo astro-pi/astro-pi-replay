@@ -1,6 +1,8 @@
 import typing
 from datetime import datetime, timezone
+from unittest.mock import patch
 
+import pytest
 from skyfield.api import Timescale, load
 from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time
@@ -12,16 +14,20 @@ from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patche
 from astro_pi_executor.resources import get_start_time
 
 
+@patch(
+    "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
+    lambda _: get_start_time(),
+)
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
-    ISS = _get_iss(executor)
+    ISS = get_patched_iss(executor)
     pos: GeographicPosition = ISS.coordinates()
-    assert pos.latitude.radians == 0.7367376918681074
-    assert pos.longitude.radians == 0.6975267490346151
+    assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
+    assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
     assert pos.model.name == "IERS2010"
     assert pos.center == 399  # Earth. See:
     # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html
-    assert pos.elevation.km == 421.6127652392057
+    assert pos.elevation.km == pytest.approx(421.6127652392057, abs=1e-11)
 
 
 def test_iss_is_singleton():
@@ -32,16 +38,20 @@ def test_iss_is_singleton():
     assert iss1 == iss2
 
 
+@patch(
+    "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
+    lambda _: get_start_time(),
+)
 def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     executor = AstroPiExecutor()
-    ISS: EarthSatellite = _get_iss(executor)
+    ISS: EarthSatellite = get_patched_iss(executor)
     timescale: Timescale = load.timescale()
     t: Time = timescale.from_datetime(datetime.max.replace(tzinfo=timezone.utc))
     pos: GeographicPosition = typing.cast(Geocentric, ISS.at(t)).subpoint()
     assert pos is not None
-    assert pos.latitude.radians == 0.7367376918681074
-    assert pos.longitude.radians == 0.6975267490346151
-    assert pos.elevation.km == 421.6127652392057
+    assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
+    assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
+    assert pos.elevation.km == pytest.approx(421.6127652392057, abs=1e-11)
 
 
 def test_ISS_is_sunlit_works_as_advertised():
@@ -54,12 +64,5 @@ def test_ISS_is_sunlit_works_as_advertised():
 
 
 def _get_iss(executor: AstroPiExecutor) -> EarthSatellite:
-    """
-    Makes the test deterministic by hardcoding
-    the executor start time and executor elapsed time
-    """
-    # Note: mocks are not used since the executor is a default argument
-    # to get_patched_iss and so would be loaded at collection time anyway
-    executor.time_since_start = lambda: get_start_time()
     ISS = get_patched_iss(executor)
     return ISS
