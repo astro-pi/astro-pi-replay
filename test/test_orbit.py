@@ -2,6 +2,7 @@ import logging
 import sys
 import typing
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 from skyfield.api import Timescale, load
 from skyfield.positionlib import Geocentric
@@ -32,9 +33,13 @@ def trace(frame, event, arg):
 
 
 # TODO broken in CI
+@patch(
+    "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
+    lambda _: get_start_time(),
+)
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
-    ISS = _get_iss(executor)
+    ISS = get_patched_iss(executor)
     sys.settrace(trace)
     pos: GeographicPosition = ISS.coordinates()
     sys.settrace(None)
@@ -55,9 +60,13 @@ def test_iss_is_singleton():
 
 
 # TODO broken in CI
+@patch(
+    "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
+    lambda _: get_start_time(),
+)
 def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     executor = AstroPiExecutor()
-    ISS: EarthSatellite = _get_iss(executor)
+    ISS: EarthSatellite = get_patched_iss(executor)
     timescale: Timescale = load.timescale()
     t: Time = timescale.from_datetime(datetime.max.replace(tzinfo=timezone.utc))
     pos: GeographicPosition = typing.cast(Geocentric, ISS.at(t)).subpoint()
@@ -77,11 +86,5 @@ def test_ISS_is_sunlit_works_as_advertised():
 
 
 def _get_iss(executor: AstroPiExecutor) -> EarthSatellite:
-    """
-    Makes the test deterministic by hardcoding
-    the executor start time and executor elapsed time
-    """
-    executor.time_since_start = lambda: get_start_time()
     ISS = get_patched_iss(executor)
-
     return ISS
