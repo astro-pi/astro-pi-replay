@@ -1,4 +1,5 @@
 import logging
+import sys
 import typing
 from datetime import datetime, timezone
 
@@ -12,14 +13,31 @@ from astro_pi_executor.orbit import ephemeris
 from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patched_iss
 from astro_pi_executor.resources import get_start_time
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
+def trace(frame, event, arg):
+    if event == "call":
+        filename = frame.f_code.co_filename
+        if "skyfield/vectorlib" in filename:
+            logger.debug(
+                f"skyfield vectorlib method {frame.f_code.co_name} "
+                + f"called with args:\n{frame.f_locals}"
+            )
+            lineno = frame.f_lineno
+            # Here I'm printing the file and line number,
+            # but you can examine the frame, locals, etc too.
+            print("%s @ %s" % (filename, lineno))
+    return trace
 
 
 # TODO broken in CI
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
     ISS = _get_iss(executor)
+    sys.settrace(trace)
     pos: GeographicPosition = ISS.coordinates()
+    sys.settrace(None)
     assert pos.latitude.radians == 0.7367376918681074
     assert pos.longitude.radians == 0.6975267490346151
     assert pos.model.name == "IERS2010"
