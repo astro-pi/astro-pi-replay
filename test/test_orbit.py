@@ -1,3 +1,4 @@
+import logging
 import typing
 from datetime import datetime, timezone
 
@@ -11,7 +12,10 @@ from astro_pi_executor.orbit import ephemeris
 from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patched_iss
 from astro_pi_executor.resources import get_start_time
 
+logging.basicConfig(level=logging.DEBUG)
 
+
+# TODO broken in CI
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
     ISS = _get_iss(executor)
@@ -32,6 +36,7 @@ def test_iss_is_singleton():
     assert iss1 == iss2
 
 
+# TODO broken in CI
 def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     executor = AstroPiExecutor()
     ISS: EarthSatellite = _get_iss(executor)
@@ -58,8 +63,7 @@ def _get_iss(executor: AstroPiExecutor) -> EarthSatellite:
     Makes the test deterministic by hardcoding
     the executor start time and executor elapsed time
     """
-    # Note: mocks are not used since the executor is a default argument
-    # to get_patched_iss and so would be loaded at collection time anyway
     executor.time_since_start = lambda: get_start_time()
     ISS = get_patched_iss(executor)
+
     return ISS

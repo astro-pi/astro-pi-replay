@@ -11,7 +11,6 @@ from skyfield.toposlib import GeographicPosition
 
 from astro_pi_executor.resources import get_resource
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 _TLE_FILE: Path = get_resource("iss-20230421-111.tle")
 _BSP_FILE: Path = get_resource("de421.bsp")

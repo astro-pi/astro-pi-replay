@@ -95,6 +95,7 @@ class AstroPiExecutor:
         debug: Optional[bool] = None,
     ) -> "AstroPiExecutor":
         if cls._instance is None:
+            logger.debug("Creating new instance")
             cls._instance = super(AstroPiExecutor, cls).__new__(cls)
 
             cls.datetime_col: str = datetime_col

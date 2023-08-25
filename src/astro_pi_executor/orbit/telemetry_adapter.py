@@ -13,9 +13,6 @@ from astro_pi_executor.executor import AstroPiExecutor
 from .telemetry import ISS as _ISS
 from .telemetry import _timescale, coordinates
 
-# from unittest.mock import patch
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +32,7 @@ class EarthSatellite(skyfield.api.EarthSatellite):
         and converts it.
         """
         new_time: datetime = executor.time_since_start()
+        logger.debug(f"new_time: {new_time}")
         new_time = new_time.replace(tzinfo=timezone.utc)
         return _timescale.from_datetime(new_time)
 
