@@ -27,6 +27,7 @@ def coordinates(satellite: skyfield.api.EarthSatellite) -> GeographicPosition:
     now: Time = _timescale.now()
     logger.debug(f"original now: {now}")
     rel_pos: Geocentric = typing.cast(Geocentric, satellite.at(now))
+    logger.debug(f"rel_pos.t: {rel_pos.t}")
     return rel_pos.subpoint()
 
 
