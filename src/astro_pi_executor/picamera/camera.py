@@ -49,7 +49,7 @@ photo_formats = [
 ]
 video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
-index_file: Path = get_resource("OrbitAz") / "photo_index.csv"
+index_file: Path = get_resource("replay") / "photos" / "photo_index.csv"
 
 
 def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
@@ -183,7 +183,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                 executor._replay_next(str(index_file), "datetime", ["name"])
             )
 
-            image_path: Path = get_resource("OrbitAz") / name
+            image_path: Path = get_resource("replay") / "photos" / name
             im = Image.open(image_path)
 
             # Conditionally add text annotation
@@ -336,7 +336,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
         def start_preview(self, **options) -> PiRenderer:
             if self._preview_proc is None:
                 preview: CameraPreview = CameraPreview(
-                    str(get_resource("OrbitAz/OrbitAz.mp4"))
+                    str(get_resource("replay") / "videos" / "OrbitAz.mp4")
                 )
                 self._preview_proc = preview
                 preview.start()
@@ -367,7 +367,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
             if not self._has_ffmpeg:
                 raise AstroPiExecutorException("Please install ffmpeg")
 
-            video: Path = get_resource("OrbitAz/OrbitAz.mp4")
+            video: Path = get_resource("replay") / "videos" / "OrbitAz.mp4"
 
             # TODO add annotations
             # TODO resize

@@ -25,7 +25,7 @@ def get_metadata(key: str) -> Any:
     Loads the photo album metadata
     """
     # TODO load the file once
-    with (get_resource("OrbitAz") / "metadata.json").open() as f:
+    with (get_resource("replay") / "metadata.json").open() as f:
         metadata: dict[str, Any] = json.loads(f.read())
         return metadata[key]
 

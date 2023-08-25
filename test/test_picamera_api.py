@@ -184,7 +184,7 @@ def test_replay_capture_continuous_replays_into_streams(executor: AstroPiExecuto
             pass
 
     # Calculate the expected size
-    with get_resource("OrbitAz/metadata.json").open("r") as f:
+    with (get_resource("replay") / "metadata.json").open("r") as f:
         metadata: dict[str, Any] = json.loads(f.read())
     resolution: tuple[int, int] = metadata["resolution_x"], metadata["resolution_y"]
 

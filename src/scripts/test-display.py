@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-VIDEO_FILE = str((get_resource("OrbitAz") / "OrbitAz.mp4").resolve())
+VIDEO_FILE = str((get_resource("replay") / "videos" / "OrbitAz.mp4").resolve())
 
 
 class Preview:

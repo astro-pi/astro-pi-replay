@@ -134,7 +134,7 @@ class AstroPiExecutor:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        filename = str(get_resource("OrbitAz") / "data.csv")
+        filename = str(get_resource("replay") / "data" / "data.csv")
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename

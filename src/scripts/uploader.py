@@ -8,7 +8,7 @@ import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator, Optional
 
 from tqdm import tqdm
 
@@ -61,7 +61,12 @@ class Uploader:
             for file in files:
                 yield root + os.path.sep + file
 
-    def _create_zip(self, directory_to_zip: Path) -> Path:
+    def _create_zip(
+        self,
+        directory_to_zip: Path,
+        name: Optional[str] = None,
+        include_filter: Optional[Callable[[str], bool]] = None,
+    ) -> Path:
         logger.info("Creating zipfile")
 
         tempdir: Path = Path(tempfile.gettempdir())
@@ -76,31 +81,50 @@ class Uploader:
 
         with zipfile.ZipFile(tempzip, mode="x", compression=zipfile.ZIP_LZMA) as z:
             for f in tqdm(self.deterministic_traversal(directory_to_zip)):
+                # TODO add filter
                 logger.debug(f)
-                z.write(f, arcname=str(Path(f).relative_to(directory_to_zip.parent)))
+                if include_filter is not None and include_filter(f):
+                    z.write(
+                        f, arcname=str(Path(f).relative_to(directory_to_zip.parent))
+                    )
 
-        final_path: Path = Path(str(directory_to_zip) + ".zip")
+        print(name)
+        final_path: Path = (
+            directory_to_zip.parent / (name + ".zip")
+            if name is not None
+            else Path(str(directory_to_zip) + ".zip")
+        )
         shutil.copy2(tempzip, str(final_path))
         return final_path
 
-    def _upload_file(self, file: Path) -> None:
+    def _upload_file(self, file: Path, url: Optional[str] = None) -> None:
         command_args: list[str] = [
             "aws",
             "s3",
             "cp",
             str(file),
-            url_prefix.replace("https://", "s3://") + "/",
+            url if url is not None else url_prefix.replace("https://", "s3://") + "/",
         ]
         logger.debug(command_args)
         subprocess.run(command_args, check=True)  # nosec B603
 
-    def upload(self, file: Path):
+    def upload(
+        self,
+        base_file: Path,
+        name: Optional[str] = None,
+        include_filter: Optional[Callable[[str], bool]] = None,
+        url: Optional[str] = None,
+    ) -> None:
         """
         Zips, checksums, and signs a given directory/file to the s3 bucket.
+        name: The name to rename to - otherwise uses the base_file name
+        include_filter: used to filter files under the base file in/out of the zip
         """
-        zip_file: Path = self._create_zip(file)
+        zip_file: Path = self._create_zip(
+            base_file, name=name, include_filter=include_filter
+        )
         sha256_file: Path = self._create_sha256_checksum(zip_file)
         gpg_file: Path = self._create_gpg_signature(zip_file)
 
         for f in [zip_file, sha256_file, gpg_file]:
-            self._upload_file(f)
+            self._upload_file(f, url)

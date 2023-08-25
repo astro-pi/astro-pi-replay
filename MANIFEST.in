@@ -1,3 +1,3 @@
 graft src/astro_pi_executor/resources/
-prune src/astro_pi_executor/resources/OrbitAz
+prune src/astro_pi_executor/resources/replay
 prune src/astro_pi_executor/resources/__pycache__/*.pyc
