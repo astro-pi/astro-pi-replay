@@ -3,6 +3,7 @@ import itertools
 import json
 import logging
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -210,6 +211,7 @@ def test_replay_capture_sequence_with_filenames(
     # TODO assert on content
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.parametrize("format", video_formats)
 def test_replay_start_recording_supports_all_video_formats(tmp_path: Path, format: str):
     cam = PiCameraAdapter()
@@ -222,11 +224,13 @@ def test_replay_start_recording_supports_all_video_formats(tmp_path: Path, forma
     # TODO assert on content
 
 
+# @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.skip(reason="Not yet implemented")
 def test_replay_start_recording_resizes():
     pass
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.parametrize("format", video_formats)
 def test_replay_start_recording_into_stream(format: str):
     # TODO make deterministic
@@ -243,11 +247,13 @@ def test_replay_start_recording_into_stream(format: str):
     # TODO assert on content
 
 
+# @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.skip(reason="Not yet implemented")
 def test_replay_start_recording_writes_text_annotations():
     pass
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 def test_replay_split_recording_creates_multiple_files(tmp_path: Path):
     cam = PiCameraAdapter()
     # TODO make deterministic
@@ -261,6 +267,7 @@ def test_replay_split_recording_creates_multiple_files(tmp_path: Path):
         # TODO assert on content
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 def test_replay_records_to_a_circular_stream(tmp_path: Path):
     # TODO make deterministic
     cam = PiCameraAdapter()
@@ -282,6 +289,7 @@ def test_replay_records_to_a_circular_stream(tmp_path: Path):
         assert len(f.read()) == bytes_per_frame
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 def test_replay_record_sequence(tmp_path: Path):
     cam = PiCameraAdapter()
     # TODO make deterministic

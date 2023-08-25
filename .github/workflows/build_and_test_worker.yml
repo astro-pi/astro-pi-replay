@@ -28,6 +28,9 @@ jobs:
         with:
           python-version: ${{ inputs.python_version }}
           cache: 'pip'
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get install -y ffmpeg
       - name: Build and test python
         run: |
           if [ -n "${{ inputs.pytest-debug }}" ]; then
