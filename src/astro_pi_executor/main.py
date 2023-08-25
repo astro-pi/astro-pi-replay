@@ -95,9 +95,9 @@ def _main(args: Namespace) -> None:
                 if downloader.has_installed(asset):
                     logger.info(f"{asset} already downloaded and installed - skipping")
                 else:
-                    downloader.download(RESOURCE_DIR)
+                    downloader.download(RESOURCE_DIR, asset_name=asset)
                     logger.info(f"Installing {asset}...")
-                    downloader.install(RESOURCE_DIR)
+                    downloader.install(RESOURCE_DIR, asset_name=asset)
                     logger.info("Installation complete")
         else:
             get_argument_parser().print_usage()
