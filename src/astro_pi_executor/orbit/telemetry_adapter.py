@@ -1,5 +1,4 @@
 # import functools
-import logging
 import typing
 from datetime import datetime, timezone
 
@@ -13,8 +12,6 @@ from astro_pi_executor.executor import AstroPiExecutor
 from .telemetry import ISS as _ISS
 from .telemetry import _timescale, coordinates
 
-logger = logging.getLogger(__name__)
-
 
 class EarthSatellite(skyfield.api.EarthSatellite):
     """Desired subclass type signature"""
@@ -23,9 +20,7 @@ class EarthSatellite(skyfield.api.EarthSatellite):
         return coordinates(self)
 
     def at(self, _: Time) -> typing.Union[Barycentric, Geocentric, ICRF]:
-        logger.debug("Inside telemetry_adapter at method")
         new_t: Time = self._now(self.get_executor())
-        logger.debug(f"new_t: {new_t}")
         return super().at(new_t)
 
     def _now(self, executor: AstroPiExecutor) -> Time:
@@ -34,7 +29,6 @@ class EarthSatellite(skyfield.api.EarthSatellite):
         and converts it.
         """
         new_time: datetime = executor.time_since_start()
-        logger.debug(f"new_time: {new_time}")
         new_time = new_time.replace(tzinfo=timezone.utc)
         return _timescale.from_datetime(new_time)
 

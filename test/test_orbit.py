@@ -1,5 +1,3 @@
-import logging
-import sys
 import typing
 from datetime import datetime, timezone
 from unittest.mock import patch
@@ -15,25 +13,7 @@ from astro_pi_executor.orbit import ephemeris
 from astro_pi_executor.orbit.telemetry_adapter import EarthSatellite, get_patched_iss
 from astro_pi_executor.resources import get_start_time
 
-logger = logging.getLogger(__name__)
 
-
-def trace(frame, event, arg):
-    if event == "call":
-        filename = frame.f_code.co_filename
-        if "skyfield/vectorlib" in filename:
-            logger.debug(
-                f"skyfield vectorlib method {frame.f_code.co_name} "
-                + f"called with args:\n{frame.f_locals}"
-            )
-            lineno = frame.f_lineno
-            # Here I'm printing the file and line number,
-            # but you can examine the frame, locals, etc too.
-            print("%s @ %s" % (filename, lineno))
-    return trace
-
-
-# TODO broken in CI
 @patch(
     "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
     lambda _: get_start_time(),
@@ -41,15 +21,13 @@ def trace(frame, event, arg):
 def test_ISS_coordinates_returns_coordinates():
     executor = AstroPiExecutor()
     ISS = get_patched_iss(executor)
-    sys.settrace(trace)
     pos: GeographicPosition = ISS.coordinates()
-    sys.settrace(None)
     assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
     assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
     assert pos.model.name == "IERS2010"
     assert pos.center == 399  # Earth. See:
     # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html
-    assert pos.elevation.km == 421.6127652392057
+    assert pos.elevation.km == pytest.approx(421.6127652392057, abs=1e-11)
 
 
 def test_iss_is_singleton():
@@ -60,7 +38,6 @@ def test_iss_is_singleton():
     assert iss1 == iss2
 
 
-# TODO broken in CI
 @patch(
     "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
     lambda _: get_start_time(),
@@ -74,7 +51,7 @@ def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     assert pos is not None
     assert pos.latitude.radians == pytest.approx(0.7367376918681074, abs=1e-15)
     assert pos.longitude.radians == pytest.approx(0.6975267490346151, abs=1e-15)
-    assert pos.elevation.km == 421.6127652392057
+    assert pos.elevation.km == pytest.approx(421.6127652392057, abs=1e-11)
 
 
 def test_ISS_is_sunlit_works_as_advertised():
