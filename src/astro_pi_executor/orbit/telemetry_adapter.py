@@ -23,7 +23,9 @@ class EarthSatellite(skyfield.api.EarthSatellite):
         return coordinates(self)
 
     def at(self, _: Time) -> typing.Union[Barycentric, Geocentric, ICRF]:
+        logger.debug("Inside telemetry_adapter at method")
         new_t: Time = self._now(self.get_executor())
+        logger.debug(f"new_t: {new_t}")
         return super().at(new_t)
 
     def _now(self, executor: AstroPiExecutor) -> Time:
