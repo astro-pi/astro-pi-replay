@@ -3,7 +3,7 @@
 The Astro Pis have a High Quality Camera fitted with a CCTV lens.
 For specific details (focal length, sensor dimensions, etc.) see:
 
-  `src/astro_pi_executor/resources/OrbitAz/metadata.json`.
+  `src/astro_pi_executor/resources/replay/metadata.json`.
 
 Taken with a ~10s delay in between each shot.
 

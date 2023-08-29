@@ -12,7 +12,7 @@ from astro_pi_executor.resources import get_resource
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-to_index: Path = get_resource("OrbitAz")
+to_index: Path = get_resource("replay") / "photos"
 
 photos = sorted(
     [photo for photo in glob.glob(str(to_index / "*.jpg"))],

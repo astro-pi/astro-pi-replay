@@ -54,11 +54,11 @@ def test_downloader_should_download_and_install_data(tmp_path: Path):
     downloader = Downloader()
     with patch("astro_pi_executor.downloader.requests") as mock_requests:
         mock_requests.get.side_effect = fake_get(
-            lambda x: x.replace("OrbitAz", "TestDownload")
+            lambda x: x.replace(Downloader.DEFAULT_ASSETS.split(".")[0], "TestDownload")
         )
         downloader.download(tmp_path)
 
-    assert (tmp_path / "OrbitAz.zip").exists()
+    assert (tmp_path / Downloader.DEFAULT_ASSETS).exists()
 
     downloader.install(tmp_path)
     name = "AstroPi_2021_colour.png"

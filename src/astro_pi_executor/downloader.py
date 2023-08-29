@@ -27,8 +27,6 @@ URL_BASE: str = "https://static.raspberrypi.org/files/astro-pi"
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}/{__version__}"
 
-ASSET_NAME = "OrbitAz.zip"
-
 T = TypeVar("T")
 
 ONE_HOUR: int = 60 * 60
@@ -72,6 +70,10 @@ def progress_bar(lst: Iterable[T], bound: Optional[int] = None) -> Iterable[T]:
 
 
 class Downloader:
+    DEFAULT_ASSETS = "replay.zip"
+    VIDEO_ASSETS = "videos.zip"
+    TEST_ASSETS = "replay_tests.zip"
+
     def __init__(self) -> None:
         tempdir: Path = Path(tempfile.gettempdir())
         tempdir /= str(uuid.uuid4())
@@ -167,9 +169,9 @@ class Downloader:
 
         return destination_dir / local_filename
 
-    def download(self, destination_dir: Path) -> None:
+    def download(self, destination_dir: Path, asset_name: str = DEFAULT_ASSETS) -> None:
         downloaded: list[Path] = []
-        for file in [f"{ASSET_NAME}.sha256", f"{ASSET_NAME}.sig", ASSET_NAME]:
+        for file in [f"{asset_name}.sha256", f"{asset_name}.sig", asset_name]:
             logger.info(f"Downloading {file}...")
             url = f"{url_prefix}/{file}"
             downloaded.append(self.download_file(url, self.tempdir))
@@ -190,21 +192,21 @@ class Downloader:
         os.remove(downloaded[0])
         os.remove(downloaded[1])
 
-    def has_downloaded(self) -> bool:
-        return f"{ASSET_NAME}" in os.listdir(self.tempdir)
+    def has_downloaded(self, asset_name: str = DEFAULT_ASSETS) -> bool:
+        return f"{asset_name}" in os.listdir(self.tempdir)
 
-    def has_installed(self) -> bool:
+    def has_installed(self, asset_name: str = DEFAULT_ASSETS) -> bool:
         try:
-            return get_resource(Path(ASSET_NAME).stem).exists()
+            return get_resource(Path(asset_name).stem).exists()
         except FileNotFoundError:
             return False
 
-    def install(self, destination_dir: Path) -> None:
-        if not self.has_downloaded():
+    def install(self, destination_dir: Path, asset_name: str = DEFAULT_ASSETS) -> None:
+        if not self.has_downloaded(asset_name):
             raise AstroPiExecutorException("Must download first")
-        downloaded_file: Path = self.tempdir / ASSET_NAME
+        downloaded_file: Path = self.tempdir / asset_name
         unzipped_dir: Path = self._unzip(downloaded_file)
         if unzipped_dir != destination_dir:
             shutil.copytree(unzipped_dir, destination_dir, dirs_exist_ok=True)
-        if ASSET_NAME in os.listdir(destination_dir):
-            os.remove(destination_dir / ASSET_NAME)
+        if asset_name in os.listdir(destination_dir):
+            os.remove(destination_dir / asset_name)

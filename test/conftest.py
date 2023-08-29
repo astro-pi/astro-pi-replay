@@ -6,11 +6,14 @@ import sys
 import uuid
 import venv
 from pathlib import Path
+from typing import Iterable
+from unittest.mock import patch
 
 import pytest
 
 from astro_pi_executor.configuration import CONFIG_FILE
 from astro_pi_executor.executor import AstroPiExecutor
+from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
 from test_utils import TEST_PYPI_URL, ProgramFixture
 
 logger = logging.getLogger(__name__)
@@ -118,6 +121,23 @@ def live_venv(tmp_path_factory) -> Path:
         with module_file.open("w") as f:
             f.write(os.linesep.join(module_files[module]))
     return venv_dir
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_replay_dir() -> Iterable:
+    """
+    Sets the REPLAY_DIR_ENV_VAR environment variable to point to the replay_tests
+    dir.
+    """
+    value: str = str(get_resource("replay_tests"))
+    logger.debug(f"Setting {REPLAY_DIR_ENV_VAR} to {value}")
+    os.environ[REPLAY_DIR_ENV_VAR] = value
+
+    with patch("astro_pi_executor.main.Downloader.has_installed") as f:
+        f.return_value = True
+        yield
+    logger.debug(f"Unsetting {REPLAY_DIR_ENV_VAR}")
+    os.environ.pop(REPLAY_DIR_ENV_VAR, None)
 
 
 @pytest.fixture(autouse=True)

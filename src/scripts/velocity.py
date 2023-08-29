@@ -7,6 +7,8 @@ import pandas as pd
 from oem import OrbitEphemerisMessage
 from skyfield.api import load, utc
 
+from astro_pi_executor.resources.utils import get_resource
+
 df_filename = "comparison.csv"
 ts = load.timescale()
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_using_oem():
-    ephem = OrbitEphemerisMessage.open("ISS.OEM_J2K_EPH.txt")
+    ephem = OrbitEphemerisMessage.open(get_resource("ISS.OEM_J2K_EPH.txt"))
 
     velocity = ephem.states[0].velocity
     speed = np.linalg.norm(velocity)

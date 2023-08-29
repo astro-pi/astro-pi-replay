@@ -27,6 +27,18 @@ def get_argument_parser() -> ArgumentParser:
     # download_parser.add_argument("--force-reinstall", action="store_true",
     #                            help="Forcibly reinstall the venv used to replay data")
     download_parser.set_defaults(cmd="download")
+    download_parser.add_argument(
+        "--test-assets-only",
+        action="store_true",
+        default=False,
+        help="Downloads only the files required " + "for the automated tests to pass.",
+    )
+    download_parser.add_argument(
+        "--with-video",
+        action="store_true",
+        default=False,
+        help="Whether to download the video assets",
+    )
 
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
     run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
@@ -72,13 +84,21 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
-            if downloader.has_installed():
-                logger.info("Assets already downloaded and installed - skipping")
+            if args.test_assets_only:
+                assets = [Downloader.TEST_ASSETS]
+            elif args.with_video:
+                assets = [Downloader.DEFAULT_ASSETS, Downloader.VIDEO_ASSETS]
             else:
-                downloader.download(RESOURCE_DIR)
-                logger.info("Installing images...")
-                downloader.install(RESOURCE_DIR)
-                logger.info("Installation complete")
+                assets = [Downloader.DEFAULT_ASSETS]
+
+            for asset in assets:
+                if downloader.has_installed(asset):
+                    logger.info(f"{asset} already downloaded and installed - skipping")
+                else:
+                    downloader.download(RESOURCE_DIR, asset_name=asset)
+                    logger.info(f"Installing {asset}...")
+                    downloader.install(RESOURCE_DIR, asset_name=asset)
+                    logger.info("Installation complete")
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
