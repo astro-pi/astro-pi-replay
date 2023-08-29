@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from astro_pi_executor import PROGRAM_NAME, __version__
 from astro_pi_executor.executor import AstroPiExecutorException
-from astro_pi_executor.resources import get_resource
+from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
 
 logger = logging.getLogger(__name__)
 
@@ -195,9 +195,15 @@ class Downloader:
     def has_downloaded(self, asset_name: str = DEFAULT_ASSETS) -> bool:
         return f"{asset_name}" in os.listdir(self.tempdir)
 
-    def has_installed(self, asset_name: str = DEFAULT_ASSETS) -> bool:
+    def has_installed(self, asset_name: Optional[str] = None) -> bool:
+        asset: str
+        if asset_name is None:
+            asset = os.environ.get(REPLAY_DIR_ENV_VAR, Downloader.DEFAULT_ASSETS)
+        else:
+            asset = asset_name
+
         try:
-            return get_resource(Path(asset_name).stem).exists()
+            return get_resource(Path(asset).stem).exists()
         except FileNotFoundError:
             return False
 
