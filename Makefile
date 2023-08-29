@@ -232,7 +232,7 @@ $(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
 	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
 	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_TXT) ; \
 	$(VENV_PIP) install --editable . ; \
-	$(VENV_NAME)/bin/$(NAME) download ; \
+	$(VENV_NAME)/bin/$(NAME) download $(DOWNLOAD_CMD_FLAGS); \
 	$(TOUCH) $(VENV_NAME)/touchfile
 
 $(VENV_NAME): $(VENV_NAME)/touchfile

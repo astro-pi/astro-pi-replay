@@ -22,7 +22,7 @@ import pandas as pd
 from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
-from astro_pi_executor.resources import get_resource, get_start_time
+from astro_pi_executor.resources import get_replay_dir, get_start_time
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ class AstroPiExecutor:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        filename = str(get_resource("replay") / "data" / "data.csv")
+        filename = str(get_replay_dir() / "data" / "data.csv")
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename

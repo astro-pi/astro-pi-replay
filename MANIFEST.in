@@ -1,3 +1,4 @@
 graft src/astro_pi_executor/resources/
 prune src/astro_pi_executor/resources/replay
+prune src/astro_pi_executor/resources/replay_tests
 prune src/astro_pi_executor/resources/__pycache__/*.pyc

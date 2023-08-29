@@ -37,6 +37,8 @@ jobs:
             export PYTEST_DEBUG=1
           fi
           make test build_python
+        env:
+          DOWNLOAD_CMD_FLAGS: --test-assets-only
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
         uses: rtCamp/action-slack-notify@v2.2.0

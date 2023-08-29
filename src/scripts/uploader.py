@@ -17,10 +17,6 @@ from astro_pi_executor.downloader import url_prefix
 logger = logging.getLogger(__name__)
 
 
-def tqdm_thread():
-    pass
-
-
 class Uploader:
     def __init__(self):
         if sys.platform not in ["Linux", "darwin"]:
@@ -64,7 +60,7 @@ class Uploader:
     def _create_zip(
         self,
         directory_to_zip: Path,
-        name: Optional[str] = None,
+        zip_name: Optional[str] = None,
         include_filter: Optional[Callable[[str], bool]] = None,
     ) -> Path:
         logger.info("Creating zipfile")
@@ -81,17 +77,15 @@ class Uploader:
 
         with zipfile.ZipFile(tempzip, mode="x", compression=zipfile.ZIP_LZMA) as z:
             for f in tqdm(self.deterministic_traversal(directory_to_zip)):
-                # TODO add filter
                 logger.debug(f)
-                if include_filter is not None and include_filter(f):
+                if include_filter is None or include_filter(f):
                     z.write(
                         f, arcname=str(Path(f).relative_to(directory_to_zip.parent))
                     )
 
-        print(name)
         final_path: Path = (
-            directory_to_zip.parent / (name + ".zip")
-            if name is not None
+            directory_to_zip.parent / (zip_name + ".zip")
+            if zip_name is not None
             else Path(str(directory_to_zip) + ".zip")
         )
         shutil.copy2(tempzip, str(final_path))
@@ -111,17 +105,17 @@ class Uploader:
     def upload(
         self,
         base_file: Path,
-        name: Optional[str] = None,
+        zip_name: Optional[str] = None,
         include_filter: Optional[Callable[[str], bool]] = None,
         url: Optional[str] = None,
     ) -> None:
         """
         Zips, checksums, and signs a given directory/file to the s3 bucket.
-        name: The name to rename to - otherwise uses the base_file name
+        zip_name: The name to rename to - otherwise uses the base_file name
         include_filter: used to filter files under the base file in/out of the zip
         """
         zip_file: Path = self._create_zip(
-            base_file, name=name, include_filter=include_filter
+            base_file, zip_name=zip_name, include_filter=include_filter
         )
         sha256_file: Path = self._create_sha256_checksum(zip_file)
         gpg_file: Path = self._create_gpg_signature(zip_file)

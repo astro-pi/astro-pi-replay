@@ -72,7 +72,7 @@ def progress_bar(lst: Iterable[T], bound: Optional[int] = None) -> Iterable[T]:
 class Downloader:
     DEFAULT_ASSETS = "replay.zip"
     VIDEO_ASSETS = "videos.zip"
-    TEST_ASSETS = "tests.zip"
+    TEST_ASSETS = "replay_tests.zip"
 
     def __init__(self) -> None:
         tempdir: Path = Path(tempfile.gettempdir())

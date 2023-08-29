@@ -20,5 +20,9 @@ u.upload(
 u.upload(
     base,
     include_filter=lambda f: Path(f).is_relative_to(base / "videos"),
-    name="videos",
+    zip_name="videos",
 )
+
+# Upload test assets
+base = base.parent / "replay_tests"
+u.upload(base)
