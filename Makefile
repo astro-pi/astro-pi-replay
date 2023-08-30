@@ -151,6 +151,7 @@ build_docs: $(VENV) $(DOC_SOURCES)
 build_python: $(DIST_DIR)
 
 clean:
+	@$(RM) -f .git/hooks/*
 	@$(RM) -rf $(VENV_NAME) $(DIST_DIR) $(SITE_DIR) $(PROFILE_DIR)
 	@$(RM) -rf test/smoke_tests/venv test/smoke_tests/smoke_venv
 	@$(FIND) . -iname "__pycache__" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
@@ -170,6 +171,9 @@ diagnostics:
 
 $(DIST_DIR):	$(VENV)
 	. $(VENV_NAME)/bin/activate; $(PYTHON3) $(PYFLAGS) -m $(BUILD)
+
+hooks_install:
+	cp .githooks/* .git/hooks/
 
 install: build_python
 	$(PIP) install --user $(DIST_DIR)/*.whl
@@ -219,7 +223,7 @@ publish_prod_pypi: assert_on_git_branch_head_or_main assert_env_var_set_TWINE_US
 	$(TWINE) check $(DIST_DIR)/* ; \
 	$(TWINE) upload $(DIST_DIR)/*
 
-setup_developer: $(VENV_NAME) pre_commit_install
+setup_developer: $(VENV_NAME) pre_commit_install hooks_install
 	@echo "Activate venv with $(VENV_NAME)/bin/activate"
 	@echo "or use direnv"
 
