@@ -7,7 +7,7 @@ rem Create the virtual environment
 python -m venv %VENV_NAME%
 
 rem Activate the virtual environment
-call %VENV_NAME%\Scripts\activate
+call %VENV_NAME%\Scripts\Activate.bat
 
 rem Install dependencies
 pip install -r requirements.txt
@@ -20,5 +20,7 @@ rem Execute the smoke tests
 set ASTRO_PI_EXECUTOR_REPLAY_DIR=replay_tests
 set PYTEST_PROFILE=SMOKE_TESTS
 pytest -o log_cli=true --log-cli-level=DEBUG --noconftest
+if %ERRORLEVEL% GEQ 1 set PYTEST_ERROR=%ERRORLEVEL%
 set ASTRO_PI_EXECUTOR_REPLAY_DIR=
 set PYTEST_PROFILE=
+if %PYTEST_ERROR% GEQ 1 EXIT /B %PYTEST_ERROR%

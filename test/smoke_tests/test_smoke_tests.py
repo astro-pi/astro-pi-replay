@@ -45,6 +45,7 @@ def smoke_test_venv():
     program_name, version = get_program_name_and_version()
     logger.debug(f"Installing {program_name} into venv")
     venv_pip: Path = Path(VENV_NAME) / "bin" / "pip"
+    logger.debug(os.listdir(venv_pip.parent))
     cmd: list[str] = [
         str(venv_pip),
         "install",
