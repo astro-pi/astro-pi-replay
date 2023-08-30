@@ -18,12 +18,34 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+    # For pull requests it's not necessary to checkout the code
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          docs:
+            - 'docs/**'
+            - 'mkdocs.yml'
+          src:
+            - '!docs/**'
+            - '!mkdocs.yml'
   build_and_test_python:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python_version }}
@@ -50,8 +72,9 @@ jobs:
           SLACK_FOOTER: Build failure
 
   build_docs:
+    needs: changes
+    if: ${{ needs.changes.outputs.docs == 'true' }}
     runs-on: ${{ inputs.os }}
-
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
