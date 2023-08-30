@@ -152,6 +152,7 @@ build_python: $(DIST_DIR)
 
 clean:
 	@$(RM) -rf $(VENV_NAME) $(DIST_DIR) $(SITE_DIR) $(PROFILE_DIR)
+	@$(RM) -rf test/smoke_tests/venv test/smoke_tests/smoke_venv
 	@$(FIND) . -iname "__pycache__" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
 	@$(FIND) . -iname "*.pyc" | $(SORT) -r | $(XARGS) -I{} rm -f {}
 	@$(FIND) . -iname "*.egg-info" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
@@ -225,9 +226,9 @@ setup_developer: $(VENV_NAME) pre_commit_install
 test: $(VENV_NAME)
 	. $(VENV_NAME)/bin/activate; $(PYTEST) $(PYTEST_FLAGS)
 
-test_smoke: $(VENV)
+test_smoke:
 	@echo "Running smoke tests"
-	PYTEST_PROFILE=SMOKE_TESTS $(PYTEST) -s test/smoke_tests/
+	cd test/smoke_tests; ./execute_smoke_tests.sh
 
 uninstall:
 	$(PIP) uninstall --user $(NAME)
