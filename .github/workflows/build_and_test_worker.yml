@@ -28,7 +28,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
       src: ${{ steps.filter.outputs.src }}
     steps:
-    # For pull requests it's not necessary to checkout the code
+    - uses: actions/checkout@v3
     - uses: dorny/paths-filter@v2
       id: filter
       with:
