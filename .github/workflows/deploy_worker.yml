@@ -84,7 +84,7 @@ jobs:
         run: |
           choco install make
           cd test/smoke_tests
-          call execute_smoke_tests.bat
+          .\execute_smoke_tests.bat
       - name: Execute smoke tests on Linux/MacOS
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
