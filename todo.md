@@ -1,5 +1,9 @@
 Current:
 --------
+- Fix resources being versioned in AWS - currently breaks CI when package version changes.
+  -> temporarily copy to aws ?
+  - This may entail having to put my token in the CI - bad idea?
+
 - Add picamera2 support
 
 Bonuses:
@@ -8,6 +12,7 @@ Bonuses:
 - remote attach to the executor subprocess
   python3 -m debugpy --listen 1.2.3.4:5678 --wait-for-client -m main
 - profile tests to identify easy winnings
+  - could offer a test download to avoid having to download 800MB each time in CI.
 - Refactor the stubbing of no_wait to make the tests cleaner and more isolated.
 - Fix the picamera previewer
 - copy over picamera exc
@@ -31,7 +36,6 @@ resources are closed properly)
 
 Admin & Best-practices:
 - add repo to RPF foundation in TestPypi
-- complete smoke tests
 - integration tests (qemu + docker based)
 - Ensure CD builds wheels for many OS and arch types.
 - Complete the documentation and request translations
