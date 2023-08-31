@@ -4,8 +4,7 @@
     "config:base"
   ],
   "lockFileMaintenance": {
-    "enabled": true,
-    "extends": ["schedule: weekly"]
+    "enabled": true
   },
   "nix": {
     "enabled": true
