@@ -392,7 +392,7 @@ class AstroPiExecutor:
             callback()
 
     @staticmethod
-    def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
+    def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
         def list_dependencies(
@@ -423,7 +423,7 @@ class AstroPiExecutor:
             logger.debug(f"executor_venv_deps: {executor_venv_deps}")
             if current_deps == executor_venv_deps:
                 logger.debug("venv already created - skipping")
-                return venv_dir
+                return existing_venv
             else:
                 logger.debug(
                     "Dependencies have changed - deleting "
@@ -461,7 +461,7 @@ class AstroPiExecutor:
                 venv_resolver.venv_info.site_packages_dir / module,
             )
 
-        return venv_dir
+        return venv_resolver
 
     # @staticmethod
     # def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
@@ -581,7 +581,7 @@ class AstroPiExecutor:
             raise AstroPiExecutorException(f"File {main} is not a regular file")
 
         env: Optional[dict[str, str]]
-        python3: str
+        python: str
 
         # Conditionally create the venv
         # TODO create spinner/progress bar for this
@@ -595,18 +595,18 @@ class AstroPiExecutor:
                 )
                 logging.debug(f"Found {venv_dirname}")
 
-            venv_dir: Path = AstroPiExecutor._setup_venv(venv_dirname)
+            venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
 
             # Prepare the environment to be used in the subprocess.
             env = os.environ.copy()
-            env["PATH"] = ":".join([str(Path(venv_dir) / "bin"), env["PATH"]])
-            env["VIRTUAL_ENV"] = str(venv_dir)
+            env["PATH"] = ":".join([str(venv.venv_info.script_dir), env["PATH"]])
+            env["VIRTUAL_ENV"] = str(venv.venv_dir)
 
-            python3 = str(venv_dir / "bin" / "python3")
+            python = str(venv.venv_info.python)
         else:
             logging.debug("Running in live mode")
             env = None
-            python3 = "python3"
+            python = "python"
 
         # Add if __name__ == "__main__" guard as needed
         # (required by multiprocessing in CameraPreview currently FIXME)
@@ -617,10 +617,11 @@ class AstroPiExecutor:
 
         try:
             # Run the program that was passed in
+            # TODO this is checked already
             if platform.system() in ["Linux", "Darwin", "Windows"]:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
-                args: list[str] = [python3, "-u", str(main.resolve())]
+                args: list[str] = [python, "-u", str(main.resolve())]
                 logging.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):
