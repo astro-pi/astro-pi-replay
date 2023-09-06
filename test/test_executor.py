@@ -21,6 +21,7 @@ import pytest
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.executor import AstroPiExecutor, Lifecycle
 from astro_pi_executor.resources import get_start_time
+from astro_pi_executor.venv_resolver import VenvResolver
 from test_utils import (
     ProgramFixture,
     get_test_resource,
@@ -167,25 +168,19 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
         f.write("")  # empty file
     AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
 
-    expected_venv_path = tmp_path / "venv"
-    assert expected_venv_path.exists()
-    assert os.listdir(expected_venv_path)
+    venv = VenvResolver(tmp_path / "venv", init_venv=False)
+    assert venv.venv_dir.exists()
 
-    python_version: str = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    site_packages_path: Path = (
-        expected_venv_path / "lib" / python_version / "site-packages"
-    )
-
-    assert "sense_hat" in os.listdir(site_packages_path)
-    sense_hat_path: Path = site_packages_path / "sense_hat"
+    assert "sense_hat" in os.listdir(venv.venv_info.site_packages_dir)
+    sense_hat_path: Path = venv.venv_info.site_packages_dir / "sense_hat"
     assert "sense_hat.py" in os.listdir(sense_hat_path)
 
-    assert "picamera" in os.listdir(site_packages_path)
-    picamera_path: Path = site_packages_path / "picamera"
+    assert "picamera" in os.listdir(venv.venv_info.site_packages_dir)
+    picamera_path: Path = venv.venv_info.site_packages_dir / "picamera"
     assert "camera.py" in os.listdir(picamera_path)
 
-    assert "orbit" in os.listdir(site_packages_path)
-    orbit_path: Path = site_packages_path / "orbit"
+    assert "orbit" in os.listdir(venv.venv_info.site_packages_dir)
+    orbit_path: Path = venv.venv_info.site_packages_dir / "orbit"
     assert "telemetry.py" in os.listdir(orbit_path)
 
 
@@ -216,6 +211,8 @@ def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: P
 
     # 2. Install a fake dep into the current venv
     current_python: Path = Path(sys.prefix) / "bin" / "python"
+    if not current_python.exists():
+        current_python = Path(sys.prefix) / "python.exe"
     fake_dep: Path = get_test_resource("fake_dep")
     installed = False
     try:
