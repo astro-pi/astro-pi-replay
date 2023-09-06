@@ -197,7 +197,7 @@ def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: P
                     "import os",
                     "import fake_dep",
                     "",
-                    f"with open('{str(output_file)}', 'w') as f:",
+                    f"with open(r'{str(output_file)}', 'w') as f:",
                     "    f.write(fake_dep.__version__ + os.linesep)",
                 ]
             )
