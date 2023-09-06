@@ -148,8 +148,8 @@ class Downloader:
                 except zipfile.error as e:
                     logger.error(e)
 
-            os.remove(zip_file)
-            return self.tempdir
+        os.remove(zip_file)
+        return self.tempdir
 
     def download_file(self, url: str, destination_dir: Path) -> Path:
         local_filename: str = url.split("/")[-1]
