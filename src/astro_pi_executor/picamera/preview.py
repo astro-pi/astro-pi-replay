@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.executor import AstroPiExecutorException
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.resources import get_resource
 
 logger = logging.getLogger(__name__)

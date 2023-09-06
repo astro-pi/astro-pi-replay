@@ -17,7 +17,7 @@ import requests
 from tqdm import tqdm
 
 from astro_pi_executor import PROGRAM_NAME, __version__
-from astro_pi_executor.executor import AstroPiExecutorException
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
 
 logger = logging.getLogger(__name__)

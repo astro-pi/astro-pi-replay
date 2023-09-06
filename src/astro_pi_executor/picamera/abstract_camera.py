@@ -12,7 +12,7 @@ from typing import BinaryIO, Iterable, Optional, Union
 from colorzero import Color
 
 from astro_pi_executor.custom_types import IO_TYPE, UV, XYWH
-from astro_pi_executor.executor import AstroPiExecutorException
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.picamera.exc import PiCameraRuntimeError
 from astro_pi_executor.picamera.frames import PiVideoFrame
 from astro_pi_executor.picamera.mmalobj import PiFramerateRange, PiResolution
