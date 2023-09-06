@@ -55,7 +55,12 @@ class VenvResolver:
         self.platform: str = self._verify_platform()
         self.venv_info: VenvInfo = self._resolve_venv_dirs()
 
-    def install(self, name: str, workdir: Optional[Path] = None) -> None:
+    def install(
+        self,
+        name: str,
+        workdir: Optional[Path] = None,
+        flags: Optional[list[str]] = None,
+    ) -> None:
         """Executes pip install with the given args using the resolved pip"""
         before_directory: str = os.getcwd()
         chdir: bool = False
@@ -68,6 +73,8 @@ class VenvResolver:
                 print_name = workdir.name
             logger.debug(f"Installing {print_name} into venv...")
             args: list[str] = [str(self.venv_info.pip), "install", name]
+            if flags is not None:
+                args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
             subprocess.run(args, check=True)  # nosec B603: no user input
         finally:
