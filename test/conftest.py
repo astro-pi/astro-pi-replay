@@ -59,7 +59,7 @@ def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
             "rgb = sh.colour.colour",
-            f"with open('{str(file_path)}', 'w') as f:",
+            f"with open(r'{str(file_path)}', 'w') as f:",
             "    f.write(repr(rgb[:3]))",
             f"print('{uuid4}', rgb){os.linesep}",
         ]
