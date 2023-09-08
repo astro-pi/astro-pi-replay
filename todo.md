@@ -1,9 +1,18 @@
 Current:
 --------
+- Add self-version check feature (check if an update is available)
 - Fix resources being versioned in AWS - currently breaks CI when package version changes.
   -> temporarily copy to aws ?
   - This may entail having to put my token in the CI - bad idea?
-
+- fix ffmpeg tests on Windows
+  FAILED test/test_picamera_api.py::test_replay_start_recording_supports_all_video_formats[bgr] - AssertionError: assert False
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[mjpeg] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[yuv] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[rgb] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[rgba] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[bgr] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[bgra] - assert 0 > 0
+  FAILED test/test_picamera_api.py::test_replay_records_to_a_circular_stream - AssertionError: assert 0 == 2764800
 - Add picamera2 support
 
 Bonuses:

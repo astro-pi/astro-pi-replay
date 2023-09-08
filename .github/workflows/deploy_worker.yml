@@ -82,7 +82,6 @@ jobs:
       - name: Install Windows dependencies and execute
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          choco install make
           cd test/smoke_tests
           .\execute_smoke_tests.bat
       - name: Execute smoke tests on Linux/MacOS
