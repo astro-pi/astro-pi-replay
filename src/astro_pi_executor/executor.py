@@ -599,14 +599,21 @@ class AstroPiExecutor:
 
             # Prepare the environment to be used in the subprocess.
             env = os.environ.copy()
-            env["PATH"] = ":".join([str(venv.venv_info.script_dir), env["PATH"]])
+            env["PATH"] = os.path.pathsep.join(
+                [str(venv.venv_info.script_dir), env["PATH"]]
+            )
             env["VIRTUAL_ENV"] = str(venv.venv_dir)
 
             python = str(venv.venv_info.python)
         else:
             logging.debug("Running in live mode")
             env = None
-            python = "python"
+            python = "python.exe" if sys.platform == "win32" else "python"
+            resolved_python: Optional[str] = shutil.which(python)
+            if resolved_python is not None:
+                python = resolved_python
+            else:
+                raise Exception(f"Could not find {python}. Is it installed?")
 
         # Add if __name__ == "__main__" guard as needed
         # (required by multiprocessing in CameraPreview currently FIXME)
