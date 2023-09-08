@@ -20,7 +20,8 @@ rem Execute the smoke tests
 set ASTRO_PI_EXECUTOR_REPLAY_DIR=replay_tests
 set PYTEST_PROFILE=SMOKE_TESTS
 pytest -o log_cli=true --log-cli-level=DEBUG --noconftest
-if %ERRORLEVEL% GEQ 1 set PYTEST_ERROR=%ERRORLEVEL%
+set PYTEST_ERROR=%ERRORLEVEL%
+echo %PYTEST_ERROR%
 set ASTRO_PI_EXECUTOR_REPLAY_DIR=
 set PYTEST_PROFILE=
 if %PYTEST_ERROR% GEQ 1 EXIT /B %PYTEST_ERROR%
