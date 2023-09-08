@@ -29,9 +29,14 @@ def get_program_name_and_version() -> tuple[str, str]:
         sys.path.remove(src)
 
 
+def get_venv_script_dir() -> Path:
+    script_dir: str = "Scripts" if sys.platform == "win32" else "bin"
+    return Path(VENV_NAME) / script_dir
+
+
 def get_executor() -> Path:
     program_name, _ = get_program_name_and_version()
-    return Path(VENV_NAME) / "bin" / program_name
+    return get_venv_script_dir() / program_name
 
 
 # TODO cache this using config.cache fixture
@@ -44,10 +49,10 @@ def smoke_test_venv():
 
     program_name, version = get_program_name_and_version()
     logger.debug(f"Installing {program_name} into venv")
-    venv_pip: Path = Path(VENV_NAME) / "bin" / "pip"
+    venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
     cmd: list[str] = [
-        str(venv_pip),
+        rf"{str(venv_pip)}",
         "install",
         "--index-url",
         "https://test.pypi.org/simple/",
@@ -92,7 +97,7 @@ def teardown() -> Iterable[None]:
 
 def test_smoke_test(example_program):
     cmd: list[str] = [
-        str(get_executor()),
+        rf"{str(get_executor())}",
         "run",
         str(example_program),
         "--no-match-original-photo-intervals",

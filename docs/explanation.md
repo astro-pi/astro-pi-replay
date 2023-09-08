@@ -15,3 +15,44 @@ There are two modes - REPLAY mode and LIVE mode.
 LIVE mode is only supported on Raspberry Pi OS, where `astro_pi_executor` effectively is a symlink
 to the system Python executable.
 REPLAY mode is cross-platform and spins up a venv that replays data.
+
+# Replay resources
+
+The photo and video assets are organised into `sequences`, which are ordered collections of photos. Each sequence is downloaded into the `replay` directory in `src/astro_pi_executor/resources`. To simplify lookup of assets, there is a strict naming convention for each subdirectory of `replay`:
+
+    replay/photography_type/img_resolution/sequence_id/
+
+The sequence id is a unique alphanumeric string - typically the team id from which the sequence is derived. As an example, team AstroX's photos, which are visible light photos and have a resolution of (4056,304) are located at:
+
+    replay/VIS/4056_3040/AstroX/
+
+However, if there were multiple sequences, the next sequence would have to use a different sequence id.
+
+In addition to the constraints above, each sequence directory itself is organised as per the following:
+
+    sequence-id/
+    ├─ data/
+    │  ├─ data.csv
+    ├─ metadata.json
+    ├─ photos/
+    │  ├─ img_0.jpg
+    │  ├─ img_1.jpg
+    │  ├─ ...
+    ├─ videos/
+    │  ├─ video.mp4
+
+
+The `data.csv` contains the SenseHat data to be replayed in tandem with the images.
+The `photos` directory contains all the images for the sequence.
+The `video.mp4` is a mp4 of the images in the `photos` directory.
+The `metadata.json` file provides essential metadata for the sequence, including:
+
+* The lens and camera used to capture the images.
+* The start and end datetimes of the image sequence.
+* The team whose code originally captured the images.
+* The ground sampling distance (GSD) to use when doing geospatial analysis with the images.
+
+# TODO create a script that:
+1. Downloads the original team asset from the internal google drive
+2. Transforms it into the required asset (defines the numbers)(etc.)
+3. Produces a zipfile in the above format, providing the supplementary data

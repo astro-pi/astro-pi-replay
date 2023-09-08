@@ -59,16 +59,14 @@ def prepare_executor_to_run_in_smoke_test_venv(func):
         sys_prefix_before = sys.prefix
         sys_path_before = sys.path.copy()
 
-        venv_dir: Path = smoke_test_venv.resolve()
-        venv_bin: str = str(venv_dir / "bin")
-        python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-
         try:
             logger.debug("Setting sys.path and friends")
-            os.environ["PATH"] = ":".join([venv_bin, path_before])
-            os.environ["VIRTUAL_ENV"] = str(venv_dir)
-            sys.prefix = venv_dir
-            sys.path.append(str(venv_dir / "lib" / python_version / "site-packages"))
+            os.environ["PATH"] = os.path.pathsep.join(
+                [str(smoke_test_venv.venv_info.script_dir), path_before]
+            )
+            os.environ["VIRTUAL_ENV"] = str(smoke_test_venv.venv_dir)
+            sys.prefix = smoke_test_venv.venv_dir
+            sys.path.append(str(smoke_test_venv.venv_info.site_packages_dir))
 
             logger.debug(f"PATH: {os.environ['PATH']}")
             logger.debug(f"VIRTUAL_ENV: {os.environ['VIRTUAL_ENV']}")
@@ -123,16 +121,14 @@ def prepare_executor_to_run_in_fake_live_venv(func):
         sys_prefix_before = sys.prefix
         sys_path_before = sys.path.copy()
 
-        venv_dir: Path = live_venv.resolve()
-        venv_bin: str = str(venv_dir / "bin")
-        python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-
         try:
             logger.debug("Setting sys.path and friends")
-            os.environ["PATH"] = ":".join([venv_bin, path_before])
-            os.environ["VIRTUAL_ENV"] = str(venv_dir)
-            sys.prefix = venv_dir
-            sys.path.append(str(venv_dir / "lib" / python_version / "site-packages"))
+            os.environ["PATH"] = os.path.pathsep.join(
+                [str(live_venv.venv_info.script_dir), path_before]
+            )
+            os.environ["VIRTUAL_ENV"] = str(live_venv.venv_dir)
+            sys.prefix = live_venv.venv_dir
+            sys.path.append(str(live_venv.venv_info.site_packages_dir))
 
             logger.debug(f"PATH: {os.environ['PATH']}")
             logger.debug(f"VIRTUAL_ENV: {os.environ['VIRTUAL_ENV']}")

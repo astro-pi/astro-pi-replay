@@ -12,7 +12,7 @@ from typing import BinaryIO, Iterable, Optional, Union
 from colorzero import Color
 
 from astro_pi_executor.custom_types import IO_TYPE, UV, XYWH
-from astro_pi_executor.executor import AstroPiExecutorException
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.picamera.exc import PiCameraRuntimeError
 from astro_pi_executor.picamera.frames import PiVideoFrame
 from astro_pi_executor.picamera.mmalobj import PiFramerateRange, PiResolution
@@ -386,28 +386,27 @@ class PiCamera(abc.ABC):
     def timestamp(self) -> int:
         system: str = platform.system()
         command_args: list[str]
-        if system == "Linux":
-            command_args = ["cat", "/proc/uptime"]
-        elif system == "Darwin":
-            command_args = ["sysctl", "kern.boottime"]
-        elif system == "Windows":
-            command_args = []
-        else:
-            raise AstroPiExecutorException("Unsupported System")
-
-        command: str = " ".join(command_args)
-        logger.debug(command)
-        out = subprocess.run(
-            command_args, check=True, capture_output=True, text=True
-        )  # nosec B603
-
         val: int
-        if system == "Linux":
-            val = round(float(out.stdout.strip().split()[0]))
-        elif system == "Darwin":
-            val = int(out.stdout.strip().split()[4].replace(",", ""))
-        else:
+        if system in ["Linux", "Darwin"]:
+            if system == "Linux":
+                command_args = ["cat", "/proc/uptime"]
+            else:
+                command_args = ["sysctl", "kern.boottime"]
+
+            command: str = " ".join(command_args)
+            logger.debug(command)
+            out = subprocess.run(
+                command_args, check=True, capture_output=True, text=True
+            )  # nosec B603
+
+            if system == "Linux":
+                val = round(float(out.stdout.strip().split()[0]))
+            else:
+                val = int(out.stdout.strip().split()[4].replace(",", ""))
+        elif system == "Windows":
             val = int(ctypes.windll.kernel32.GetTickCount64())  # type: ignore
+        else:
+            raise AstroPiExecutorException(f"Unsupported system {system}")
         return val
 
     def wait_recording(self, timeout: int = 0, splitter_port: int = 1) -> None:

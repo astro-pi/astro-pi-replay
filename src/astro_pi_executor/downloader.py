@@ -17,7 +17,7 @@ import requests
 from tqdm import tqdm
 
 from astro_pi_executor import PROGRAM_NAME, __version__
-from astro_pi_executor.executor import AstroPiExecutorException
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
 
 logger = logging.getLogger(__name__)
@@ -148,8 +148,8 @@ class Downloader:
                 except zipfile.error as e:
                     logger.error(e)
 
-            os.remove(zip_file)
-            return self.tempdir
+        os.remove(zip_file)
+        return self.tempdir
 
     def download_file(self, url: str, destination_dir: Path) -> Path:
         local_filename: str = url.split("/")[-1]

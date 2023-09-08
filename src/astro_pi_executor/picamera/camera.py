@@ -13,11 +13,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 import astro_pi_executor.picamera.mmalobj as mo
 from astro_pi_executor.custom_types import IO_TYPE, RGB
-from astro_pi_executor.executor import (
-    AstroPiExecutor,
+from astro_pi_executor.exception import (
     AstroPiExecutorException,
     AstroPiExecutorRuntimeError,
 )
+from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.picamera.abstract_camera import PiCamera
 from astro_pi_executor.picamera.encoders import PiEncoder, PiVideoEncoder
 from astro_pi_executor.picamera.exc import (

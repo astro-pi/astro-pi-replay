@@ -10,7 +10,6 @@ import sys
 import tempfile
 import time
 import traceback
-import venv
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import partial, wraps
@@ -22,7 +21,9 @@ import pandas as pd
 from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
+from astro_pi_executor.exception import AstroPiExecutorException
 from astro_pi_executor.resources import get_replay_dir, get_start_time
+from astro_pi_executor.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
 
@@ -41,23 +42,6 @@ class AstroPiExecutorState:
         self._last_sense_hat_row_index: int = 0
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
-
-
-# TODO move
-class AstroPiExecutorRuntimeError(RuntimeError):
-    pass
-
-
-class AstroPiExecutorException(Exception):
-    def __init__(self, message: str) -> None:
-        self.message: str = message
-        super().__init__(message)
-
-    def __repr__(self) -> str:
-        return self.message
-
-    def __str__(self) -> str:
-        return self.message
 
 
 class AstroPiExecutor:
@@ -80,7 +64,6 @@ class AstroPiExecutor:
     Checks whether the current interpreter is running in a venv,
     as defined here in https://docs.python.org/3/library/venv.html#how-venvs-work
     """
-    is_in_venv: bool = sys.prefix != sys.base_prefix
     _instance: Optional["AstroPiExecutor"] = None  # singleton instance
     _callbacks: dict[Lifecycle, list[Callable]] = collections.defaultdict(list)
 
@@ -408,97 +391,80 @@ class AstroPiExecutor:
             callback()
 
     @staticmethod
-    def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
-        """
-        Creates a new venv with the given name in the given venv_dirname
-        using the venv module.
-        """
-        # 1. Create or copy the venv to the venv_dir, depending on if we're
-        # already in one
+    def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        def list_dependencies(
-            python: Path = Path(sys.prefix) / "bin" / "python",
-        ) -> str:
-            """
-            pip: Path to pip - defaults to the sys.prefix pip (i.e. the current venv)
-            Runs pip freeze and pipes the output into md5sum
-            """
-            args: list[str] = [str(python), "-m", "pip", "freeze"]
+        def list_dependencies(python: Optional[Path] = None) -> str:
+            if python is None:
+                executable_name: str = (
+                    "python.exe" if sys.platform == "win32" else "python"
+                )
+                resolved: Optional[str] = shutil.which(executable_name)
+                if resolved is None:
+                    raise Exception(f"Cannot find {executable_name}. Is it installed?")
+                else:
+                    python = Path(resolved)
+            args: list[str] = [rf"{str(python)}", "-m", "pip", "freeze"]
+            logger.debug(" ".join(args))
             out = subprocess.run(
                 args, text=True, check=True, capture_output=True, shell=False
             )  # nosec B603
             logger.debug(out)
             return out.stdout
 
+        # 1. Compare the current environment and the venv for changes.
+        # Deletes the venv if there is a change so that the venv
+        # dependencies remain up to date.
         if venv_dir.exists():
-            current_deps = list_dependencies()  # current venv
+            current_deps: str = list_dependencies()  # current venv
             logger.debug(f"current_deps: {current_deps}")
             logger.debug("")
-            executor_venv_deps = list_dependencies(python=venv_dir / "bin" / "python")
+
+            existing_venv: VenvResolver = VenvResolver(venv_dir)
+            # The problem is here
+            executor_venv_deps = existing_venv.list_dependencies()
             logger.debug(f"executor_venv_deps: {executor_venv_deps}")
             if current_deps == executor_venv_deps:
                 logger.debug("venv already created - skipping")
-                return venv_dir
+                return existing_venv
             else:
                 logger.debug(
                     "Dependencies have changed - deleting "
                     + f"old venv at {venv_dir} and recreating..."
                 )
-                shutil.rmtree(venv_dir)
-        logging.debug("Creating venv")
+            shutil.rmtree(venv_dir)
 
-        if AstroPiExecutor.is_in_venv:
-            logger.debug(
-                "Detected that you running in a venv:"
-                + f"\n\t{sys.prefix}.\n"
-                + "However, running in replay mode will use a "
-                + "separate copied (modified) venv."
-            )
-            logger.info("Preparing environment (this may take a few moments)...")
-            shutil.copytree(sys.prefix, venv_dir, symlinks=True)
-        else:
-            venv.create(
-                venv_dir, symlinks=True, system_site_packages=True, with_pip=True
-            )
+        # 2. Copy or creates the venv to the venv_dir, depending on if we're
+        # already in one
+        venv_resolver: VenvResolver = VenvResolver(venv_dir)
 
-        # 2. Install the executor package as required
+        # 3. Install the executor package as required
         logger.debug("Installing stubbed modules in the venv...")
 
-        python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        venv_site_packages_dir = venv_dir / "lib" / python_version / "site-packages"
-        venv_pip = str(venv_dir / "bin" / "pip")
-        venv_python3 = str(venv_dir / "bin" / "python3")
-
-        # Is astro_pi_executor already installed in the new venv?
-        out = AstroPiExecutor._check_package_installed(venv_python3)
-
-        if out.stdout.strip() == AstroPiExecutor.NOT_FOUND:
-            # install the module
+        executor_install_path: Optional[str] = venv_resolver.is_package_installed(
+            PROGRAM_NAME
+        )
+        if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_NAME} into venv...")
-            subprocess.run(
-                [venv_pip, "install", "."], check=True
-            )  # nosec B603: no user input
-            out = AstroPiExecutor._check_package_installed(venv_python3)
+            venv_resolver.install(".")
 
-        executor_installed_path = Path(out.stdout.strip())
-        if not executor_installed_path.exists():
-            raise AstroPiExecutorException(
-                f"Could not set up {PROGRAM_NAME} environment"
-            )
+            executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
+            if executor_install_path is None:
+                raise AstroPiExecutorException(
+                    f"Could not set up {PROGRAM_NAME} environment"
+                )
 
-        logger.debug(f"Found {PROGRAM_NAME} installed at {executor_installed_path}")
-
-        # 3. Install stubs into the venv
+        # 4. Install stubs into the venv
         logger.debug("Installing stubbed modules in the venv...")
 
         for module in AstroPiExecutor.MODULES_TO_STUB:
             logger.debug(f"Installing {module}")
             shutil.copytree(
-                executor_installed_path / module, venv_site_packages_dir / module
+                Path(executor_install_path) / module,
+                venv_resolver.venv_info.site_packages_dir / module,
             )
 
-        return venv_dir
+        return venv_resolver
 
     @staticmethod
     def run(
@@ -525,7 +491,7 @@ class AstroPiExecutor:
             raise AstroPiExecutorException(f"File {main} is not a regular file")
 
         env: Optional[dict[str, str]]
-        python3: str
+        python: str
 
         # Conditionally create the venv
         # TODO create spinner/progress bar for this
@@ -539,18 +505,25 @@ class AstroPiExecutor:
                 )
                 logging.debug(f"Found {venv_dirname}")
 
-            venv_dir: Path = AstroPiExecutor._setup_venv(venv_dirname)
+            venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
 
             # Prepare the environment to be used in the subprocess.
             env = os.environ.copy()
-            env["PATH"] = ":".join([str(Path(venv_dir) / "bin"), env["PATH"]])
-            env["VIRTUAL_ENV"] = str(venv_dir)
+            env["PATH"] = os.path.pathsep.join(
+                [str(venv.venv_info.script_dir), env["PATH"]]
+            )
+            env["VIRTUAL_ENV"] = str(venv.venv_dir)
 
-            python3 = str(venv_dir / "bin" / "python3")
+            python = str(venv.venv_info.python)
         else:
             logging.debug("Running in live mode")
             env = None
-            python3 = "python3"
+            python = "python.exe" if sys.platform == "win32" else "python"
+            resolved_python: Optional[str] = shutil.which(python)
+            if resolved_python is not None:
+                python = resolved_python
+            else:
+                raise Exception(f"Could not find {python}. Is it installed?")
 
         # Add if __name__ == "__main__" guard as needed
         # (required by multiprocessing in CameraPreview currently FIXME)
@@ -561,10 +534,11 @@ class AstroPiExecutor:
 
         try:
             # Run the program that was passed in
+            # TODO this is checked already
             if platform.system() in ["Linux", "Darwin", "Windows"]:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
-                args: list[str] = [python3, "-u", str(main.resolve())]
+                args: list[str] = [rf"{python}", "-u", str(main.resolve())]
                 logging.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):

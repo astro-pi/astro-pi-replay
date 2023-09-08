@@ -1,19 +1,19 @@
 import logging
 import os
 import shutil
-import subprocess
-import sys
+import site
 import uuid
-import venv
 from pathlib import Path
 from typing import Iterable
 from unittest.mock import patch
 
 import pytest
 
+from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.configuration import CONFIG_FILE
 from astro_pi_executor.executor import AstroPiExecutor
 from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
+from astro_pi_executor.venv_resolver import VenvResolver
 from test_utils import TEST_PYPI_URL, ProgramFixture
 
 logger = logging.getLogger(__name__)
@@ -56,10 +56,12 @@ def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
     file_path: Path = tmp_path / (uuid4 + ".txt")
     contents: str = os.linesep.join(
         [
+            "import sys",
+            "print(sys.prefix)",
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
             "rgb = sh.colour.colour",
-            f"with open('{str(file_path)}', 'w') as f:",
+            f"with open(r'{str(file_path)}', 'w') as f:",
             "    f.write(repr(rgb[:3]))",
             f"print('{uuid4}', rgb){os.linesep}",
         ]
@@ -76,39 +78,31 @@ def uuid4() -> str:
 
 
 @pytest.fixture(scope="session")
-def smoke_test_venv(tmp_path_factory) -> Path:
+def smoke_test_venv(tmp_path_factory) -> VenvResolver:
     """Basic venv for use in smoke-tests"""
-    tmp_path: Path = tmp_path_factory.mktemp("smoke_test_venv")
-    logger.debug(f"tmp_path is {tmp_path}")
+    venv_dir: Path = tmp_path_factory.mktemp("smoke_test_venv")
+    logger.debug(f"venv_dir is {venv_dir}")
 
-    venv_dir: Path = tmp_path / "smoke-test-venv"
-    venv.create(env_dir=venv_dir, symlinks=True, with_pip=True)
+    venv = VenvResolver(venv_dir / "smoke_test_venv")
 
-    pip: Path = venv_dir / "bin" / "pip"
-    # FIXME pandas direct install shouldn't be necessary:
-    subprocess.run([pip, "install", "pandas"], check=True)  # nosec B603
-    subprocess.run(
-        [pip, "install", "--index-url", TEST_PYPI_URL, "astro_pi_executor"], check=True
-    )  # nosec B603
+    venv.install("pandas")  # FIXME direct install shouldn't be necessary
+    venv.install(PROGRAM_NAME, flags=["--index-url", TEST_PYPI_URL])
 
-    return venv_dir
+    return venv
 
 
 @pytest.fixture(scope="session")
-def live_venv(tmp_path_factory) -> Path:
+def live_venv(tmp_path_factory) -> VenvResolver:
     """
     A venv with all the expected AstroPiExecutor.MODULES_TO_STUB
     already installed. However, the stubs are not the same
     as the ones defined in the real implementation. Rather, they
     just return unittest.mock.MagicMock objects.
     """
-    tmp_path: Path = tmp_path_factory.mktemp("smoke_test_venv")
-    logger.debug(f"tmp_path is {tmp_path}")
+    venv_dir: Path = tmp_path_factory.mktemp("smoke_test_venv")
+    logger.debug(f"tmp_path is {venv_dir}")
 
-    venv_dir: Path = tmp_path / "live-venv"
-    venv.create(env_dir=venv_dir, symlinks=True, with_pip=False)
-    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    packages_dir: Path = venv_dir / "lib" / python_version / "site-packages"
+    venv: VenvResolver = VenvResolver(venv_dir / "smoke_test_venv")
 
     module_files: dict[str, list[str]] = {
         "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
@@ -117,10 +111,10 @@ def live_venv(tmp_path_factory) -> Path:
     }
 
     for module in AstroPiExecutor.MODULES_TO_STUB:
-        module_file = packages_dir / f"{module}.py"
+        module_file = venv.venv_info.site_packages_dir / f"{module}.py"
         with module_file.open("w") as f:
             f.write(os.linesep.join(module_files[module]))
-    return venv_dir
+    return venv
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -138,6 +132,18 @@ def set_replay_dir() -> Iterable:
         yield
     logger.debug(f"Unsetting {REPLAY_DIR_ENV_VAR}")
     os.environ.pop(REPLAY_DIR_ENV_VAR, None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def remove_old_test_modifications() -> None:
+    """Ensures that any old modifications to the test
+    venv from previous test runs are removed prior to
+    executing tests.
+    """
+    current_site_packages: Path = Path(site.getsitepackages()[0])
+    fake_dep: Path = current_site_packages / "fake_dep"
+    if fake_dep.exists():
+        shutil.rmtree(fake_dep)
 
 
 @pytest.fixture(autouse=True)
