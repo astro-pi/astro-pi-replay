@@ -52,7 +52,7 @@ def smoke_test_venv():
     venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
     cmd: list[str] = [
-        str(venv_pip),
+        rf"{str(venv_pip)}",
         "install",
         "--index-url",
         "https://test.pypi.org/simple/",
@@ -97,7 +97,7 @@ def teardown() -> Iterable[None]:
 
 def test_smoke_test(example_program):
     cmd: list[str] = [
-        str(get_executor()),
+        rf"{str(get_executor())}",
         "run",
         str(example_program),
         "--no-match-original-photo-intervals",
