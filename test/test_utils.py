@@ -61,7 +61,7 @@ def prepare_executor_to_run_in_smoke_test_venv(func):
 
         try:
             logger.debug("Setting sys.path and friends")
-            os.environ["PATH"] = ":".join(
+            os.environ["PATH"] = os.path.pathsep.join(
                 [str(smoke_test_venv.venv_info.script_dir), path_before]
             )
             os.environ["VIRTUAL_ENV"] = str(smoke_test_venv.venv_dir)
@@ -123,7 +123,7 @@ def prepare_executor_to_run_in_fake_live_venv(func):
 
         try:
             logger.debug("Setting sys.path and friends")
-            os.environ["PATH"] = ":".join(
+            os.environ["PATH"] = os.path.pathsep.join(
                 [str(live_venv.venv_info.script_dir), path_before]
             )
             os.environ["VIRTUAL_ENV"] = str(live_venv.venv_dir)
