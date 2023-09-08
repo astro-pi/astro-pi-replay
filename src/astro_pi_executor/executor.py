@@ -395,14 +395,18 @@ class AstroPiExecutor:
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        def list_dependencies(
-            python: Path = Path(sys.prefix) / "bin" / "python",
-        ) -> str:
-            """
-            pip: Path to pip - defaults to the sys.prefix pip (i.e. the current venv)
-            Runs pip freeze
-            """
-            args: list[str] = [str(python), "-m", "pip", "freeze"]
+        def list_dependencies(python: Optional[Path] = None) -> str:
+            if python is None:
+                executable_name: str = (
+                    "python.exe" if sys.platform == "win32" else "python"
+                )
+                resolved: Optional[str] = shutil.which(executable_name)
+                if resolved is None:
+                    raise Exception(f"Cannot find {executable_name}. Is it installed?")
+                else:
+                    python = Path(resolved)
+            args: list[str] = [rf"{str(python)}", "-m", "pip", "freeze"]
+            logger.debug(" ".join(args))
             out = subprocess.run(
                 args, text=True, check=True, capture_output=True, shell=False
             )  # nosec B603
