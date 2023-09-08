@@ -628,7 +628,7 @@ class AstroPiExecutor:
             if platform.system() in ["Linux", "Darwin", "Windows"]:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
-                args: list[str] = [python, "-u", str(main.resolve())]
+                args: list[str] = [rf"{python}", "-u", str(main.resolve())]
                 logging.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):
