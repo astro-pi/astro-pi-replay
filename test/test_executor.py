@@ -210,15 +210,13 @@ def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: P
         pass  # expected
 
     # 2. Install a fake dep into the current venv
-    current_python: Path = Path(sys.prefix) / "bin" / "python"
-    if not current_python.exists():
-        current_python = Path(sys.prefix) / "python.exe"
+    current_python: Path = Path(sys.executable)
     fake_dep: Path = get_test_resource("fake_dep")
     installed = False
     try:
         # TODO override sys.prefix to install to the non-real site-packages
         subprocess.run(
-            [current_python, "-m", "pip", "install", str(fake_dep)], check=True
+            [rf"{current_python}", "-m", "pip", "install", str(fake_dep)], check=True
         )  # nosec B603
         installed = True
 

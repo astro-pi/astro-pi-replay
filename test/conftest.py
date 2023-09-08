@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import site
 import uuid
 from pathlib import Path
 from typing import Iterable
@@ -55,6 +56,8 @@ def sense_hat_program(tmp_path: Path, uuid4: str) -> ProgramFixture:
     file_path: Path = tmp_path / (uuid4 + ".txt")
     contents: str = os.linesep.join(
         [
+            "import sys",
+            "print(sys.prefix)",
             "from sense_hat import SenseHat",
             "sh = SenseHat()",
             "rgb = sh.colour.colour",
@@ -129,6 +132,18 @@ def set_replay_dir() -> Iterable:
         yield
     logger.debug(f"Unsetting {REPLAY_DIR_ENV_VAR}")
     os.environ.pop(REPLAY_DIR_ENV_VAR, None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def remove_old_test_modifications() -> None:
+    """Ensures that any old modifications to the test
+    venv from previous test runs are removed prior to
+    executing tests.
+    """
+    current_site_packages: Path = Path(site.getsitepackages()[0])
+    fake_dep: Path = current_site_packages / "fake_dep"
+    if fake_dep.exists():
+        shutil.rmtree(fake_dep)
 
 
 @pytest.fixture(autouse=True)

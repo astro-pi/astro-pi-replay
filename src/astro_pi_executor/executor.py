@@ -64,7 +64,6 @@ class AstroPiExecutor:
     Checks whether the current interpreter is running in a venv,
     as defined here in https://docs.python.org/3/library/venv.html#how-venvs-work
     """
-    is_in_venv: bool = sys.prefix != sys.base_prefix
     _instance: Optional["AstroPiExecutor"] = None  # singleton instance
     _callbacks: dict[Lifecycle, list[Callable]] = collections.defaultdict(list)
 
@@ -466,99 +465,6 @@ class AstroPiExecutor:
             )
 
         return venv_resolver
-
-    # @staticmethod
-    # def _setup_venv(venv_dirname: Path, name: str = "venv") -> Path:
-    #     """
-    #     Creates a new venv with the given name in the given venv_dirname
-    #     using the venv module.
-    #     """
-    #     # 1. Create or copy the venv to the venv_dir, depending on if we're
-    #     # already in one
-    #     venv_dir: Path = venv_dirname / name
-
-    #     def list_dependencies(
-    #         python: Path = Path(sys.prefix) / "bin" / "python",
-    #     ) -> str:
-    #         """
-    #         pip: Path to pip - defaults to the sys.prefix pip (i.e. the current venv)
-    #         Runs pip freeze and pipes the output into md5sum
-    #         """
-    #         args: list[str] = [str(python), "-m", "pip", "freeze"]
-    #         out = subprocess.run(
-    #             args, text=True, check=True, capture_output=True, shell=False
-    #         )  # nosec B603
-    #         logger.debug(out)
-    #         return out.stdout
-
-    #     if venv_dir.exists():
-    #         current_deps = list_dependencies()  # current venv
-    #         logger.debug(f"current_deps: {current_deps}")
-    #         logger.debug("")
-    #         executor_venv_deps = list_dependencies(python=venv_dir / "bin" / "python")
-    #         logger.debug(f"executor_venv_deps: {executor_venv_deps}")
-    #         if current_deps == executor_venv_deps:
-    #             logger.debug("venv already created - skipping")
-    #             return venv_dir
-    #         else:
-    #             logger.debug(
-    #                 "Dependencies have changed - deleting "
-    #                 + f"old venv at {venv_dir} and recreating..."
-    #             )
-    #             shutil.rmtree(venv_dir)
-    #     logging.debug("Creating venv")
-
-    #     if AstroPiExecutor.is_in_venv:
-    #         logger.debug(
-    #             "Detected that you running in a venv:"
-    #             + f"\n\t{sys.prefix}.\n"
-    #             + "However, running in replay mode will use a "
-    #             + "separate copied (modified) venv."
-    #         )
-    #         logger.info("Preparing environment (this may take a few moments)...")
-    #         shutil.copytree(sys.prefix, venv_dir, symlinks=True)
-    #     else:
-    #         venv.create(
-    #             venv_dir, symlinks=True, system_site_packages=True, with_pip=True
-    #         )
-
-    #     # 2. Install the executor package as required
-    #     logger.debug("Installing stubbed modules in the venv...")
-
-    #     python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    #     venv_site_packages_dir = venv_dir / "lib" / python_version / "site-packages"
-    #     venv_pip = str(venv_dir / "bin" / "pip")
-    #     venv_python3 = str(venv_dir / "bin" / "python3")
-
-    #     # Is astro_pi_executor already installed in the new venv?
-    #     out = AstroPiExecutor._check_package_installed(venv_python3)
-
-    #     if out.stdout.strip() == AstroPiExecutor.NOT_FOUND:
-    #         # install the module
-    #         logger.debug(f"Installing {PROGRAM_NAME} into venv...")
-    #         subprocess.run(
-    #             [venv_pip, "install", "."], check=True
-    #         )  # nosec B603: no user input
-    #         out = AstroPiExecutor._check_package_installed(venv_python3)
-
-    #     executor_installed_path = Path(out.stdout.strip())
-    #     if not executor_installed_path.exists():
-    #         raise AstroPiExecutorException(
-    #             f"Could not set up {PROGRAM_NAME} environment"
-    #         )
-
-    #     logger.debug(f"Found {PROGRAM_NAME} installed at {executor_installed_path}")
-
-    #     # 3. Install stubs into the venv
-    #     logger.debug("Installing stubbed modules in the venv...")
-
-    #     for module in AstroPiExecutor.MODULES_TO_STUB:
-    #         logger.debug(f"Installing {module}")
-    #         shutil.copytree(
-    #             executor_installed_path / module, venv_site_packages_dir / module
-    #         )
-
-    #     return venv_dir
 
     @staticmethod
     def run(
