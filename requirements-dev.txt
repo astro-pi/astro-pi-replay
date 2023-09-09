@@ -1,4 +1,4 @@
-black==23.3.0
+black==23.9.0
 build==0.10.0
 flake8==6.1.0
 gprof2dot==2022.7.29
