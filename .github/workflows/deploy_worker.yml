@@ -23,7 +23,7 @@ jobs:
   update_semver_tags:
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python-version }}
@@ -47,7 +47,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     needs: update_semver_tags
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python-version }}
@@ -74,7 +74,7 @@ jobs:
     needs: publish_to_test_pypi
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python-version }}

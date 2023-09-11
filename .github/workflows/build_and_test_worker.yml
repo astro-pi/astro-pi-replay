@@ -28,7 +28,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
       src: ${{ steps.filter.outputs.src }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v2
       id: filter
       with:
@@ -44,7 +44,7 @@ jobs:
     if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v4
         with:
@@ -76,7 +76,7 @@ jobs:
     if: ${{ needs.changes.outputs.docs == 'true' }}
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python-version }}
