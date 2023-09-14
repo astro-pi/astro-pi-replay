@@ -138,7 +138,6 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
     return _SenseHatColourSensorAdapter()
 
 
-# TODO this should load a singleton executor
 def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAPI:
     class _SenseHatAdapter(SenseHatAPI):
         """
@@ -149,6 +148,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         """
 
         # TODO pass from env or estimate
+        # using g = \frac{GM}{r^{2}} where r is dependent on height of ISS
         _ACCELERATION_OF_GRAVITY: float = 9.81
         # This array should be displayed with a clockwise 90 degree rotation
         # this is done in self._display
@@ -259,7 +259,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
                 pass
 
         def _open_window(self) -> None:
-            # TODO add teardown
+            # TODO add teardown using weakref.finalize
             self._display_proc = SenseHatDisplay(self._image)
             self._display_proc.start()
 

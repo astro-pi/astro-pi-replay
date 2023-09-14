@@ -17,11 +17,11 @@ echo Virtual environment "%VENV_NAME%" has been created and activated.
 echo Use "deactivate" to exit the virtual environment.
 
 rem Execute the smoke tests
-set ASTRO_PI_EXECUTOR_REPLAY_DIR=replay_tests
+set ASTRO_PI_EXECUTOR_REPLAY_SEQUENCE="VIS/test_data"
 set PYTEST_PROFILE=SMOKE_TESTS
 pytest -o log_cli=true --log-cli-level=DEBUG --noconftest
 set PYTEST_ERROR=%ERRORLEVEL%
 echo %PYTEST_ERROR%
-set ASTRO_PI_EXECUTOR_REPLAY_DIR=
+set ASTRO_PI_EXECUTOR_REPLAY_SEQUENCE=
 set PYTEST_PROFILE=
 if %PYTEST_ERROR% GEQ 1 EXIT /B %PYTEST_ERROR%

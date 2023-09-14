@@ -57,6 +57,9 @@ def test_main_saves_configuration(tmp_path: Path):
         "cmd": "run",
         "mode": None,
         "venv_dir": None,
+        "resolution": (4056, 3040),
+        "photography_type": "VIS",
+        "sequence": None,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 

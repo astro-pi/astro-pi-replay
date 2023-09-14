@@ -5,6 +5,7 @@ exif==1.6.0
 requests==2.31.0
 skyfield==1.46 # for orbit
 tqdm==4.66.1
+networkx==3.1
 # the below are transitive dependencies of picamera
 colorzero==2.0
 # for quaternions and euler angles:

@@ -22,7 +22,11 @@ from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.exception import AstroPiExecutorException
-from astro_pi_executor.resources import get_replay_dir, get_start_time
+from astro_pi_executor.resources import (
+    SENSE_HAT_CSV_FILE,
+    get_replay_sequence_dir,
+    get_start_time,
+)
 from astro_pi_executor.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -117,7 +121,7 @@ class AstroPiExecutor:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        filename = str(get_replay_dir() / "data" / "data.csv")
+        filename: str = str(get_replay_sequence_dir() / SENSE_HAT_CSV_FILE)
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename
@@ -125,7 +129,7 @@ class AstroPiExecutor:
 
     def replay(
         self,
-        reducer: Callable[[pd.DataFrame], object] = lambda df: df[0],
+        reducer: Callable[[pd.DataFrame], object] = lambda df: df.iloc[0],
         filename: Optional[str] = None,
         col_names: Optional[list[str]] = None,
         *args,
@@ -238,7 +242,7 @@ class AstroPiExecutor:
         filename: str,
         datetime_col: str,
         col_names: list[str],
-        reducer: Callable[[pd.DataFrame], object] = lambda s: s[0],
+        reducer: Callable[[pd.DataFrame], object] = lambda s: s.iloc[0],
     ) -> object:
         """Internal method that opens the given filename and
         returns the given col names, using the reducer. In effect,

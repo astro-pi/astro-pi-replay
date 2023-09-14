@@ -8,7 +8,8 @@ from astro_pi_executor import PROGRAM_NAME
 
 RESOURCE_DIR: Path = Path(__file__).parent
 EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
-REPLAY_DIR_ENV_VAR = f"{PROGRAM_NAME.upper()}_REPLAY_DIR"
+REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
+SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
 
 
 def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
@@ -25,10 +26,16 @@ def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
 
 
 def get_replay_dir() -> Path:
-    replay_dir: Optional[str] = os.environ.get(REPLAY_DIR_ENV_VAR)
-    if replay_dir is not None:
-        return get_resource(replay_dir)
     return get_resource("replay")
+
+
+def get_replay_sequence_dir() -> Path:
+    replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
+    # TODO get default from config
+    replay_dir: Path = get_resource("replay")
+    if replay_sequence is not None:
+        return replay_dir / Path(replay_sequence)
+    return replay_dir
 
 
 def get_metadata(key: str) -> Any:
@@ -36,7 +43,7 @@ def get_metadata(key: str) -> Any:
     Loads the photo album metadata
     """
     # TODO load the file once
-    with (get_replay_dir() / "metadata.json").open() as f:
+    with (get_replay_sequence_dir() / "metadata.json").open() as f:
         metadata: dict[str, Any] = json.loads(f.read())
         return metadata[key]
 

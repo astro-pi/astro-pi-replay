@@ -50,19 +50,34 @@ def fake_get(substituter: Optional[Callable[[str], str]]):
     return _fake_get
 
 
-def test_downloader_should_download_and_install_data(tmp_path: Path):
+def test_downloader_should_download():
     downloader = Downloader()
+    name = "replay"
     with patch("astro_pi_executor.downloader.requests") as mock_requests:
         mock_requests.get.side_effect = fake_get(
-            lambda x: x.replace(Downloader.DEFAULT_ASSETS.split(".")[0], "TestDownload")
+            # replace the sequence id with TestDownload
+            lambda x: x.replace(name, "TestDownload")
         )
-        downloader.download(tmp_path)
+        downloader.download(name)
+        assert (downloader.tempdir / f"{name}.zip").exists()
 
-    assert (tmp_path / Downloader.DEFAULT_ASSETS).exists()
 
-    downloader.install(tmp_path)
-    name = "AstroPi_2021_colour.png"
-    assert (tmp_path / name).exists()
+@patch("astro_pi_executor.main.Downloader.has_installed", return_value=False)
+def test_downloader_should_download_and_install_data(_, tmp_path: Path):
+    name = "replay"
+    with patch("astro_pi_executor.downloader.requests") as mock_requests:
+        mock_requests.get.side_effect = fake_get(
+            # replace the sequence id with TestDownload
+            lambda x: x.replace(name, "TestDownload")
+        )
+        with patch(
+            "astro_pi_executor.downloader.get_replay_dir", return_value=tmp_path
+        ):
+            Downloader().install((1280, 720), "VIS", name)
+
+    vis_dir: Path = tmp_path / "VIS"
+    assert vis_dir.exists() and vis_dir.is_dir()
+    assert (vis_dir / "AstroPi_2021_colour.png").exists()
 
 
 # TODO this is an integration test

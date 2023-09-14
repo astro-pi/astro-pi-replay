@@ -1,8 +1,10 @@
 from astro_pi_executor.resources.utils import (
-    REPLAY_DIR_ENV_VAR,
+    REPLAY_SEQUENCE_ENV_VAR,
     RESOURCE_DIR,
+    SENSE_HAT_CSV_FILE,
     get_metadata,
     get_replay_dir,
+    get_replay_sequence_dir,
     get_resource,
     get_start_time,
 )
@@ -10,8 +12,10 @@ from astro_pi_executor.resources.utils import (
 __all__ = [
     "get_resource",
     "get_replay_dir",
+    "get_replay_sequence_dir",
     "get_metadata",
     "get_start_time",
-    "REPLAY_DIR_ENV_VAR",
+    "REPLAY_SEQUENCE_ENV_VAR",
     "RESOURCE_DIR",
+    "SENSE_HAT_CSV_FILE",
 ]
