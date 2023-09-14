@@ -3,6 +3,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from astro_pi_executor import PROGRAM_NAME
 
@@ -19,6 +20,7 @@ class Configuration:
 
     no_wait: bool
     debug: bool
+    sequence: Optional[str]
 
     @staticmethod
     def _from_json(jstr: str) -> "Configuration":
@@ -26,7 +28,9 @@ class Configuration:
 
     @staticmethod
     def from_args(args: argparse.Namespace) -> "Configuration":
-        return Configuration(args.no_match_original_photo_intervals, args.debug)
+        return Configuration(
+            args.no_match_original_photo_intervals, args.debug, args.sequence
+        )
 
     @staticmethod
     def load() -> "Configuration":

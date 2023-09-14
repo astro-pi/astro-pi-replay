@@ -133,7 +133,7 @@ def test_executor_replay_mode_should_replay_data(
 def test_executor_loads_config_when_instantiated(tmp_path: Path):
     expected_file: Path = tmp_path / "test_config.json"
     with expected_file.open("w") as f:
-        f.write(json.dumps({"no_wait": True, "debug": False}))
+        f.write(json.dumps({"no_wait": True, "debug": False, "sequence": "abc"}))
     with patch("astro_pi_executor.configuration.CONFIG_FILE", expected_file):
         executor: AstroPiExecutor = AstroPiExecutor()
         assert executor.no_wait is True

@@ -1,0 +1,29 @@
+{
+    "altitude_average_km": 408,
+    "camera": {
+	"name": "Sony IMX477",
+	"sensor_size_x": "6.287mm",
+	"sensor_size_y": "4.712mm",
+	"sensor_resolution_x": 4056,
+	"sensor_resolution_y": 3040
+    },
+    "lens": {
+	"name": "Kowa 5mm C-mount Lens",
+	"focal_length": "5mm"
+    },
+    "ground_sampling_distance_cm": 12648,
+    "resolution_x": 4056,
+    "resolution_y": 3040,
+    "start": "2023-04-25 08:14:42.873624",
+    "end": "2023-04-25 08:25:57.205601",
+    "team_credits": "AstroX",
+    "photography_type": "VIS",
+    "photos": {
+        "prefix": "img_",
+	"suffix": "jpg"
+    },
+    "videos": {
+	"prefix": "video",
+	"suffix": "mp4"
+    }
+}

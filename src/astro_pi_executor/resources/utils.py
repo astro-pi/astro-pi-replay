@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from astro_pi_executor import PROGRAM_NAME
+from astro_pi_executor.configuration import Configuration
 
 RESOURCE_DIR: Path = Path(__file__).parent
 EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
@@ -30,12 +31,23 @@ def get_replay_dir() -> Path:
 
 
 def get_replay_sequence_dir() -> Path:
+    replay_dir: Path = get_replay_dir()
+
+    # precedence is ENV VARS (so that testing works)
+    # and then cli (hence config)
+    try:
+        config = Configuration.load()
+        if config.sequence is not None:
+            for photography_type in os.listdir(replay_dir):
+                if config.sequence in os.listdir(replay_dir / photography_type):
+                    return replay_dir / photography_type / config.sequence
+    except FileNotFoundError:
+        pass
+
     replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
-    # TODO get default from config
-    replay_dir: Path = get_resource("replay")
     if replay_sequence is not None:
         return replay_dir / Path(replay_sequence)
-    return replay_dir
+    raise FileNotFoundError("Could not find the sequence to replay.")
 
 
 def get_metadata(key: str) -> Any:
