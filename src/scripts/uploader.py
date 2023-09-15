@@ -198,6 +198,8 @@ class AssetPreparer:
                 "data": "data.csv",
                 "mapping": {"yaw": "", "pitch": "", "roll": ""},
             },
+            # TODO will also need original datetime format
+            # and also the time slice being taken (if not using all)
         },
         "AstroX": {},
     }
@@ -450,6 +452,7 @@ class AssetPreparer:
             )
             self._verify_sense_hat_df(df)
             df.to_csv(data_file, index=False)
+            # check if the file need pruning to match the segment
 
             logger.debug("Writing the metadata file")
             with metadata_file.open("w") as f:

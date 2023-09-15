@@ -103,6 +103,12 @@ def _main(args: Namespace) -> None:
     if hasattr(args, "cmd"):
         downloader = Downloader()
         if args.cmd == "run":
+            if args.sequence is None:
+                args.sequence = downloader.search_for_sequence(
+                    args.resolution, args.photography_type
+                )
+                logger.debug(f"Selected {args.sequence}")
+
             if not downloader.has_installed(
                 args.resolution, args.photography_type, args.sequence
             ):

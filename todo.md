@@ -1,4 +1,4 @@
-Current:
+Current
 --------
 - Add self-version check feature (check if an update is available)
 - Fix resources being versioned in AWS - currently breaks CI when package version changes.
@@ -13,9 +13,11 @@ Current:
   FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[bgr] - assert 0 > 0
   FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[bgra] - assert 0 > 0
   FAILED test/test_picamera_api.py::test_replay_records_to_a_circular_stream - AssertionError: assert 0 == 2764800
-- Add picamera2 support
 
+- Fix flaky CI tests
 Bonuses:
+- CLI completion
+- Add picamera2 support
 - check stdout is not being polluted
 - profile mode to profile the main.py being executed
 - remote attach to the executor subprocess

@@ -47,7 +47,7 @@ def get_replay_sequence_dir() -> Path:
     replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
     if replay_sequence is not None:
         return replay_dir / Path(replay_sequence)
-    raise FileNotFoundError("Could not find the sequence to replay.")
+    raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
 
 
 def get_metadata(key: str) -> Any:

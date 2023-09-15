@@ -57,3 +57,7 @@ The `metadata.json` file provides essential metadata for the sequence, including
 1. Downloads the original team asset from the internal google drive
 2. Transforms it into the required asset (defines the numbers)(etc.)
 3. Produces a zipfile in the above format, providing the supplementary data
+
+# Precedence
+
+Environment variables take precedence over cli arguments
