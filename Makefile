@@ -77,7 +77,7 @@ DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
 ifdef SKIP_DOWNLOAD
 DOWNLOAD_CMD:=
 else
-DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(NAME) download $(DOWNLOAD_CMD_FLAGS);
+DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
 
 
