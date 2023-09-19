@@ -57,6 +57,13 @@ def get_argument_parser() -> ArgumentParser:
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
     run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
     run_parser.add_argument(
+        "--interpolate-sense-hat-values",
+        action="store_true",
+        default=True,
+        dest="interpolate_sense_hat",
+        help="Whether to interpolate measurements from the " + "sense hat.",
+    )
+    run_parser.add_argument(
         "--no-match-original-photo-intervals",
         action="store_true",
         default=False,

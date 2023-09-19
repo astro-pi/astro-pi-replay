@@ -38,8 +38,14 @@ def get_replay_sequence_dir() -> Path:
     try:
         config = Configuration.load()
         if config.sequence is not None:
-            for photography_type in os.listdir(replay_dir):
-                if config.sequence in os.listdir(replay_dir / photography_type):
+            for photography_type in (
+                f for f in os.listdir(replay_dir) if not f.startswith(".")
+            ):
+                if config.sequence in (
+                    f
+                    for f in os.listdir(replay_dir / photography_type)
+                    if not f.startswith(".")
+                ):
                     return replay_dir / photography_type / config.sequence
     except FileNotFoundError:
         pass

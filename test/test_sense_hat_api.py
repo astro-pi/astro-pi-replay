@@ -1,13 +1,16 @@
 import json
 import math
-from datetime import timedelta
+from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+import test_utils
 from astro_pi_executor.executor import AstroPiExecutor
+from astro_pi_executor.resources import get_replay_sequence_dir
 from astro_pi_executor.sense_hat.sense_hat import SenseHatAdapter
-from test_utils import get_test_resource
+from test_utils import TestConfiguration, get_test_resource
 
 ###########
 # Fixtures
@@ -15,11 +18,15 @@ from test_utils import get_test_resource
 
 
 @pytest.fixture(autouse=True, scope="module")
-def executor():
-    # Set to no wait to avoid blocking the tests
-    executor = AstroPiExecutor(no_wait=True)
-    executor.no_wait = True
-    yield executor
+def configuration():
+    return TestConfiguration(True, True, False)
+
+
+@pytest.fixture(autouse=True, scope="module")
+def executor(configuration):
+    # Set to interpolate to avoid blocking the tests
+    executor = AstroPiExecutor(configuration=configuration)
+    return executor
 
 
 ########
@@ -29,7 +36,7 @@ def executor():
 
 def test_replayed_data_is_consistent(executor: AstroPiExecutor):
     # Makes the test deterministic
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
 
@@ -87,7 +94,7 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
 
 def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
     # Make the test deterministic
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
         assert sh.colour.colour == (9, 8, 8, 17)
@@ -95,6 +102,7 @@ def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
 
 
 def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
+    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
@@ -111,6 +119,7 @@ def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
 
 
 def test_sense_hat_adapter_has_all_expected_attrs(executor: AstroPiExecutor):
+    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
@@ -121,6 +130,8 @@ def test_sense_hat_adapter_has_all_expected_attrs(executor: AstroPiExecutor):
             lambda x: not x.startswith("_"),
             sense_hat_interface["sense_hat" if suffix == "" else suffix]["attrs"],
         ):
+            if attr == "accel":
+                print(f"Checking {attr}")
             assert hasattr(obj, attr)
 
 
@@ -400,3 +411,38 @@ def test_show_message(executor: AstroPiExecutor):
     message = "Hello, world!"
     sh.show_message(message, scroll_speed=0.001)  # fast for testing
     assert len(frames) == 72
+
+
+def test_interpolates_values():
+    configuration = TestConfiguration(True, True, False)
+    executor = AstroPiExecutor(configuration=configuration)
+    sh = SenseHatAdapter(executor)
+
+    # Find the last two rows
+    test_sh_data: Path = get_replay_sequence_dir() / "data" / "data.csv"
+    # TODO this name should be static and globally defined
+    df = executor._df_from_replay_file(str(test_sh_data), "datetime")
+    first_date = df.iloc[-2].name.to_pydatetime()
+    # TODO this column name should be statically defined
+    column_to_compare = "pres"
+    first_datum = df.iloc[-2][column_to_compare]
+    second_date = df.iloc[-1].name.to_pydatetime()
+    second_datum = df.iloc[-1][column_to_compare]
+    test_utils.assume(
+        [first_date < second_date, first_datum != second_datum],
+        reason="Interpolation needs different values for a fair test",
+    )
+
+    # patch datetime.now to return a datetime in between
+    in_between: datetime = first_date + timedelta(
+        seconds=(second_date - first_date).total_seconds() / 2
+    )
+    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
+        mock_datetime.now.return_value = in_between
+        pressure = sh.get_pressure()
+    assert (
+        pressure > first_datum
+        and pressure < second_datum
+        or pressure < first_datum
+        and pressure > second_datum
+    )

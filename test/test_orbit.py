@@ -30,14 +30,6 @@ def test_ISS_coordinates_returns_coordinates():
     assert pos.elevation.km == pytest.approx(421.6127652392057, abs=1e-11)
 
 
-def test_iss_is_singleton():
-    iss1 = get_patched_iss()
-    iss2 = get_patched_iss()
-    assert hash(iss1) == hash(iss2)
-    assert iss1 is iss2
-    assert iss1 == iss2
-
-
 @patch(
     "astro_pi_executor.executor.AstroPiExecutor.time_since_start",
     lambda _: get_start_time(),

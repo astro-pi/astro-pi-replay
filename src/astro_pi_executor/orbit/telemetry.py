@@ -40,15 +40,15 @@ def load_iss() -> skyfield.api.EarthSatellite:
     iss = next((sat for sat in satellites if sat.name == "ISS (ZARYA)"), None)
     if iss is None:
         raise RuntimeError(f"Unable to retrieve ISS TLE data from {str(_TLE_FILE)}")
+
+    # bind the `coordinates` function to the ISS object as a method
+    setattr(iss, "coordinates", coordinates.__get__(iss, iss.__class__))
     return iss
 
 
 # create ISS as a Skyfield EarthSatellite object
 # See: rhodesmill.org/skyfield/api-satellites.html#skyfield.sgp4lib.EarthSatellite
-ISS: skyfield.api.EarthSatellite = load_iss()
-
-# bind the `coordinates` function to the ISS object as a method
-setattr(ISS, "coordinates", coordinates.__get__(ISS, ISS.__class__))
+ISS: typing.Callable[[], skyfield.api.EarthSatellite] = load_iss
 
 # Expose ephemeris in the API
 ephemeris: SpiceKernel = load_ephemeris()

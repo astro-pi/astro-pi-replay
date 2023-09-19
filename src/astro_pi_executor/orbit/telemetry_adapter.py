@@ -1,6 +1,7 @@
 # import functools
 import typing
 from datetime import datetime, timezone
+from typing import Callable, Optional
 
 import skyfield.api
 from skyfield.positionlib import ICRF, Barycentric, Geocentric
@@ -50,7 +51,7 @@ def get_patched_iss(
     if executor is None:
         executor = AstroPiExecutor()
 
-    b = _ISS
+    b = _ISS()
     b.__class__ = EarthSatellite
     b = typing.cast(EarthSatellite, b)
     b.set_executor(executor)
@@ -59,6 +60,6 @@ def get_patched_iss(
     return b
 
 
-ISS: EarthSatellite = get_patched_iss()
+ISS: Callable[[Optional[AstroPiExecutor]], EarthSatellite] = get_patched_iss
 
 # Instead of doing at from the time given, instead do it from time_since_start

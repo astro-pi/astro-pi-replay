@@ -50,7 +50,13 @@ photo_formats = [
 video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
 
-def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
+def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamera:
+    executor: AstroPiExecutor
+    if maybe_executor is None:
+        executor = AstroPiExecutor()
+    else:
+        executor = maybe_executor
+
     class _PiCameraAdapter(PiCamera):
         # TODO make these instance attribtues
         _preview_proc: Optional[multiprocessing.Process] = None
@@ -182,6 +188,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
                     str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
                     "datetime",
                     ["name"],
+                    allow_interpolation=False,
                 )
             )
 

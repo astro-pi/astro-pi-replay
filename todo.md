@@ -1,6 +1,8 @@
 Current
 --------
+- add interpolation for sense hat
 - Add self-version check feature (check if an update is available)
+- Add upgrader that deletes any invalid replay dirs
 - Fix resources being versioned in AWS - currently breaks CI when package version changes.
   -> temporarily copy to aws ?
   - This may entail having to put my token in the CI - bad idea?
@@ -35,11 +37,11 @@ all processes are killed when the interpreter is killed (using module atexit) or
   - this includes the picamera previewer process and the sense hat displayer process
 - refactor picamera implementation (move around the state and ensure
 resources are closed properly)
-- add interpolation for sense hat
 - add photo interpolation or schedule another run...
 - implement encoders so to reduce the number of deviations from the original i.e. keep more original implementation
 - fix the name == main hack used for the picamera preview
 - misc refactoring (check for TODOs and FIXMes).
+    - look for opportunities to improve mocking with `wraps`=
 - Replace ffmpeg subproc with either ffmpeg-python or pyav
 - PIR sensor?
 - move de421.bsp and tle files out of the github and into the resources download

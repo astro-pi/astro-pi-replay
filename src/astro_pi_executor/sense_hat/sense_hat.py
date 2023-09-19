@@ -138,7 +138,13 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
     return _SenseHatColourSensorAdapter()
 
 
-def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAPI:
+def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHatAPI:
+    executor: AstroPiExecutor
+    if maybe_executor is None:
+        executor = AstroPiExecutor()
+    else:
+        executor = maybe_executor
+
     class _SenseHatAdapter(SenseHatAPI):
         """
         This is an object that conforms to the SenseHat interface
@@ -440,7 +446,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
             # 1. Approximate roll and pitch using the accel
             accel_raw = self.accelerometer_raw
             pitch_in_radians = math.asin(
-                -accel_raw["x"] / _SenseHatAdapter._ACCELERATION_OF_GRAVITY
+                -1 * accel_raw["x"] / _SenseHatAdapter._ACCELERATION_OF_GRAVITY
             )
             roll_in_radians = math.atan2(accel_raw["y"], accel_raw["z"])
 
