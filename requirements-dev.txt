@@ -1,5 +1,6 @@
 black==23.9.1
 build==1.0.3
+check-manifest==0.49
 flake8==6.1.0
 gprof2dot==2022.7.29
 isort==5.12.0
