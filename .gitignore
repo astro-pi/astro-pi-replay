@@ -158,3 +158,5 @@ cython_debug/
 # Remove files marked with a tilde (~) since it is often used to
 # indicate a temporary file
 *~
+
+.DS_Store
