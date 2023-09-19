@@ -39,20 +39,25 @@ In addition to the constraints above, each sequence directory itself is organise
     │  ├─ img_1.jpg
     │  ├─ ...
     ├─ videos/
-    │  ├─ video.mp4
+    │  ├─ video0.mp4
 
 
 The `data.csv` contains the SenseHat data to be replayed in tandem with the images.
-The `photos` directory contains all the images for the sequence.
-The `video.mp4` is a mp4 of the images in the `photos` directory.
+The `photos` directory contains all the images for the sequence - should be zero-indexed.
+The `video0.mp4` is an mp4 of the images in the `photos` directory.
 The `metadata.json` file provides essential metadata for the sequence, including:
 
 * The lens and camera used to capture the images.
 * The start and end datetimes of the image sequence.
 * The team whose code originally captured the images.
 * The ground sampling distance (GSD) to use when doing geospatial analysis with the images.
+* The filename prefix and suffixes used for `photos` and `videos`.
 
 # TODO create a script that:
 1. Downloads the original team asset from the internal google drive
 2. Transforms it into the required asset (defines the numbers)(etc.)
 3. Produces a zipfile in the above format, providing the supplementary data
+
+# Precedence
+
+Environment variables take precedence over cli arguments

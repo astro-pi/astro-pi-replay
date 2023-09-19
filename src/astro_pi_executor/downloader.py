@@ -1,24 +1,21 @@
-import collections
 import hashlib
-import itertools
 import logging
 import os
 import re
 import shutil
 import subprocess
 import tempfile
-import threading
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Iterable, Optional, TypeVar
+from typing import Optional, TypeVar
 
 import requests
 from tqdm import tqdm
 
 from astro_pi_executor import PROGRAM_NAME, __version__
 from astro_pi_executor.exception import AstroPiExecutorException
-from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
+from astro_pi_executor.resources import REPLAY_SEQUENCE_ENV_VAR, get_replay_dir
 
 logger = logging.getLogger(__name__)
 
@@ -32,47 +29,8 @@ T = TypeVar("T")
 ONE_HOUR: int = 60 * 60
 
 
-def progress_bar(lst: Iterable[T], bound: Optional[int] = None) -> Iterable[T]:
-    deq: collections.deque[str] = collections.deque()
-    stop_printing = False
-    stop_printing_lock = threading.Lock()
-
-    def printer() -> None:
-        spinner_generator = itertools.cycle(["|", "/", "-", "\\"])
-        last_value: str = ""
-        for spinner_state in spinner_generator:
-            with stop_printing_lock:
-                if stop_printing:
-                    break
-            try:
-                last_value = deq.popleft().replace("\r", "")
-            except IndexError:
-                pass
-            finally:
-                print(end="\r[%s]%s" % (spinner_state, last_value))
-
-    t1 = threading.Thread(target=printer)
-    t1.start()
-
-    if bound is not None:
-        n = bound
-        iterable: Iterable = lst
-    else:
-        iterable = list(lst)
-        n = len(iterable)
-    for i, elem in enumerate(iterable):
-        deq.append("\r|%-80s|" % ("=" * (80 * (i + 1) // n)))
-        yield elem
-    with stop_printing_lock:
-        stop_printing = True
-    t1.join()
-    print()
-
-
 class Downloader:
-    DEFAULT_ASSETS = "replay.zip"
-    VIDEO_ASSETS = "videos.zip"
-    TEST_ASSETS = "replay_tests.zip"
+    TEST_ASSETS = "test_data"
 
     def __init__(self) -> None:
         tempdir: Path = Path(tempfile.gettempdir())
@@ -143,6 +101,7 @@ class Downloader:
     def _unzip(self, zip_file: Path) -> Path:
         with zipfile.ZipFile(str(zip_file)) as z:
             for member in tqdm(z.infolist(), unit="iB"):
+                logger.debug(member)
                 try:
                     z.extract(member, self.tempdir)
                 except zipfile.error as e:
@@ -167,52 +126,103 @@ class Downloader:
                     self.tempdir / local_filename, destination_dir / local_filename
                 )
 
+        logger.debug(f"Download to {destination_dir / local_filename}")
         return destination_dir / local_filename
 
-    def download(self, destination_dir: Path, asset_name: str = DEFAULT_ASSETS) -> None:
+    def download(self, asset_name: str) -> None:
         downloaded: list[Path] = []
-        for file in [f"{asset_name}.sha256", f"{asset_name}.sig", asset_name]:
+        asset_name += ".zip"
+        for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
             url = f"{url_prefix}/{file}"
             downloaded.append(self.download_file(url, self.tempdir))
 
+        logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")
         logger.info("Checking the integrity of the downloaded data...")
         if not self._check_sha256(downloaded[0]):
             raise AstroPiExecutorException(
                 "Downloaded file failed integrity check. Try again."
             )
         result: Optional[bool] = self._check_gpg_signature(downloaded[1])
+
         if result is not None and result is False:
             raise AstroPiExecutorException("Downloaded file failed security check.")
+        else:
+            os.remove(downloaded[0])
+            os.remove(downloaded[1])
 
-        # Copy zipfile to destination dir
-        zip_file: Path = downloaded[2]
-        shutil.copy2(zip_file, destination_dir / (zip_file.name))
-        # Remove the .sig and .sha256 files
-        os.remove(downloaded[0])
-        os.remove(downloaded[1])
-
-    def has_downloaded(self, asset_name: str = DEFAULT_ASSETS) -> bool:
+    def has_downloaded(self, asset_name: str) -> bool:
         return f"{asset_name}" in os.listdir(self.tempdir)
 
-    def has_installed(self, asset_name: Optional[str] = None) -> bool:
-        asset: str
-        if asset_name is None:
-            asset = os.environ.get(REPLAY_DIR_ENV_VAR, Downloader.DEFAULT_ASSETS)
+    def has_installed(
+        self,
+        resolution: tuple[int, int],
+        photography_type: str,
+        sequence_name: Optional[str] = None,
+    ) -> bool:
+        sequence: str
+        if sequence_name is None:
+            sequence = os.environ.get(
+                REPLAY_SEQUENCE_ENV_VAR,
+                self.search_for_sequence(resolution, photography_type),
+            )
         else:
-            asset = asset_name
+            sequence = sequence_name
 
         try:
-            return get_resource(Path(asset).stem).exists()
+            return (get_replay_dir() / f"{photography_type}/{sequence}").exists()
         except FileNotFoundError:
             return False
 
-    def install(self, destination_dir: Path, asset_name: str = DEFAULT_ASSETS) -> None:
-        if not self.has_downloaded(asset_name):
-            raise AstroPiExecutorException("Must download first")
-        downloaded_file: Path = self.tempdir / asset_name
-        unzipped_dir: Path = self._unzip(downloaded_file)
-        if unzipped_dir != destination_dir:
-            shutil.copytree(unzipped_dir, destination_dir, dirs_exist_ok=True)
-        if asset_name in os.listdir(destination_dir):
-            os.remove(destination_dir / asset_name)
+    def search_for_sequence(
+        self, resolution: tuple[int, int], photography_type: str
+    ) -> str:
+        sequence: str
+        if photography_type == "IR":
+            raise AstroPiExecutorException("No IR data is currently available")
+        if resolution == (4056, 3040):
+            # download AstroX
+            sequence = "AstroX"
+        elif resolution == (1280, 720):
+            sequence = "OrbitAz"
+        else:
+            raise AstroPiExecutorException(
+                f"No photos with resolution {resolution} " + "are available"
+            )
+        return sequence
+
+    def install(
+        self,
+        resolution: tuple[int, int],
+        photography_type: str,
+        sequence: Optional[str],
+        test_assets_only: bool = False,
+        with_video: bool = False,
+    ) -> None:
+        sequence_id: str
+        if test_assets_only:
+            sequence_id = "test_data"
+        elif sequence is not None:
+            sequence_id = sequence
+        else:
+            sequence_id = self.search_for_sequence(resolution, photography_type)
+
+        sequences_to_install: list[str] = [sequence_id]
+        if with_video:
+            sequences_to_install.append(sequence_id + "_videos")
+
+        for seq in sequences_to_install:
+            logger.debug(f"Request to install {seq}")
+
+            if self.has_installed(resolution, photography_type, seq):
+                logger.debug(f"{seq} already installed")
+                continue
+            if not self.has_downloaded(seq):
+                self.download(seq)
+
+            downloaded_file: Path = self.tempdir / (seq + ".zip")
+            unzipped_dir: Path = self._unzip(downloaded_file)
+            destination_dir: Path = get_replay_dir() / photography_type
+
+            if unzipped_dir != destination_dir:
+                shutil.copytree(unzipped_dir, destination_dir, dirs_exist_ok=True)

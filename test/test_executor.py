@@ -18,12 +18,14 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
+from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.executor import AstroPiExecutor, Lifecycle
 from astro_pi_executor.resources import get_start_time
 from astro_pi_executor.venv_resolver import VenvResolver
 from test_utils import (
     ProgramFixture,
+    TestConfiguration,
     get_test_resource,
     prepare_executor_to_run_in_fake_live_venv,
 )
@@ -32,8 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 @patch("astro_pi_executor.executor.time")
-def test_replay_should_sleep_when_nowait_false_and_delta_is_positive(mock_time):
-    executor = AstroPiExecutor(no_wait=False)
+def test_replay_should_sleep_when_nowait_and_interpolate_false_and_delta_is_positive(
+    mock_time,
+):
+    executor = AstroPiExecutor(configuration=TestConfiguration(False, False, False))
 
     resource: Path = get_test_resource("photo_indexes.csv")
     df = pd.read_csv(resource, parse_dates=["datetime"])
@@ -51,8 +55,12 @@ def test_replay_should_sleep_when_nowait_false_and_delta_is_positive(mock_time):
 
 
 @patch("astro_pi_executor.executor.time")
-def test_replay_replayed_index_should_always_increase_when_no_wait_is_False(_):
-    executor = AstroPiExecutor(no_wait=False)
+def test_replayed_index_should_always_increase_when_no_wait_images(_):
+    """
+    Interpolation is false
+    """
+
+    executor = AstroPiExecutor(configuration=TestConfiguration(False, False, False))
 
     resource: Path = get_test_resource("photo_indexes.csv")
     df = pd.read_csv(resource, parse_dates=["datetime"])
@@ -112,10 +120,12 @@ def test_executor_live_mode_should_call_underlying_libraries(
     assert re.search(expected_regex, contents) is not None
 
 
-def test_executor_replay_mode_should_replay_data(
+def test_executor_replay_mode_should_replay_data_without_interpolation(
     tmp_path: Path, sense_hat_program: ProgramFixture
 ):
-    executor: AstroPiExecutor = AstroPiExecutor(no_wait=True)
+    executor: AstroPiExecutor = AstroPiExecutor(
+        configuration=TestConfiguration(True, False, False)
+    )
 
     # make the test deterministic
     with patch("astro_pi_executor.executor.datetime") as mock_datetime:
@@ -130,13 +140,26 @@ def test_executor_replay_mode_should_replay_data(
     assert re.search(r"(13, 12, 12)", contents) is not None
 
 
-def test_executor_loads_config_when_instantiated(tmp_path: Path):
-    expected_file: Path = tmp_path / "test_config.json"
-    with expected_file.open("w") as f:
-        f.write(json.dumps({"no_wait": True, "debug": False}))
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", expected_file):
+def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
+    os.environ.pop(CONFIG_FILE_ENV_VAR)
+    os.remove(mock_config_filepath)
+    with mock_config_filepath.open("w") as f:
+        f.write(
+            json.dumps(
+                {
+                    "no_wait_images": True,
+                    "debug": True,
+                    "sequence": "abc",
+                    "interpolate_sense_hat": True,
+                }
+            )
+        )
+    with patch("astro_pi_executor.configuration.CONFIG_FILE", mock_config_filepath):
         executor: AstroPiExecutor = AstroPiExecutor()
-        assert executor.no_wait is True
+        assert executor.configuration.debug is True
+        assert executor.configuration.sequence == "abc"
+        assert executor.configuration.no_wait_images is True
+        assert executor.configuration.interpolate_sense_hat is True
 
 
 ###########################################
@@ -239,7 +262,7 @@ def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: P
 def test_teardowns_run_when_exception_thrown_by_program(
     tmp_path: Path, exception_program: Path
 ):
-    AstroPiExecutor(no_wait=True)
+    AstroPiExecutor(configuration=TestConfiguration(True, False, False))
     semaphore: Path = tmp_path / "semaphore"
     callback: Callable = lambda: os.close(os.open(str(semaphore), os.O_CREAT))
     AstroPiExecutor._register_callback(Lifecycle.AFTER, callback)
@@ -276,7 +299,7 @@ def test_executor_should_read_from_config_if_not_supplied():
 def test_replay_mode_when_debug_mode_logger_should_emit(
     tmp_path: Path, debug_log_program: Path, capfd
 ):
-    AstroPiExecutor(no_wait=True, debug=True)
+    AstroPiExecutor(configuration=TestConfiguration(True, False, True))
     AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, debug_log_program, debug=True)
     output = capfd.readouterr()
     assert "foo" in output.err
@@ -287,7 +310,7 @@ def test_when_main_raises_exception_should_raise_errors_correctly(
 ):
     # the stack trace should be pruned so as to not reveal
     # the internals of the executor
-    AstroPiExecutor(no_wait=True, debug=False)
+    AstroPiExecutor(configuration=TestConfiguration(True, False, False))
     try:
         AstroPiExecutor.run(ExecutionMode.LIVE, tmp_path, exception_program)
     except BaseException:

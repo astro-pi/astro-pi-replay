@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from astro_pi_executor import PROGRAM_NAME
+from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR
 from astro_pi_executor.main import _main, main
 from test_utils import ProgramFixture
 
@@ -44,9 +45,15 @@ def test_main_cli_when_run_given_supplies_default_args(
         assert namespace.mode is None
         assert namespace.no_match_original_photo_intervals is False
         assert namespace.venv_dir is None
+        assert namespace.interpolate_sense_hat is True
+        assert namespace.resolution == (4056, 3040)
+        assert namespace.photography_type == "VIS"
 
 
-def test_main_saves_configuration(tmp_path: Path):
+def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
+    # remove the default test profile set up in conftest
+    os.environ.pop(CONFIG_FILE_ENV_VAR)
+    os.remove(mock_config_filepath)
     main: Path = tmp_path / "main.py"
     os.close(os.open(str(main), flags=os.O_CREAT))
     # Given
@@ -57,14 +64,17 @@ def test_main_saves_configuration(tmp_path: Path):
         "cmd": "run",
         "mode": None,
         "venv_dir": None,
+        "resolution": (4056, 3040),
+        "photography_type": "VIS",
+        "sequence": None,
+        "interpolate_sense_hat": True,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 
-    expected_file: Path = tmp_path / "test_config.json"
     # When
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", expected_file):
+    with patch("astro_pi_executor.configuration.CONFIG_FILE", mock_config_filepath):
         _main(namespace)
-    assert expected_file.exists()
+    assert mock_config_filepath.exists()
 
 
 @pytest.mark.skip(reason="TODO")

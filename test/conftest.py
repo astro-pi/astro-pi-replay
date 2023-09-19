@@ -10,11 +10,16 @@ from unittest.mock import patch
 import pytest
 
 from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.configuration import CONFIG_FILE
+from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR, Configuration
 from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.resources import REPLAY_DIR_ENV_VAR, get_resource
+from astro_pi_executor.resources import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_executor.venv_resolver import VenvResolver
-from test_utils import TEST_PYPI_URL, ProgramFixture
+from test_utils import (
+    TEST_PYPI_URL,
+    ProgramFixture,
+    TestConfiguration,
+    get_test_asset_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,18 +125,18 @@ def live_venv(tmp_path_factory) -> VenvResolver:
 @pytest.fixture(scope="session", autouse=True)
 def set_replay_dir() -> Iterable:
     """
-    Sets the REPLAY_DIR_ENV_VAR environment variable to point to the replay_tests
+    Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point to the test data
     dir.
     """
-    value: str = str(get_resource("replay_tests"))
-    logger.debug(f"Setting {REPLAY_DIR_ENV_VAR} to {value}")
-    os.environ[REPLAY_DIR_ENV_VAR] = value
+    value: str = get_test_asset_path()
+    logger.debug(f"Setting {REPLAY_SEQUENCE_ENV_VAR} to {value}")
+    os.environ[REPLAY_SEQUENCE_ENV_VAR] = value
 
     with patch("astro_pi_executor.main.Downloader.has_installed") as f:
         f.return_value = True
         yield
-    logger.debug(f"Unsetting {REPLAY_DIR_ENV_VAR}")
-    os.environ.pop(REPLAY_DIR_ENV_VAR, None)
+    logger.debug(f"Unsetting {REPLAY_SEQUENCE_ENV_VAR}")
+    os.environ.pop(REPLAY_SEQUENCE_ENV_VAR, None)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -147,7 +152,12 @@ def remove_old_test_modifications() -> None:
 
 
 @pytest.fixture(autouse=True)
-def clear_caches(tmp_path: Path):
+def test_configuration():
+    return TestConfiguration(False, False, False)
+
+
+@pytest.fixture(autouse=True)
+def clear_caches(tmp_path: Path, test_configuration):
     """
     Ensure that each test always starts with a fresh state.
     This is run before each test.
@@ -157,21 +167,25 @@ def clear_caches(tmp_path: Path):
     # ensure fresh cache
     AstroPiExecutor._instance = None
     AstroPiExecutor._df_from_replay_file.cache_clear()
-    # executor = AstroPiExecutor()
-    # executor._state._start_time = datetime.now()
 
-    # temporarily move the config to avoid it affecting the tests
 
-    tmp_config: Path = tmp_path / str(uuid.uuid4()) / CONFIG_FILE.name
-    tmp_config.parent.mkdir(exist_ok=True)
+@pytest.fixture(autouse=True)
+def mock_config_filepath(test_configuration: Configuration, tmp_path: Path):
+    test_config_path: Path = tmp_path / "config.json"
+    with patch("astro_pi_executor.configuration.CONFIG_FILE", test_config_path):
+        test_configuration.save()
+        yield test_config_path
 
-    if CONFIG_FILE.exists():
-        shutil.copy2(CONFIG_FILE, tmp_config)
-        os.remove(CONFIG_FILE)
+
+@pytest.fixture(autouse=True)
+def set_config_dir(mock_config_filepath) -> Iterable:
+    """
+    Sets/unsets the CONFIG_FILE_ENV_VAR before and
+    after each test
+    """
+    logger.debug(f"Setting {CONFIG_FILE_ENV_VAR} to {mock_config_filepath}")
+    os.environ[CONFIG_FILE_ENV_VAR] = str(mock_config_filepath)
 
     yield
-
-    # After
-    if tmp_config.exists():
-        shutil.copy2(tmp_config, CONFIG_FILE)
-        os.remove(tmp_config)
+    logger.debug(f"Unsetting {CONFIG_FILE_ENV_VAR}")
+    os.environ.pop(str(CONFIG_FILE_ENV_VAR), None)

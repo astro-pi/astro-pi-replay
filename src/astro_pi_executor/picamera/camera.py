@@ -31,7 +31,7 @@ from astro_pi_executor.picamera.exif import modify_exif_tags
 from astro_pi_executor.picamera.frames import PiVideoFrame, PiVideoFrameType
 from astro_pi_executor.picamera.preview import CameraPreview
 from astro_pi_executor.picamera.renderers import PiOverlayRenderer, PiRenderer
-from astro_pi_executor.resources import get_replay_dir, get_resource
+from astro_pi_executor.resources import get_replay_sequence_dir, get_resource
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,13 @@ photo_formats = [
 video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
 
-def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
+def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamera:
+    executor: AstroPiExecutor
+    if maybe_executor is None:
+        executor = AstroPiExecutor()
+    else:
+        executor = maybe_executor
+
     class _PiCameraAdapter(PiCamera):
         # TODO make these instance attribtues
         _preview_proc: Optional[multiprocessing.Process] = None
@@ -179,13 +185,14 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
 
             name: str = str(
                 executor._replay_next(
-                    str(get_replay_dir() / "photos" / "photo_index.csv"),
+                    str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
                     "datetime",
                     ["name"],
+                    allow_interpolation=False,
                 )
             )
 
-            image_path: Path = get_replay_dir() / "photos" / name
+            image_path: Path = get_replay_sequence_dir() / "photos" / name
             im = Image.open(image_path)
 
             # Conditionally add text annotation
@@ -338,7 +345,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
         def start_preview(self, **options) -> PiRenderer:
             if self._preview_proc is None:
                 preview: CameraPreview = CameraPreview(
-                    str(get_replay_dir() / "videos" / "OrbitAz.mp4")
+                    str(get_replay_sequence_dir() / "videos" / "OrbitAz.mp4")
                 )
                 self._preview_proc = preview
                 preview.start()
@@ -369,7 +376,7 @@ def PiCameraAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> PiCamera:
             if not self._has_ffmpeg:
                 raise AstroPiExecutorException("Please install ffmpeg")
 
-            video: Path = get_replay_dir() / "videos" / "OrbitAz.mp4"
+            video: Path = get_replay_sequence_dir() / "videos" / "OrbitAz.mp4"
 
             # TODO add annotations
             # TODO resize

@@ -138,8 +138,13 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
     return _SenseHatColourSensorAdapter()
 
 
-# TODO this should load a singleton executor
-def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAPI:
+def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHatAPI:
+    executor: AstroPiExecutor
+    if maybe_executor is None:
+        executor = AstroPiExecutor()
+    else:
+        executor = maybe_executor
+
     class _SenseHatAdapter(SenseHatAPI):
         """
         This is an object that conforms to the SenseHat interface
@@ -149,6 +154,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
         """
 
         # TODO pass from env or estimate
+        # using g = \frac{GM}{r^{2}} where r is dependent on height of ISS
         _ACCELERATION_OF_GRAVITY: float = 9.81
         # This array should be displayed with a clockwise 90 degree rotation
         # this is done in self._display
@@ -259,7 +265,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
                 pass
 
         def _open_window(self) -> None:
-            # TODO add teardown
+            # TODO add teardown using weakref.finalize
             self._display_proc = SenseHatDisplay(self._image)
             self._display_proc.start()
 
@@ -440,7 +446,7 @@ def SenseHatAdapter(executor: AstroPiExecutor = AstroPiExecutor()) -> SenseHatAP
             # 1. Approximate roll and pitch using the accel
             accel_raw = self.accelerometer_raw
             pitch_in_radians = math.asin(
-                -accel_raw["x"] / _SenseHatAdapter._ACCELERATION_OF_GRAVITY
+                -1 * accel_raw["x"] / _SenseHatAdapter._ACCELERATION_OF_GRAVITY
             )
             roll_in_radians = math.atan2(accel_raw["y"], accel_raw["z"])
 

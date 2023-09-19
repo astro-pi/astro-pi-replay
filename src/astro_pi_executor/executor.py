@@ -17,12 +17,18 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import pandas as pd
+import scipy as sp
+from scipy.interpolate._interpolate import interp1d as Interpolator
 
 from astro_pi_executor import PROGRAM_NAME
 from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.custom_types import ExecutionMode
 from astro_pi_executor.exception import AstroPiExecutorException
-from astro_pi_executor.resources import get_replay_dir, get_start_time
+from astro_pi_executor.resources import (
+    SENSE_HAT_CSV_FILE,
+    get_replay_sequence_dir,
+    get_start_time,
+)
 from astro_pi_executor.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -70,13 +76,14 @@ class AstroPiExecutor:
     def __new__(
         cls,
         datetime_col: str = "datetime",
-        # example: 2022-01-31 12:21:15.123456
         datetime_format: str = "%Y-%m-%d %H:%M:%S.%f",
         replay_mode: bool = True,
         state: Optional[AstroPiExecutorState] = None,
-        no_wait: Optional[bool] = None,
-        debug: Optional[bool] = None,
+        configuration: Optional[Configuration] = None,
     ) -> "AstroPiExecutor":
+        """
+        datetime_format example: 2022-01-31 12:21:15.123456
+        """
         if cls._instance is None:
             logger.debug("Creating new instance")
             cls._instance = super(AstroPiExecutor, cls).__new__(cls)
@@ -86,20 +93,12 @@ class AstroPiExecutor:
             cls.replay_mode: bool = replay_mode
             if state is None:
                 state = AstroPiExecutorState()
+            cls.interpolators: dict[str, Interpolator] = {}
             cls._state: AstroPiExecutorState = state
 
-            args = {"no_wait": no_wait, "debug": debug}
-            for key in args.keys():
-                if args[key] is None:
-                    try:
-                        persistent_configuration = Configuration.load()
-                        setattr(cls, key, getattr(persistent_configuration, key))
-                    except FileNotFoundError:
-                        setattr(cls, key, False)
-                else:
-                    setattr(cls, key, args[key])
-            # TODO provide static types for both cls.no_wait and cls.debug
-            # probably using typing.Protocol
+            cls.configuration = (
+                configuration if configuration is not None else Configuration.load()
+            )
 
             # TODO add option to be a bit like easyrandom / haskell type testing
             # random_mode = False # whether or not to randomly generate data
@@ -117,7 +116,7 @@ class AstroPiExecutor:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        filename = str(get_replay_dir() / "data" / "data.csv")
+        filename: str = str(get_replay_sequence_dir() / SENSE_HAT_CSV_FILE)
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename
@@ -125,7 +124,7 @@ class AstroPiExecutor:
 
     def replay(
         self,
-        reducer: Callable[[pd.DataFrame], object] = lambda df: df[0],
+        reducer: Callable[[pd.DataFrame], object] = lambda df: df.iloc[0],
         filename: Optional[str] = None,
         col_names: Optional[list[str]] = None,
         *args,
@@ -201,7 +200,7 @@ class AstroPiExecutor:
         logger.debug(f"proposed_time: {proposed_time}")
         self._state._last_sense_hat_row_index = nearest_i
 
-        if not self.no_wait:  # type: ignore
+        if not self.configuration.no_wait_images:
             actual_time = df.iloc[nearest_i].name
             logger.debug(f"Actual time: {actual_time}")
             actual_delta: int = (actual_time - first_time).total_seconds()
@@ -233,16 +232,46 @@ class AstroPiExecutor:
         df = df.set_index(datetime_col)
         return df
 
+    def _interpolate(
+        self, datetime_col: str, col_names: list[str], df: pd.DataFrame
+    ) -> pd.DataFrame:
+        d: datetime = datetime.now()
+        sub_df_dict: dict[str, list[float | int | datetime]] = {
+            datetime_col: [d.timestamp()]
+        }
+        for col_name in col_names:
+            if col_name not in self.interpolators:
+                self.interpolators[col_name] = sp.interpolate.interp1d(
+                    df.index.map(datetime.timestamp), df[col_name].to_numpy()
+                )
+            interpolator = self.interpolators[col_name]
+            try:
+                value = interpolator(d.timestamp())
+            except ValueError:
+                if d.timestamp() < interpolator.x[0]:
+                    value = interpolator.y[0]
+                else:
+                    value = interpolator.y[-1]
+            sub_df_dict[col_name] = value
+        sub_df: pd.DataFrame = pd.DataFrame.from_dict(sub_df_dict)
+        sub_df = sub_df.set_index(datetime_col)
+        return sub_df.iloc[0]
+
     def _replay_next(
         self,
         filename: str,
         datetime_col: str,
         col_names: list[str],
-        reducer: Callable[[pd.DataFrame], object] = lambda s: s[0],
+        reducer: Callable[[pd.DataFrame], object] = lambda s: s.iloc[0],
+        allow_interpolation: bool = True,
     ) -> object:
         """Internal method that opens the given filename and
         returns the given col names, using the reducer. In effect,
-        this replays the data."""
+        this replays the data.
+
+        allow_interpolation: Whether to respect the interpolate_sense_hat
+        variable.
+        """
 
         df = self._df_from_replay_file(filename, datetime_col)
 
@@ -254,6 +283,9 @@ class AstroPiExecutor:
                     + "Detected columns: \n\t"
                     + ", ".join(df.columns)
                 )
+
+        if allow_interpolation and self.configuration.interpolate_sense_hat:
+            return reducer(self._interpolate(datetime_col, col_names, df))
 
         nearest_i = self._find_next_datum(df)
 

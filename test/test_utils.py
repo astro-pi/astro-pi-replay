@@ -6,12 +6,13 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional, Union
 from unittest.mock import MagicMock, _patch, patch
 
 import pandas as pd
 import pytest
 
+from astro_pi_executor.configuration import Configuration
 from astro_pi_executor.executor import AstroPiExecutor
 
 logger = logging.getLogger(__name__)
@@ -196,3 +197,23 @@ def patch_photo_indices(indices: list[int]) -> _patch:
         "pandas.DataFrame.set_index",
         side_effect=functools.partial(set_index_side_effect(indices), original_method),
     )
+
+
+def get_test_asset_path() -> str:
+    return "VIS/test_data"
+
+
+def TestConfiguration(
+    no_wait_images: bool, interpolate_sense_hat: bool, debug: bool
+) -> Configuration:
+    return Configuration(
+        no_wait_images, interpolate_sense_hat, debug, get_test_asset_path()
+    )
+
+
+def assume(predicate: Union[bool, Iterable[bool]], reason: Optional[str] = None):
+    if type(predicate) is bool:
+        assert bool, reason
+    else:
+        for pred in predicate:
+            assert pred, reason
