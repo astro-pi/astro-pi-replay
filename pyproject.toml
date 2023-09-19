@@ -22,7 +22,8 @@ dependencies = [
   "requests >= 2.31",
   "skyfield >= 1.46",
   "typing_extensions >= 4.7.1",
-  "tqdm >= 4.66.0"
+  "tqdm >= 4.66.0",
+  "scipy >= 1.11.2"
 ]
 
 [project.scripts]
