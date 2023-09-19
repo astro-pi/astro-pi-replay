@@ -60,6 +60,7 @@ class VenvResolver:
         name: str,
         workdir: Optional[Path] = None,
         flags: Optional[list[str]] = None,
+        editable: bool = False,
     ) -> None:
         """Executes pip install with the given args using the resolved pip"""
         before_directory: str = os.getcwd()
@@ -74,6 +75,8 @@ class VenvResolver:
                 print_name = workdir.name
             logger.debug(f"Installing {print_name} into venv...")
             args: list[str] = [str(self.venv_info.pip), "install", name]
+            if editable:
+                args.insert(2, "--editable")
             if flags is not None:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
