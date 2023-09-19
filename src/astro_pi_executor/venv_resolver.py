@@ -65,11 +65,12 @@ class VenvResolver:
         before_directory: str = os.getcwd()
         chdir: bool = False
         try:
+            logger.debug(f"Initial working directory: {str(os.getcwd())}")
             if workdir is not None:
                 os.chdir(workdir)
                 chdir = True
             print_name: str = name
-            if name == "." and workdir is not None:
+            if name == os.curdir and workdir is not None:
                 print_name = workdir.name
             logger.debug(f"Installing {print_name} into venv...")
             args: list[str] = [str(self.venv_info.pip), "install", name]

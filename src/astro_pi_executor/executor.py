@@ -478,7 +478,7 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_NAME} into venv...")
-            venv_resolver.install(".")
+            venv_resolver.install(os.curdir)
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
