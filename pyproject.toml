@@ -23,7 +23,8 @@ dependencies = [
   "skyfield >= 1.46",
   "typing_extensions >= 4.7.1",
   "tqdm >= 4.66.0",
-  "scipy >= 1.11.2"
+  "scipy >= 1.11.2",
+  "exif >= 1.6.0",
 ]
 
 [project.scripts]
