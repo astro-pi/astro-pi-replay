@@ -28,3 +28,7 @@
 #     )
 #     executor.run(python_code)
 #     pass
+
+# def test_project_with_mutiple_files_with_relative_imports
+# from filename import x
+# from .filename import y
