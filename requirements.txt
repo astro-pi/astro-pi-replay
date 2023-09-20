@@ -1,5 +1,5 @@
 typing_extensions==4.8.0
-pandas==2.1.0
+pandas==2.1.1
 Pillow==10.0.1
 exif==1.6.0
 requests==2.31.0
