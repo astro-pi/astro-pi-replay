@@ -1,4 +1,4 @@
-![Build and test workflow](https://github.com/github/docs/actions/workflows/build_and_test_scheduler.yml/badge.svg?branch=main)
+![Build and test workflow](https://github.com/astro-pi/astro_pi_executor/actions/workflows/build_and_test_scheduler.yml/badge.svg?branch=main)
 
 # Astro Pi Executor
 
