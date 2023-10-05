@@ -26,6 +26,7 @@ dependencies = [
   "scipy >= 1.11.2; python_version >= '3.11'",
   "scipy == 1.8.1; python_version < '3.11'",
   "exif >= 1.6.0",
+  "numpy == 1.24.3"
 ]
 
 [project.scripts]
