@@ -59,6 +59,7 @@ NAME:=$(shell cat $(PYPROJECT) | \
      $(GREP) -o$(GREP_REGEX_ENGINE) '\[project\]\aname = "[a-z_-]+"' | \
      $(CUT) -d" " -f3 | \
      $(TR) -d '""')
+BIN_NAME=$(shell $(PYTHON3) -c 'import $(SRC_DIR).$(NAME) as ex; print(ex.PROGRAM_CMD_NAME)')
 VERSION:=$(shell $(PYTHON3) -c 'import $(SRC_DIR).$(NAME) as ex; print(ex.__version__)')
 VERSION_MAJOR:=$(shell $(PYTHON3) -c 'print("$(VERSION)".split(".")[0])')
 VERSION_MINOR:=$(shell $(PYTHON3) -c 'print("$(VERSION)".split(".")[1])')
@@ -77,7 +78,7 @@ DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
 ifdef SKIP_DOWNLOAD
 DOWNLOAD_CMD:=
 else
-DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
+DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(BIN_NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
 
 
@@ -140,7 +141,7 @@ build: build_python build_docs build_docker
 build_docker: assert_env_var_set_PYTHON_VERSION
 	$(DOCKER) build \
 	  --build-arg NAME="$(NAME)" \
-	  --build-arg BIN_NAME="$(NAME)" \
+	  --build-arg BIN_NAME="$(BIN_NAME)" \
 	  --build-arg PYTHON_VERSION="$(PYTHON_VERSION)" \
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
@@ -164,6 +165,7 @@ clean:
 
 diagnostics:
 	@echo "Detected project name: $(NAME)"
+	@echo "Detected bin name: $(BIN_NAME)"
 	@echo "Detected version is: $(VERSION)"
 	@echo "Detected major version is: $(VERSION_MAJOR)"
 	@echo "Detected minor version is: $(VERSION_MINOR)"
@@ -252,4 +254,3 @@ version:
 	@echo $(VERSION)
 
 .PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
-
