@@ -1,3 +1,3 @@
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 PROGRAM_CMD_NAME = "Astro-Pi-Replay"
 PROGRAM_NAME = "astro_pi_replay"
