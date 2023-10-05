@@ -1,7 +1,7 @@
-site_name: Astro Pi Executor
-site_url: https://github.com/astro-pi/astro_pi_executor
-repo_url: https://github.com/astro-pi/astro_pi_executor
-repo_name: astro-pi/astro_pi_executor
+site_name: Astro Pi Replay
+site_url: https://github.com/astro-pi/Astro-Pi-Replay
+repo_url: https://github.com/astro-pi/Astro-Pi-Replay
+repo_name: astro-pi/Astro-Pi-Replay
 
 nav:
   - Home: 'index.md'

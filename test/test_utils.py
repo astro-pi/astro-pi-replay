@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, _patch, patch
 import pandas as pd
 import pytest
 
-from astro_pi_executor.configuration import Configuration
-from astro_pi_executor.executor import AstroPiExecutor
+from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.executor import AstroPiExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -164,12 +164,12 @@ def prepare_executor_to_run_in_fake_live_venv(func):
 
 def set_index_side_effect(indices: list[int] = [0, 1]):
     """Workaround to patch pd.Index.get_indexer() since directly patching
-    astro_pi_executor.executor.pd.DataFrame.index.get_indexer didn't work.
+    astro_pi_replay.executor.pd.DataFrame.index.get_indexer didn't work.
     """
 
     def _set_index_side_effect(method, col):
         """Workaround to patch pd.Index.get_indexer() since directly patching
-        astro_pi_executor.executor.pd.DataFrame.index.get_indexer didn't work.
+        astro_pi_replay.executor.pd.DataFrame.index.get_indexer didn't work.
         """
         logger.debug("Mocked method")
         x = method(col)

@@ -20,8 +20,8 @@ from exif import DATETIME_STR_FORMAT, Image
 from numpy.dtypes import DateTime64DType, Float64DType, Int64DType
 from tqdm import tqdm
 
-from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.downloader import url_prefix
+from astro_pi_replay import PROGRAM_NAME
+from astro_pi_replay.downloader import url_prefix
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

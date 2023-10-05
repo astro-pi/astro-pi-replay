@@ -89,7 +89,7 @@ def exponential_moving_average(samples: list[float]) -> float:
     return np.average(as_ndarray, weights=weights)
 
 
-photos_dir: Path = Path("../../src/astro_pi_executor/resources/replay/photos")
+photos_dir: Path = Path("../../src/astro_pi_replay/resources/replay/photos")
 assert photos_dir.exists()
 
 photos: list[str] = []

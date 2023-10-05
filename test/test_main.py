@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR
-from astro_pi_executor.main import _main, main
+from astro_pi_replay import PROGRAM_NAME
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
+from astro_pi_replay.main import _main, main
 from test_utils import ProgramFixture
 
 
@@ -27,7 +27,7 @@ def test_main_cli_when_run_given_but_no_main_should_error(capsys):
     assert "the following arguments are required: main" in output.err
 
 
-@patch("astro_pi_executor.main._main")
+@patch("astro_pi_replay.main._main")
 def test_main_cli_when_run_given_supplies_default_args(
     mock_main, sense_hat_program: ProgramFixture
 ):
@@ -72,7 +72,7 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
     namespace: argparse.Namespace = argparse.Namespace(**args)
 
     # When
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", mock_config_filepath):
+    with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
         _main(namespace)
     assert mock_config_filepath.exists()
 

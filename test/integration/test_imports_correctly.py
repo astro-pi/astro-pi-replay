@@ -16,7 +16,7 @@
 # def test_when_live_mode_should_install_deps_into_venv():
 #     args = {"mode": ExecutionMode.LIVE}
 #     args = Namespace(**args)
-#     astro_pi_executor.main._main(args)
+#     astro_pi_replay.main._main(args)
 #
 #
 # @raspberry_pi_os_only

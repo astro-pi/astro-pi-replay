@@ -1,4 +1,4 @@
-from astro_pi_executor.picamera import PiCamera
+from astro_pi_replay.picamera import PiCamera
 import logging
 
 logging.basicConfig(level=logging.DEBUG)

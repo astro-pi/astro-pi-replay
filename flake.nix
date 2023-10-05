@@ -8,7 +8,7 @@
   outputs = { self, nixpkgs, flake-utils, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        name = "astro_pi_executor";
+        name = "Astro-Pi-Replay";
         pkgs = nixpkgs.legacyPackages.${system};
         # Version specified in pyproject.toml
         pythonVersionDerivation = pkgs.runCommand "pythonVersion" {

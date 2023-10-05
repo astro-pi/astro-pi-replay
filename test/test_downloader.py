@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 from requests.models import Response
 
-from astro_pi_executor.downloader import Downloader, url_prefix
+from astro_pi_replay.downloader import Downloader, url_prefix
 from test_utils import get_test_resource
 
 
@@ -53,7 +53,7 @@ def fake_get(substituter: Optional[Callable[[str], str]]):
 def test_downloader_should_download():
     downloader = Downloader()
     name = "replay"
-    with patch("astro_pi_executor.downloader.requests") as mock_requests:
+    with patch("astro_pi_replay.downloader.requests") as mock_requests:
         mock_requests.get.side_effect = fake_get(
             # replace the sequence id with TestDownload
             lambda x: x.replace(name, "TestDownload")
@@ -62,16 +62,16 @@ def test_downloader_should_download():
         assert (downloader.tempdir / f"{name}.zip").exists()
 
 
-@patch("astro_pi_executor.main.Downloader.has_installed", return_value=False)
+@patch("astro_pi_replay.main.Downloader.has_installed", return_value=False)
 def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     name = "replay"
-    with patch("astro_pi_executor.downloader.requests") as mock_requests:
+    with patch("astro_pi_replay.downloader.requests") as mock_requests:
         mock_requests.get.side_effect = fake_get(
             # replace the sequence id with TestDownload
             lambda x: x.replace(name, "TestDownload")
         )
         with patch(
-            "astro_pi_executor.downloader.get_replay_dir", return_value=tmp_path
+            "astro_pi_replay.downloader.get_replay_dir", return_value=tmp_path
         ):
             Downloader().install((1280, 720), "VIS", name)
 

@@ -1,9 +1,8 @@
-# Welcome to the Astro Pi Executor documentation
+# Welcome to the Astro Pi Replay documentation
 
-The Astro Pi Executor is a library distributed as part of the
+Astro Pi Replay is a tool distributed as part of the
 [European Astro Pi challenge](https://astro-pi.org/).
 
-I
 
 ## Commands
 

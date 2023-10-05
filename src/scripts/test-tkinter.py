@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image, ImageTk
 
-from astro_pi_executor.resources import get_resource
+from astro_pi_replay.resources import get_resource
 
 window = tk.Tk()
 window.title("Foo")

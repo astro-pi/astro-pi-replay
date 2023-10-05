@@ -7,7 +7,7 @@ from pathlib import Path
 
 from exif import Image
 
-from astro_pi_executor.resources import get_resource
+from astro_pi_replay.resources import get_resource
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

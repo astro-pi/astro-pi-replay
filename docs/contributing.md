@@ -1,10 +1,10 @@
 # Contributing
 
-This page includes information helpful to prospective and current contributors to `astro_pi_executor`.
+This page includes information helpful to prospective and current contributors to Astro Pi Replay.
 
 ## Licence
 
-All contributors to `astro_pi_executor` agree with the terms of the [licence](./LICENCE).
+All contributors to Astro Pi Replay agree with the terms of the [licence](./LICENCE).
 
 ## Creating a developer environment
 
@@ -24,7 +24,7 @@ This project uses a [trunk-based development workflow](https://www.atlassian.com
 
 ## CI / CD
 
-The `astro_pi_executor` repository uses Github Actions for its Continuous Integration (CI) and Continuous Delivery (CD) pipelines. However, so as to not be 'locked-in' to Github Actions permanently and to more easily debug any issues that occur during a particular CI and CD pipeline - all pipelines primarly make use of standard Unix tools (including [GNUmake](https://www.gnu.org/software/make/)).
+The Astro Pi Replay Github repository uses Github Actions for its Continuous Integration (CI) and Continuous Delivery (CD) pipelines. However, so as to not be 'locked-in' to Github Actions permanently and to more easily debug any issues that occur during a particular CI and CD pipeline - all pipelines primarly make use of standard Unix tools (including [GNUmake](https://www.gnu.org/software/make/)).
 
 Contributors therefore may wish to have access to a Unix-like environment, in order to replicate any issues encountered in the CI/CD processes - Windows users may use [mingw-w64](https://www.gnu.org/software/make/) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
 
@@ -32,5 +32,5 @@ For diagnosing any issues with the Docker builds - naturally it is required to h
 
 ## Issues / Bug Tracker
 
-Open issues are listed in the [Github issue tracker](https://github.com/astro-pi/astro_pi_executor).
+Open issues are listed in the [Github issue tracker](https://github.com/astro-pi/Astro-Pi-Replay).
 

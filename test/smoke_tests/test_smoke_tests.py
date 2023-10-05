@@ -22,7 +22,7 @@ def get_program_name_and_version() -> tuple[str, str]:
     src: str = str(Path(__file__).parent.parent / "src")
     try:
         sys.path.append(src)
-        from astro_pi_executor import PROGRAM_NAME, __version__
+        from astro_pi_replay import PROGRAM_NAME, __version__
 
         return PROGRAM_NAME, __version__
     finally:

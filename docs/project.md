@@ -76,10 +76,10 @@ In general, for beginners, it's recommended to install the latest stable version
 
 On Linux or MacOS:
 
-    astro_pi_executor download
-    astro_pi_executor run main.py
+    Astro-Pi-Replay download
+    Astro-Pi-Replay run main.py
 
 On Windows:
 
-    astro_pi_executor.exe download
-    astro_pi_executor.exe run main.py
+    Astro-Pi-Replay.exe download
+    Astro-Pi-Replay.exe run main.py

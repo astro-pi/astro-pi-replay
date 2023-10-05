@@ -1,3 +1,3 @@
-The Astro PI Executor provides a simple to use Command Line Interface:
+Astro Pi Replay provides a simple to use Command Line Interface:
 
-::: src.astro_pi_executor.main
+::: src.astro_pi_replay.main
