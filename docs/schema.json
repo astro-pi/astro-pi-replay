@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astro-pi.org/msl2324.schema.json",
+  "title": "Estimate of the speed of the ISS.",
+  "description": "Part of the European Astro Pi Challenge - Mission Space Lab - 23-24.",
+  "type": "object",
+  "properties": {
+    "estimate_kmps": {
+      "description": "The estimate of the speed of the ISS in kilometres per second.",
+      "type": "number"
+    },
+    "estimate_start": {
+      "description": "The start time of the time-window for which the estimated value specified in estimate_kmps is valid. Must be in UTC, ISO-8601 format.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "estimate_end": {
+      "description": "The end time of the time-window for which the estimated value specified in estimate_kmps is valid. Must be in UTC, ISO-8601 format.",
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [ 
+    "estimate_kmps",
+    "estimate_start",
+    "estimate_end"
+  ]
+}

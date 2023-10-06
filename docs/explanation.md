@@ -3,22 +3,22 @@
 This page covers how the library works in detail, for any curious Astro Pi participants.
 
 # Virtual environments
-The first time you run `astro_pi_executor` it will create a virtual environment (`venv`) in your home folder (configurable, but `~/.astro_pi_executor` by default) so that its runtime trickery does not affect the rest of the system.
+The first time you run `Astro-Pi-Replay` it will create a virtual environment (`venv`) in your home folder (configurable, but `~/.astro_pi_replay` by default) so that its runtime trickery does not affect the rest of the system.
 
-Inside the `venv`, some fake modules (called stubs) for `picamera`, `picamera2`, `sense_hat` are installed that conform to the same API as the real modules, but return replayed data from a previous mission from a file. Since the original modules are NOT cross-platform and `astro_pi_executor` is designed to be cross-platform, it is not possible to depend on them directly.
+Inside the `venv`, some fake modules (called stubs) for `picamera`, `picamera2`, `sense_hat` are installed that conform to the same API as the real modules, but return replayed data from a previous mission from a file. Since the original modules are NOT cross-platform and `Astro-Pi-Replay` is designed to be cross-platform, it is not possible to depend on them directly.
 
-However, not all of the outputs of every API method is recorded - in this scenario the call will just return the default value for the type, or else a random value depending on the configuration of `astro_pi_executor`
+However, not all of the outputs of every API method is recorded - in this scenario the call will just return the default value for the type, or else a random value depending on the configuration of `Astro-Pi-Replay`
 
 # Modes
 
 There are two modes - REPLAY mode and LIVE mode.
-LIVE mode is only supported on Raspberry Pi OS, where `astro_pi_executor` effectively is a symlink
+LIVE mode is only supported on Raspberry Pi OS, where `Astro-Pi-Replay` effectively is a symlink
 to the system Python executable.
 REPLAY mode is cross-platform and spins up a venv that replays data.
 
 # Replay resources
 
-The photo and video assets are organised into `sequences`, which are ordered collections of photos. Each sequence is downloaded into the `replay` directory in `src/astro_pi_executor/resources`. To simplify lookup of assets, there is a strict naming convention for each subdirectory of `replay`:
+The photo and video assets are organised into `sequences`, which are ordered collections of photos. Each sequence is downloaded into the `replay` directory in `src/astro_pi_replay/resources`. To simplify lookup of assets, there is a strict naming convention for each subdirectory of `replay`:
 
     replay/photography_type/img_resolution/sequence_id/
 

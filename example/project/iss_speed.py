@@ -84,7 +84,7 @@ def calculate_mean_distance(coordinates_1, coordinates_2):
 def calculate_speed_in_kmps(feature_distance, GSD, time_difference):
     """
     GSD is in cm/px.
-    See src/astro_pi_executor/resources/replay/metadata.json
+    See src/astro_pi_replay/resources/replay/metadata.json
     for focal length, etc.
     """
     distance = feature_distance * GSD / 100000

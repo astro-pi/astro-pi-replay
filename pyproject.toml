@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "astro_pi_executor"
-description = "A CLI to execute Mission Space Lab experiments for 2023-2024."
+name = "astro_pi_replay"
+description = "A CLI to replay historic data from previous ISS missions."
 dynamic = ["version"]
 authors = [
   { name="Geraint Ballinger", email="geraint.ballinger@raspberrypi.org" }
@@ -30,13 +30,13 @@ dependencies = [
 ]
 
 [project.scripts]
-astro_pi_executor = "astro_pi_executor.main:main"
+Astro-Pi-Replay = "astro_pi_replay.main:main"
 
 [project.urls]
-Homepage = "https://github.com/astro-pi/astro_pi_executor"
+Homepage = "https://github.com/astro-pi/Astro-Pi-Replay"
 
 [tool.setuptools.dynamic]
-version = {attr = "astro_pi_executor.__init__.__version__"}
+version = {attr = "astro_pi_replay.__init__.__version__"}
 
 [tool.isort]
 atomic = true

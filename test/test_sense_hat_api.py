@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 
 import test_utils
-from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.resources import get_replay_sequence_dir
-from astro_pi_executor.sense_hat.sense_hat import SenseHatAdapter
+from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.resources import get_replay_sequence_dir
+from astro_pi_replay.sense_hat.sense_hat import SenseHatAdapter
 from test_utils import TestConfiguration, get_test_resource
 
 ###########
@@ -36,7 +36,7 @@ def executor(configuration):
 
 def test_replayed_data_is_consistent(executor: AstroPiExecutor):
     # Makes the test deterministic
-    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
 
@@ -94,7 +94,7 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
 
 def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
     # Make the test deterministic
-    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
         assert sh.colour.colour == (9, 8, 8, 17)
@@ -437,7 +437,7 @@ def test_interpolates_values():
     in_between: datetime = first_date + timedelta(
         seconds=(second_date - first_date).total_seconds() / 2
     )
-    with patch("astro_pi_executor.executor.datetime", wraps=datetime) as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = in_between
         pressure = sh.get_pressure()
     assert (

@@ -9,11 +9,11 @@ from unittest.mock import patch
 
 import pytest
 
-from astro_pi_executor import PROGRAM_NAME
-from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR, Configuration
-from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.resources import REPLAY_SEQUENCE_ENV_VAR
-from astro_pi_executor.venv_resolver import VenvResolver
+from astro_pi_replay import PROGRAM_NAME
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, Configuration
+from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
+from astro_pi_replay.venv_resolver import VenvResolver
 from test_utils import (
     TEST_PYPI_URL,
     ProgramFixture,
@@ -132,7 +132,7 @@ def set_replay_dir() -> Iterable:
     logger.debug(f"Setting {REPLAY_SEQUENCE_ENV_VAR} to {value}")
     os.environ[REPLAY_SEQUENCE_ENV_VAR] = value
 
-    with patch("astro_pi_executor.main.Downloader.has_installed") as f:
+    with patch("astro_pi_replay.main.Downloader.has_installed") as f:
         f.return_value = True
         yield
     logger.debug(f"Unsetting {REPLAY_SEQUENCE_ENV_VAR}")
@@ -172,7 +172,7 @@ def clear_caches(tmp_path: Path, test_configuration):
 @pytest.fixture(autouse=True)
 def mock_config_filepath(test_configuration: Configuration, tmp_path: Path):
     test_config_path: Path = tmp_path / "config.json"
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", test_config_path):
+    with patch("astro_pi_replay.configuration.CONFIG_FILE", test_config_path):
         test_configuration.save()
         yield test_config_path
 

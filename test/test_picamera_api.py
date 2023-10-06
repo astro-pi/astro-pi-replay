@@ -16,11 +16,11 @@ from colorzero import Color
 from PIL import Image
 
 import test_utils
-from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.picamera.array import PiRGBArray
-from astro_pi_executor.picamera.camera import PiCameraAdapter
-from astro_pi_executor.picamera.streams import PiCameraCircularIO
-from astro_pi_executor.resources import get_replay_sequence_dir
+from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.picamera.array import PiRGBArray
+from astro_pi_replay.picamera.camera import PiCameraAdapter
+from astro_pi_replay.picamera.streams import PiCameraCircularIO
+from astro_pi_replay.resources import get_replay_sequence_dir
 
 logger = logging.getLogger(__name__)
 

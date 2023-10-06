@@ -3,7 +3,7 @@ from pathlib import Path
 
 from uploader import Uploader
 
-from astro_pi_executor.downloader import url_prefix
+from astro_pi_replay.downloader import url_prefix
 
 # Upload standard assets with:
 u = Uploader()
@@ -12,7 +12,7 @@ to_include = [
     "data",
     "metadata.json",
 ]
-base = Path("../../src/astro_pi_executor/resources/replay/")
+base = Path("../../src/astro_pi_replay/resources/replay/")
 
 photography_type: str
 for photography_type in os.listdir(base):

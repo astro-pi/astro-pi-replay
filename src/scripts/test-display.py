@@ -8,7 +8,7 @@ import tkinter as tk
 import numpy as np
 from PIL import Image, ImageTk
 
-from astro_pi_executor.resources import get_resource
+from astro_pi_replay.resources import get_resource
 
 logging.basicConfig(level=logging.INFO)
 
@@ -71,7 +71,7 @@ class Preview:
         logger.info(f"reading frames with interval: {self.interval}")
 
         self.window = tk.Tk()
-        self.window.title("Astro Pi Executor")
+        self.window.title("Astro Pi Replay")
         self.window.call(
             "wm",
             "iconphoto",

@@ -7,7 +7,7 @@ import pandas as pd
 from oem import OrbitEphemerisMessage
 from skyfield.api import load, utc
 
-from astro_pi_executor.resources.utils import get_resource
+from astro_pi_replay.resources.utils import get_resource
 
 df_filename = "comparison.csv"
 ts = load.timescale()

@@ -18,11 +18,11 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from astro_pi_executor.configuration import CONFIG_FILE_ENV_VAR
-from astro_pi_executor.custom_types import ExecutionMode
-from astro_pi_executor.executor import AstroPiExecutor, Lifecycle
-from astro_pi_executor.resources import get_start_time
-from astro_pi_executor.venv_resolver import VenvResolver
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
+from astro_pi_replay.custom_types import ExecutionMode
+from astro_pi_replay.executor import AstroPiExecutor, Lifecycle
+from astro_pi_replay.resources import get_start_time
+from astro_pi_replay.venv_resolver import VenvResolver
 from test_utils import (
     ProgramFixture,
     TestConfiguration,
@@ -33,7 +33,7 @@ from test_utils import (
 logger = logging.getLogger(__name__)
 
 
-@patch("astro_pi_executor.executor.time")
+@patch("astro_pi_replay.executor.time")
 def test_replay_should_sleep_when_nowait_and_interpolate_false_and_delta_is_positive(
     mock_time,
 ):
@@ -48,13 +48,13 @@ def test_replay_should_sleep_when_nowait_and_interpolate_false_and_delta_is_posi
 
     decorator = executor.replay(filename=str(resource), col_names=["name"])
     inner_decorator = decorator(lambda: ...)
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = (first + timedelta(seconds=5)).to_pydatetime()
         inner_decorator()
     assert mock_time.sleep.call_count == 1
 
 
-@patch("astro_pi_executor.executor.time")
+@patch("astro_pi_replay.executor.time")
 def test_replayed_index_should_always_increase_when_no_wait_images(_):
     """
     Interpolation is false
@@ -70,7 +70,7 @@ def test_replayed_index_should_always_increase_when_no_wait_images(_):
     first: pd.Timestamp = df.iloc[0].name
     executor._state._start_time = first.to_pydatetime()
 
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(
             seconds=1
         )
@@ -88,7 +88,7 @@ def test_executor_is_singleton():
 
 def test_time_since_start():
     executor = AstroPiExecutor()
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time
         assert executor.time_since_start() == get_start_time()
 
@@ -128,7 +128,7 @@ def test_executor_replay_mode_should_replay_data_without_interpolation(
     )
 
     # make the test deterministic
-    with patch("astro_pi_executor.executor.datetime") as mock_datetime:
+    with patch("astro_pi_replay.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(
             seconds=2
         )
@@ -154,7 +154,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                 }
             )
         )
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", mock_config_filepath):
+    with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
         executor: AstroPiExecutor = AstroPiExecutor()
         assert executor.configuration.debug is True
         assert executor.configuration.sequence == "abc"
@@ -168,7 +168,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
 
 
 def test_detect_mode_when_all_modules_present_should_return_Live():
-    with patch("astro_pi_executor.executor.importlib.util") as mock_importlib_util:
+    with patch("astro_pi_replay.executor.importlib.util") as mock_importlib_util:
         mock_importlib_util.find_spec.side_effect = [
             Mock(name=module) for module in AstroPiExecutor.MODULES_TO_STUB
         ]
@@ -177,7 +177,7 @@ def test_detect_mode_when_all_modules_present_should_return_Live():
 
 
 def test_detect_mode_when_module_missing_should_return_Replay():
-    with patch("astro_pi_executor.executor.importlib.util") as mock_importlib_util:
+    with patch("astro_pi_replay.executor.importlib.util") as mock_importlib_util:
         mock_importlib_util.find_spec.side_effect = [
             None for _ in AstroPiExecutor._detect_execution_mode()
         ]
@@ -276,7 +276,7 @@ def test_teardowns_run_when_exception_thrown_by_program(
 @pytest.mark.skip(reason="TODO")
 def test_replay_venv_includes_external_libs():
     # TODO decide if it should be symlinked so that the users that install
-    # libraries AFTER running astro_pi_executor run for the first time
+    # libraries AFTER running astro_pi_replay run for the first time
     # will also get the installed lib in the executor venv?
     pass
 

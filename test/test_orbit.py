@@ -8,9 +8,9 @@ from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time
 from skyfield.toposlib import GeographicPosition
 
-from astro_pi_executor.executor import AstroPiExecutor
-from astro_pi_executor.orbit import ephemeris, ISS
-from astro_pi_executor.resources import get_start_time
+from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.orbit import ephemeris, ISS
+from astro_pi_replay.resources import get_start_time
 
 
 def test_ISS_coordinates_returns_coordinates():

@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from astro_pi_executor.configuration import (
+from astro_pi_replay.configuration import (
     CONFIG_FILE,
     CONFIG_FILE_ENV_VAR,
     Configuration,
@@ -51,7 +51,7 @@ def test_write_config_serdes_to_config_dir(tmp_path: Path, mock_config_filepath:
     os.environ.pop(CONFIG_FILE_ENV_VAR)
     os.remove(mock_config_filepath)
     assert not mock_config_filepath.exists()
-    with patch("astro_pi_executor.configuration.CONFIG_FILE", mock_config_filepath):
+    with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
         conf = Configuration(True, True, True, "sequence_id")
         conf.save()
         assert mock_config_filepath.exists()
