@@ -18,13 +18,13 @@ if os.environ.get("PYTEST_PROFILE", None) != "SMOKE_TESTS":
     pytest.skip("Skipping smoke tests", allow_module_level=True)
 
 
-def get_program_name_and_version() -> tuple[str, str]:
+def get_program_name_and_version() -> tuple[str, str, str]:
     src: str = str(Path(__file__).parent.parent / "src")
     try:
         sys.path.append(src)
-        from astro_pi_replay import PROGRAM_NAME, __version__
+        from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 
-        return PROGRAM_NAME, __version__
+        return PROGRAM_NAME, PROGRAM_CMD_NAME, __version__
     finally:
         sys.path.remove(src)
 
@@ -35,8 +35,8 @@ def get_venv_script_dir() -> Path:
 
 
 def get_executor() -> Path:
-    program_name, _ = get_program_name_and_version()
-    return get_venv_script_dir() / program_name
+    _, program_cmd_name, _ = get_program_name_and_version()
+    return get_venv_script_dir() / program_cmd_name
 
 
 # TODO cache this using config.cache fixture
@@ -47,8 +47,8 @@ def smoke_test_venv():
     logger.debug(f"Creating {VENV_NAME}")
     venv.create(env_dir=VENV_NAME, symlinks=True, with_pip=True)
 
-    program_name, version = get_program_name_and_version()
-    logger.debug(f"Installing {program_name} into venv")
+    program_name, cmd_name, version = get_program_name_and_version()
+    logger.debug(f"Installing {cmd_name} into venv")
     venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
     cmd: list[str] = [

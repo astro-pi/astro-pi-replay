@@ -1,6 +1,5 @@
 Current
 --------
-- add interpolation for sense hat
 - Add self-version check feature (check if an update is available)
 - Add upgrader that deletes any invalid replay dirs
 - Fix resources being versioned in AWS - currently breaks CI when package version changes.
@@ -66,13 +65,9 @@ Now:
 - Create CI for `main` that run same build and test, any system or integration tests,
 and then promotes to the `test` env.
 
-- Smoke tests: download package from PyPi and check that functions are callable
-
 Medium-term:
 ------------
 
 Later:
 ------
 - PR hook - version number checker.
-replace "Mission Space Lab" with the new name.
-replace astro_pi_executor and Astro Pi Executor with the new name
