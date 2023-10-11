@@ -133,7 +133,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
 
         @property
         def rgb(self) -> RGB:
-            return self.colour_raw[:3]
+            return self.colour[:3]
 
     return _SenseHatColourSensorAdapter()
 
