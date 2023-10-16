@@ -9,7 +9,7 @@ set -eu
 # set -x
 
 DEFAULT_BRANCH_NAME=main
-NAME=astro_pi_executor
+NAME=astro_pi_replay
 VERSION_FILE="src/${NAME}/__init__.py"
 BRANCH=$(git branch --show-current)
 S3_BUCKET="s3://static.raspberrypi.org/files/astro-pi/$NAME"
@@ -19,10 +19,10 @@ echo "Starting pre-push checks..."
 
 extract_version() {
   # Returns the version number of the Python package
-  # extracted from src/astro_pi_executor/__init__.py.
+  # extracted from src/astro_pi_replay/__init__.py.
   #
   # $1 - The commit hash to use to fetch the contents of
-  #      src/astro_pi_executor/__init__.py.
+  #      src/astro_pi_replay/__init__.py.
   git show "$1":"$VERSION_FILE" | \
     grep "__version__" | \
     sed 's/^__version__\s*=\s*"\?\([0-9.]\+\)\"\?$/\1/g'
