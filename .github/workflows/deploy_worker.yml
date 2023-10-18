@@ -107,7 +107,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.ASTRO_PI_REPLAY_PYPI_API_KEY }}
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
-        uses: rtCamp/action-slack-notify@v2.2.0
+        uses: rtCamp/action-slack-notify@v2.2.1
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_COLOR: ${{ job.status }}
