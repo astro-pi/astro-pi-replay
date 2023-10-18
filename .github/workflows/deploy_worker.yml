@@ -58,7 +58,7 @@ jobs:
         env:
           SKIP_DOWNLOAD: 1
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.ASTRO_PI_EXECUTOR_TEST_PYPI_API_KEY }}
+          TWINE_PASSWORD: ${{ secrets.ASTRO_PI_REPLAY_TEST_PYPI_API_KEY }}
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
         uses: rtCamp/action-slack-notify@v2.2.1
@@ -90,26 +90,30 @@ jobs:
         run: |
           make test_smoke
 
-  # publish_to_prod_pypi:
-  #   runs-on: ${{ inputs.os }}
-  #   needs: smoke_tests
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ inputs.python_version }}
-  #         cache: 'pip'
-  #     - name: Publish to test PyPi
-  #       run: make publish_prod_pypi
-  #     - name: Notify alerts channel of failure
-  #       if: ${{ failure() && github.ref == 'refs/heads/main' }}
-  #       uses: rtCamp/action-slack-notify@v2.2.0
-  #       env:
-  #         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  #         SLACK_COLOR: ${{ job.status }}
-  #         SLACK_TITLE: Failure Message
-  #         MSG_MINIMAL: actions url, commit, ref
-  #         SLACK_FOOTER: Build failure
+  publish_to_prod_pypi:
+    runs-on: ${{ inputs.os }}
+    needs: smoke_tests
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+      - name: Publish to test PyPi
+        run: make publish_prod_pypi
+        env:
+          SKIP_DOWNLOAD: 1
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.ASTRO_PI_REPLAY_PYPI_API_KEY }}
+      - name: Notify alerts channel of failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        uses: rtCamp/action-slack-notify@v2.2.0
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Failure Message
+          MSG_MINIMAL: actions url, commit, ref
+          SLACK_FOOTER: Build failure
 
   # publish_docs:
   #   runs-on: ${{ inputs.os }}
