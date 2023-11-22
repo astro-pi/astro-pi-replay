@@ -433,6 +433,10 @@ class AstroPiExecutor:
                 )
                 resolved: Optional[str] = shutil.which(executable_name)
                 if resolved is None:
+                    # try python3
+                    executable_name = executable_name.replace("python", "python3")
+                    resolved = shutil.which(executable_name)
+                if resolved is None:
                     raise Exception(f"Cannot find {executable_name}. Is it installed?")
                 else:
                     python = Path(resolved)
