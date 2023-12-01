@@ -20,7 +20,7 @@ import pandas as pd
 import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
-from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME
+from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, PROJECT_ROOT
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
@@ -96,6 +96,10 @@ class AstroPiExecutor:
             cls.interpolators: dict[str, Interpolator] = {}
             cls._state: AstroPiExecutorState = state
 
+            if configuration is not None:
+                logger.debug(f"Received configuration: {str(configuration)}")
+            else:
+                logger.debug("Configuration not passed directly - loading")
             cls.configuration = (
                 configuration if configuration is not None else Configuration.load()
             )
@@ -103,6 +107,8 @@ class AstroPiExecutor:
             # TODO add option to be a bit like easyrandom / haskell type testing
             # random_mode = False # whether or not to randomly generate data
             # mode: ir or vis
+        else:
+            logger.debug("Executor already instantiated")
 
         return cls._instance
 
@@ -192,7 +198,7 @@ class AstroPiExecutor:
         nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="backfill")[
             0
         ]
-        logging.debug(f"Nearest i: {nearest_i}")
+        logger.debug(f"Nearest i: {nearest_i}")
         logger.debug(f"now: {now}")
         logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
         logger.debug(f"delta_in_seconds: {delta_in_seconds}")
@@ -256,6 +262,11 @@ class AstroPiExecutor:
         sub_df: pd.DataFrame = pd.DataFrame.from_dict(sub_df_dict)
         sub_df = sub_df.set_index(datetime_col)
         return sub_df.iloc[0]
+
+    @staticmethod
+    def _reset():
+        AstroPiExecutor._instance = None
+        AstroPiExecutor._df_from_replay_file.cache_clear()
 
     def _replay_next(
         self,
@@ -397,10 +408,25 @@ class AstroPiExecutor:
         with main.open() as f:
             contents = f.read()
         with main_copy.open("w") as f:
-            f.write("import logging" + os.linesep)
-            f.write("logging.basicConfig(level=logging.DEBUG)" + os.linesep)
+            f.write(
+                os.linesep.join(
+                    [
+                        "import logging",
+                        "logging.basicConfig(level=logging.DEBUG,"
+                        + f"format='{LOGGING_FORMAT}')",
+                        "import datetime",
+                        "logging.Formatter.formatTime = (lambda self, record, "
+                        + "datefmt=None: datetime.datetime.fromtimestamp("
+                        + "record.created, "
+                        + "datetime.timezone.utc).astimezone().isoformat(sep='T',"
+                        + "timespec='milliseconds'))"
+                        + os.linesep,
+                    ]
+                )
+            )
             f.write(contents)
 
+        logger.debug(f"Copying {main_copy} into {main}")
         shutil.copy2(main_copy, main)
         # Teardown is taken care of in add_name_is_main_guard
         return main
@@ -426,55 +452,14 @@ class AstroPiExecutor:
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        def list_dependencies(python: Optional[Path] = None) -> str:
-            if python is None:
-                executable_name: str = (
-                    "python.exe" if sys.platform == "win32" else "python"
-                )
-                resolved: Optional[str] = shutil.which(executable_name)
-                if resolved is None:
-                    # try python3
-                    executable_name = executable_name.replace("python", "python3")
-                    resolved = shutil.which(executable_name)
-                if resolved is None:
-                    raise Exception(f"Cannot find {executable_name}. Is it installed?")
-                else:
-                    python = Path(resolved)
-            args: list[str] = [rf"{str(python)}", "-m", "pip", "freeze"]
-            logger.debug(" ".join(args))
-            out = subprocess.run(
-                args, text=True, check=True, capture_output=True, shell=False
-            )  # nosec B603
-            logger.debug(out)
-            return out.stdout
-
-        # 1. Compare the current environment and the venv for changes.
-        # Deletes the venv if there is a change so that the venv
-        # dependencies remain up to date.
         if venv_dir.exists():
-            current_deps: str = list_dependencies()  # current venv
-            logger.debug(f"current_deps: {current_deps}")
-            logger.debug("")
+            return VenvResolver(venv_dir)
 
-            existing_venv: VenvResolver = VenvResolver(venv_dir)
-            # The problem is here
-            executor_venv_deps = existing_venv.list_dependencies()
-            logger.debug(f"executor_venv_deps: {executor_venv_deps}")
-            if current_deps == executor_venv_deps:
-                logger.debug("venv already created - skipping")
-                return existing_venv
-            else:
-                logger.debug(
-                    "Dependencies have changed - deleting "
-                    + f"old venv at {venv_dir} and recreating..."
-                )
-            shutil.rmtree(venv_dir)
-
-        # 2. Copy or creates the venv to the venv_dir, depending on if we're
+        # Copy or creates the venv to the venv_dir, depending on if we're
         # already in one
         venv_resolver: VenvResolver = VenvResolver(venv_dir)
 
-        # 3. Install the executor package as required
+        # Install the executor package (and transitive dependencies) as required
         logger.debug("Installing stubbed modules in the venv...")
 
         executor_install_path: Optional[str] = venv_resolver.is_package_installed(
@@ -482,11 +467,10 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            # editable to access the resources already installed...
+            # editable to access the resources already installed
             # TODO copy the resources explicitly rather than depending
             # on a pip quirk.
-            # TODO do not rely on curdir since people will not be running from the root!
-            venv_resolver.install(os.curdir, editable=True)
+            venv_resolver.install(str(PROJECT_ROOT), editable=True)
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
@@ -494,15 +478,8 @@ class AstroPiExecutor:
                     f"Could not set up {PROGRAM_CMD_NAME} environment"
                 )
 
-        # 4. Install stubs into the venv
-        logger.debug("Installing stubbed modules in the venv...")
-
-        for module in AstroPiExecutor.MODULES_TO_STUB:
-            logger.debug(f"Installing {module}")
-            shutil.copytree(
-                Path(executor_install_path) / module,
-                venv_resolver.venv_info.site_packages_dir / module,
-            )
+        # Install stubs into the venv
+        venv_resolver.copy_stubs(AstroPiExecutor.MODULES_TO_STUB, executor_install_path)
 
         return venv_resolver
 
@@ -511,7 +488,7 @@ class AstroPiExecutor:
         execution_mode: Optional[ExecutionMode],
         venv_dirname: Optional[Path],
         main: Path,
-        debug: bool = False,
+        debug: bool = os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
     ) -> None:
         """
         This method runs the given main file using the given execution mode.
@@ -526,7 +503,7 @@ class AstroPiExecutor:
 
         if execution_mode is None:
             execution_mode = AstroPiExecutor._detect_execution_mode()
-            logging.debug(f"Detected execution mode: {execution_mode}")
+            logger.debug(f"Detected execution mode: {execution_mode}")
         if not main.exists() or not main.is_file():
             raise AstroPiReplayException(f"File {main} is not a regular file")
 
@@ -537,13 +514,13 @@ class AstroPiExecutor:
         # TODO create spinner/progress bar for this
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
-                logging.debug("venv_dirname is None - fetching value from env")
+                logger.debug("venv_dirname is None - fetching value from env")
                 venv_dirname = (
                     # TODO extract this into astro_pi_replay.config
                     Path(os.environ.get("HOME", tempfile.gettempdir()))
                     / f".{PROGRAM_NAME}"
                 )
-                logging.debug(f"Found {venv_dirname}")
+                logger.debug(f"Found {venv_dirname}")
 
             venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
 
@@ -570,7 +547,7 @@ class AstroPiExecutor:
         main = AstroPiExecutor.add_name_is_main_guard(main)
 
         if debug:
-            AstroPiExecutor.add_debug_logging_config(main)
+            main = AstroPiExecutor.add_debug_logging_config(main)
 
         try:
             # Run the program that was passed in
@@ -579,7 +556,7 @@ class AstroPiExecutor:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
                 args: list[str] = [rf"{python}", "-u", str(main.resolve())]
-                logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+                logger.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):
                     """Hides the internals of the lib

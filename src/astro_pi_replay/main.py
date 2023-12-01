@@ -1,9 +1,12 @@
+import cProfile
+import datetime
 import logging
+import os
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME
+from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.downloader import Downloader
@@ -11,6 +14,14 @@ from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_resource
 
 logger = logging.getLogger(__name__)
+logging.Formatter.formatTime = (  # type: ignore[method-assign]
+    lambda self, record, datefmt=None: datetime.datetime.fromtimestamp(
+        record.created, datetime.timezone.utc
+    )
+    .astimezone()
+    .isoformat(sep="T", timespec="milliseconds")
+)
+
 
 RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
@@ -18,7 +29,20 @@ DOWNLOAD_CMD: str = "download"
 
 def get_argument_parser() -> ArgumentParser:
     arg_parser = ArgumentParser(prog=PROGRAM_CMD_NAME, description="")
-    arg_parser.add_argument("--debug", action="store_true", help="Emit debug messages")
+    arg_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Emit debug messages",
+        default=os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
+    )
+    arg_parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable profiling (to stdout unless " + "--profile-filename is specified)",
+    )
+    arg_parser.add_argument(
+        "--profile-filename", help="Redirect profiling output to " + "a file"
+    )
     subparsers = arg_parser.add_subparsers(help="sub-command help")
 
     download_parser = subparsers.add_parser(
@@ -104,9 +128,12 @@ def get_argument_parser() -> ArgumentParser:
 
 
 def _main(args: Namespace) -> None:
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO, format=LOGGING_FORMAT
+    )
 
     logger.debug(args)
+
     if hasattr(args, "cmd"):
         downloader = Downloader()
         if args.cmd == "run":
@@ -144,4 +171,22 @@ def _main(args: Namespace) -> None:
 def main() -> None:
     arg_parser = get_argument_parser()
     args: Namespace = arg_parser.parse_args(sys.argv[1:])
-    _main(args)
+    if args.profile:
+        logger.debug("Profiling enabled")
+        if hasattr(args, "profile_filename"):
+            logger.debug(f"Redirecting profile output to {args.profile_filename}")
+            cProfile.runctx(
+                "_main(args)",
+                globals(),
+                locals(),
+                filename=args.profile_filename,
+                sort="cumulative",
+            )
+            logger.info(
+                "Convert profile output to svg: gprof2dot -f pstats "
+                + f"{args.profile_filename} | dot -Tsvg -o {args.profile_filename}.svg"
+            )
+        else:
+            cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
+    else:
+        _main(args)
