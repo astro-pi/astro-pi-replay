@@ -1,0 +1,26 @@
+python3-numpy
+  Depends: python3-pkg-resources
+  Depends: python3
+  Depends: python3
+  Depends: <python3.11:any>
+    python3.11
+  Depends: <python3:any>
+    python3
+ |Depends: libblas3
+  Depends: <libblas.so.3>
+    libatlas3-base
+    libblas3
+    libblis4-openmp
+    libblis4-pthread
+    libblis4-serial
+    libopenblas0-openmp
+    libopenblas0-pthread
+    libopenblas0-serial
+  Depends: libc6
+ |Depends: liblapack3
+  Depends: <liblapack.so.3>
+    libatlas3-base
+    liblapack3
+    libopenblas0-openmp
+    libopenblas0-pthread
+    libopenblas0-serial
