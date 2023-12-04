@@ -1,0 +1,12 @@
+Source: astro-pi-replay
+Maintainer: Geraint Ballinger <geraint.ballinger@raspberrypi.org>
+Section: misc
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+
+Package: astro-pi-replay
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends} libatlas3-base libopenjp2-7
+Description: Executor for Astro Pi MSL.
+
