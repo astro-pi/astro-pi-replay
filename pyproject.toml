@@ -62,3 +62,5 @@ extend-exclude = '''
 skips = ["B101", "B404"]
 exclude = ["test/resources"]
 
+[tool.pyright]
+pythonPlatform = "All"
