@@ -9,11 +9,13 @@ from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.downloader import Downloader
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_resource
+from astro_pi_replay.self_updater import SelfUpdater
 
 logger = logging.getLogger(__name__)
 
 RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
+UPDATE_CMD: str = "update"
 
 
 def get_argument_parser() -> ArgumentParser:
@@ -99,6 +101,10 @@ def get_argument_parser() -> ArgumentParser:
         "--sequence", default=None, help="The sequence id to use in replays."
     )
     run_parser.set_defaults(cmd="run")
+    update_parser = subparsers.add_parser(
+        UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
+    )
+    update_parser.set_defaults(cmd=UPDATE_CMD)
 
     return arg_parser
 
@@ -136,6 +142,10 @@ def _main(args: Namespace) -> None:
                 args.test_assets_only,
                 args.with_video,
             )
+        elif args.cmd == UPDATE_CMD:
+            self_updater: SelfUpdater = SelfUpdater()
+            self_updater.update()
+            sys.exit(0)
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
