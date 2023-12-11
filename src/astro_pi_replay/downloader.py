@@ -28,6 +28,7 @@ GPG_EMAIL = "enquiries@astro-pi.org"
 URL_BASE: str = "https://static.raspberrypi.org/files/astro-pi"
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
+asset_prefix: str = f"{url_prefix}/assets"
 version_url_prefix: str = f"{url_prefix}/{__version__}"
 SEQUENCES_FILENAME: str = "sequences.csv"
 SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
@@ -143,7 +144,7 @@ class Downloader:
         asset_name += ".zip"
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
-            url = f"{url_prefix}/{file}"
+            url = f"{asset_prefix}/{file}"
             downloaded.append(self.download_file(url, self.tempdir))
 
         logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")

@@ -8,7 +8,7 @@ from astro_pi_replay.downloader import (
     SEQUENCES_FILE,
     SEQUENCES_FILENAME,
     Downloader,
-    url_prefix,
+    asset_prefix,
     version_url_prefix,
 )
 from test_utils import get_test_resource
@@ -32,7 +32,7 @@ def response_200_for(resource_path: str):
 
 def fake_get(substituter: Optional[Callable[[str], str]]):
     def _fake_get(url: str, stream: bool, timeout: int) -> Response:
-        url = url.replace(url_prefix, "")
+        url = url.replace(asset_prefix, "")
         if url.startswith("/") and len(url) > 1:
             # remove leading slash
             url = url[1:]
@@ -126,9 +126,9 @@ def test_downloader_should_download():
         downloader.download(name)
         assert (downloader.tempdir / f"{name}.zip").exists()
         urls = set((call.args[0] for call in mock_requests.method_calls))
-        assert f"{url_prefix}/replay.zip.sha256" in urls
-        assert f"{url_prefix}/replay.zip.sig" in urls
-        assert f"{url_prefix}/replay.zip" in urls
+        assert f"{asset_prefix}/replay.zip.sha256" in urls
+        assert f"{asset_prefix}/replay.zip.sig" in urls
+        assert f"{asset_prefix}/replay.zip" in urls
 
 
 @patch("astro_pi_replay.main.Downloader.has_installed", return_value=False)
