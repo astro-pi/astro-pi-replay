@@ -10,19 +10,27 @@ import zipfile
 from pathlib import Path
 from typing import Optional, TypeVar
 
+import pandas as pd
 import requests
 from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME, __version__
 from astro_pi_replay.exception import AstroPiReplayException
-from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR, get_replay_dir
+from astro_pi_replay.resources import (
+    REPLAY_SEQUENCE_ENV_VAR,
+    RESOURCE_DIR,
+    get_replay_dir,
+)
 
 logger = logging.getLogger(__name__)
 
 GPG_EMAIL = "enquiries@astro-pi.org"
 URL_BASE: str = "https://static.raspberrypi.org/files/astro-pi"
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
-url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}/{__version__}"
+url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
+version_url_prefix: str = f"{url_prefix}/{__version__}"
+SEQUENCES_FILENAME: str = "sequences.csv"
+SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
 
 T = TypeVar("T")
 
@@ -37,6 +45,7 @@ class Downloader:
         tempdir /= str(uuid.uuid4())
         tempdir.mkdir()
         self.tempdir = tempdir
+        self.checked_for_sequences_override: bool = False
 
     def _check_sha256(self, sha256_file: Path) -> Optional[bool]:
         with sha256_file.open("r") as f:
@@ -174,20 +183,39 @@ class Downloader:
         except FileNotFoundError:
             return False
 
+    def check_for_sequences_override(self):
+        """
+        Consults the S3 bucket to see if there
+        have been any dynamic overrides to sequences.csv
+        file, updating the sequences.csv file if so.
+        """
+        res = requests.get(f"{version_url_prefix}/{SEQUENCES_FILENAME}", timeout=5)
+
+        if res.status_code == 200:
+            # override the file in resources
+            with open(SEQUENCES_FILE, "w") as f:
+                f.write(res.content.decode("utf-8"))
+        self.checked_for_sequences_override = True
+
     def search_for_sequence(
         self, resolution: tuple[int, int], photography_type: str
     ) -> str:
         sequence: str
-        if photography_type == "IR":
-            raise AstroPiReplayException("No IR data is currently available")
-        if resolution == (4056, 3040):
-            # download AstroX
-            sequence = "AstroX"
-        elif resolution == (1280, 720):
-            sequence = "OrbitAz"
+
+        # save it if not already open
+        df = pd.read_csv(SEQUENCES_FILE)
+
+        filtered = df[
+            (df["photography_type"] == photography_type)
+            & (df["resolution"] == "x".join((str(res) for res in resolution)))
+        ]
+
+        if len(filtered) > 0:
+            sequence = filtered["sequence_id"][0]
         else:
             raise AstroPiReplayException(
-                f"No photos with resolution {resolution} " + "are available"
+                f"No photos with resolution {resolution} "
+                + f"and photography type {photography_type} are available"
             )
         return sequence
 
@@ -199,6 +227,9 @@ class Downloader:
         test_assets_only: bool = False,
         with_video: bool = False,
     ) -> None:
+        if not self.checked_for_sequences_override:
+            self.check_for_sequences_override()
+
         sequence_id: str
         if test_assets_only:
             sequence_id = "test_data"

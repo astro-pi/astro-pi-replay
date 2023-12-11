@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from functools import partial, wraps
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import pandas as pd
 import scipy as sp
@@ -236,7 +236,7 @@ class AstroPiExecutor:
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
         d: datetime = datetime.now()
-        sub_df_dict: dict[str, list[float | int | datetime]] = {
+        sub_df_dict: dict[str, list[Union[float, int, datetime]]] = {
             datetime_col: [d.timestamp()]
         }
         for col_name in col_names:
