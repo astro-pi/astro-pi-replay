@@ -111,6 +111,7 @@ def _main(args: Namespace) -> None:
         downloader = Downloader()
         if args.cmd == "run":
             if args.sequence is None:
+                downloader.check_for_sequences_override()
                 args.sequence = downloader.search_for_sequence(
                     args.resolution, args.photography_type
                 )
@@ -129,6 +130,7 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
+            downloader.check_for_sequences_override()
             downloader.install(
                 args.resolution,
                 args.photography_type,
