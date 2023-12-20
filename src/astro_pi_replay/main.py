@@ -126,7 +126,10 @@ def _main(args: Namespace) -> None:
     logger.debug(args)
     if hasattr(args, "cmd"):
         downloader = Downloader()
+        self_updater: SelfUpdater = SelfUpdater()
         if args.cmd == "run":
+            self_updater.check_for_updates()
+
             if args.sequence is None:
                 args.sequence = downloader.search_for_sequence(
                     args.resolution, args.photography_type
@@ -154,7 +157,6 @@ def _main(args: Namespace) -> None:
                 args.with_video,
             )
         elif args.cmd == UPDATE_CMD:
-            self_updater: SelfUpdater = SelfUpdater()
             self_updater.update(args.venv_dir)
             sys.exit(0)
         elif args.cmd == VERSION_CMD:
