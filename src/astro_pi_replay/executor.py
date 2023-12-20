@@ -14,14 +14,14 @@ from datetime import datetime, timedelta
 from enum import Enum
 from functools import partial, wraps
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import pandas as pd
 import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.configuration import Configuration, get_default_venv_dir
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
 from astro_pi_replay.resources import (
@@ -236,7 +236,7 @@ class AstroPiExecutor:
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
         d: datetime = datetime.now()
-        sub_df_dict: dict[str, list[float | int | datetime]] = {
+        sub_df_dict: dict[str, list[Union[float, int, datetime]]] = {
             datetime_col: [d.timestamp()]
         }
         for col_name in col_names:
@@ -538,11 +538,7 @@ class AstroPiExecutor:
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
                 logging.debug("venv_dirname is None - fetching value from env")
-                venv_dirname = (
-                    # TODO extract this into astro_pi_replay.config
-                    Path(os.environ.get("HOME", tempfile.gettempdir()))
-                    / f".{PROGRAM_NAME}"
-                )
+                venv_dirname = get_default_venv_dir()
                 logging.debug(f"Found {venv_dirname}")
 
             venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)

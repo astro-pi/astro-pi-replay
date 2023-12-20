@@ -93,6 +93,7 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
 
 
 def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
+    executor.configuration.interpolate_sense_hat = False
     # Make the test deterministic
     with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)

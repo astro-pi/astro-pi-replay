@@ -1,4 +1,5 @@
 import dataclasses
+import fileinput
 import logging
 import os
 import shutil
@@ -188,7 +189,7 @@ class VenvResolver:
                 + "separate copied (modified) venv."
             )
             logger.info("Preparing environment (this may take a few moments)...")
-            shutil.copytree(sys.prefix, venv_dir, symlinks=True)
+            VenvResolver._copy_venv(sys.prefix, venv_dir)
         else:
             venv.create(
                 venv_dir, symlinks=True, system_site_packages=True, with_pip=True
@@ -216,6 +217,47 @@ class VenvResolver:
             logger.error(message)
             raise AstroPiReplayRuntimeError(message)
         return sys.platform
+
+    @staticmethod
+    def _copy_venv(source: Union[str, Path], destination: Union[str, Path]):
+        shutil.copytree(source, destination, symlinks=True)
+
+        if sys.platform in ["linux", "darwin"]:
+            # modify each shebang (and other paths) in
+            # the bin directory to the new location
+
+            for line in fileinput.FileInput(
+                files=(
+                    full_path
+                    for parent, _, children in os.walk(Path(destination) / "bin")
+                    for child in children
+                    if not (full_path := Path(parent) / child).is_symlink()
+                    and not full_path.name.endswith(".pyc")
+                ),
+                inplace=True,
+            ):
+                print(line.replace(str(source), str(destination)), end="")
+
+        elif sys.platform in ["win32"]:
+            # On Windows the executables contain hardcoded paths so
+            # all the files in the Scripts directory must be read
+            # as bytes to avoid decoding errors
+            for file in (
+                full_path
+                for parent, _, children in os.walk(Path(destination) / "Scripts")
+                for child in children
+                if not (full_path := Path(parent) / child).is_symlink()
+            ):
+                with open(file, "rb") as f:
+                    contents: bytes = f.read()
+                with open(file, "wb") as f:
+                    f.write(
+                        contents.replace(
+                            str(source).encode(), str(destination).encode()
+                        )
+                    )
+        else:
+            raise AstroPiReplayRuntimeError(f"Unsupported platform {sys.platform}")
 
 
 """

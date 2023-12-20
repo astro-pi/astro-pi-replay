@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -19,6 +20,10 @@ def get_config_file_path() -> Path:
     if config_file is not None:
         return Path(config_file)
     return CONFIG_FILE
+
+
+def get_default_venv_dir() -> Path:
+    return Path(os.environ.get("HOME", tempfile.gettempdir())) / f".{PROGRAM_NAME}"
 
 
 @dataclass
