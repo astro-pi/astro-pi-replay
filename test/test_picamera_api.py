@@ -16,6 +16,7 @@ from colorzero import Color
 from PIL import Image
 
 import test_utils
+from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
@@ -36,13 +37,13 @@ video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"
 
 
 @pytest.fixture(scope="module")
-def configuration():
+def configuration() -> Configuration:
     return test_utils.TestConfiguration(True, False, False)
 
 
 @pytest.fixture(scope="module")
-def executor(configuration):
-    executor = AstroPiExecutor(configuration)
+def executor(configuration: Configuration):
+    executor = AstroPiExecutor(configuration=configuration)
     return executor
 
 
