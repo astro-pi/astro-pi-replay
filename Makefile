@@ -77,6 +77,7 @@ DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
 
 ifdef SKIP_DOWNLOAD
 DOWNLOAD_CMD:=
+DOCKER_IMAGE_NAME:=$(DOCKER_IMAGE_NAME)-slim
 else
 DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(BIN_NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
@@ -144,6 +145,7 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg BIN_NAME="$(BIN_NAME)" \
 	  --build-arg PYTHON_VERSION="$(PYTHON_VERSION)" \
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
+	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 
 build_docs: $(VENV) $(DOC_SOURCES)
@@ -170,6 +172,8 @@ diagnostics:
 	@echo "Detected major version is: $(VERSION_MAJOR)"
 	@echo "Detected minor version is: $(VERSION_MINOR)"
 	@echo "Detected patch version is: $(VERSION_PATCH)"
+	@echo "Detected SKIP_DOWNLOAD: $(SKIP_DOWNLOAD)"
+	@echo "Docker image name: $(DOCKER_IMAGE_NAME)"
 
 $(DIST_DIR):	$(VENV)
 	. $(VENV_NAME)/bin/activate; $(PYTHON3) $(PYFLAGS) -m $(BUILD)
