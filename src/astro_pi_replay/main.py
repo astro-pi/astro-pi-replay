@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -97,6 +98,19 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.add_argument(
         "--sequence", default=None, help="The sequence id to use in replays."
+    )
+    run_parser.add_argument(
+        "--snapshot-sense-hat-display",
+        default=False,
+        help="Whether to save snapshots of the SenseHat display to "
+        + "--sense-hat-snapshot-dir. Defaults to False.",
+    )
+    run_parser.add_argument(
+        "--sense-hat-snapshot-dir",
+        type=Path,
+        default=Path(os.getcwd()),
+        help="The directory in which to save snapshots of the SenseHat display. "
+        + "Defaults to the current directory.",
     )
     run_parser.set_defaults(cmd="run")
 

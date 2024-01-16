@@ -48,6 +48,7 @@ class AstroPiExecutorState:
         self._last_sense_hat_row_index: int = 0
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
+        self._sense_hat_snapshot_index: int = 1
 
 
 class AstroPiExecutor:

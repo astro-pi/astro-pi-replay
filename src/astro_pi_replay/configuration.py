@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from astro_pi_replay import PROGRAM_NAME
 
@@ -31,10 +31,14 @@ class Configuration:
     interpolate_sense_hat: bool
     debug: bool
     sequence: Optional[str]
+    snapshot_sense_hat_display: bool
+    sense_hat_snapshot_dir: Path
 
     @staticmethod
     def _from_json(jstr: str) -> "Configuration":
-        return Configuration(**json.loads(jstr))
+        d = json.loads(jstr)
+        d["sense_hat_snapshot_dir"] = Path(d["sense_hat_snapshot_dir"])
+        return Configuration(**d)
 
     @staticmethod
     def from_args(args: argparse.Namespace) -> "Configuration":
@@ -43,6 +47,8 @@ class Configuration:
             args.interpolate_sense_hat,
             args.debug,
             args.sequence,
+            args.snapshot_sense_hat_display,
+            args.sense_hat_snapshot_dir,
         )
 
     @staticmethod
@@ -55,12 +61,13 @@ class Configuration:
 
     # instance methods
     def _to_json(self) -> str:
-        # filter out hidden attributes
+        lambdas: dict[str, Callable] = {"sense_hat_snapshot_dir": lambda x: str(x)}
         return json.dumps(
             dict(
                 {
-                    (key, value)
+                    (key, value if key not in lambdas else lambdas[key](value))
                     for key, value in self.__dict__.items()
+                    # filter out hidden attributes
                     if not key.startswith("_")
                 }
             )
