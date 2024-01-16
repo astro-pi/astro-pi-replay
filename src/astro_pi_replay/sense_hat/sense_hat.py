@@ -291,6 +291,16 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 char: list[list[int]] = text_pixels[start:end]
                 self._text_dict[s] = char
 
+        def _save_matrix(self):
+            arr: np.ndarray = self._image
+            img: Image.Image = Image.fromarray(arr)
+            resized_img: Image.Image = img.resize((256, 256), resample=0)
+            resized_img.save(
+                executor.configuration.sense_hat_snapshot_dir
+                / f"{executor._state._sense_hat_snapshot_index}.png"
+            )
+            executor._state._sense_hat_snapshot_index += 1
+
         def _trim_whitespace(self, char):  # For loading text assets only
             """
             Internal. Trims white space pixels from the front and back of loaded
@@ -497,6 +507,11 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
             img = np.array(pixel_list, dtype=np.uint8).reshape((8, 8, 3))
             k = (-self._rotation % 360) // 90
             self._image = np.rot90(img, k=k)
+
+            if executor.configuration.snapshot_sense_hat_display:
+                self._save_matrix()
+                pass
+
             # Emit event to subscriber # TODO refactor this out
             if self._display_proc is not None:
                 try:

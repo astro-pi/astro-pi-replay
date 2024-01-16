@@ -151,6 +151,8 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     "debug": True,
                     "sequence": "abc",
                     "interpolate_sense_hat": True,
+                    "snapshot_sense_hat_display": True,
+                    "sense_hat_snapshot_dir": __file__,
                 }
             )
         )
@@ -160,6 +162,8 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
         assert executor.configuration.sequence == "abc"
         assert executor.configuration.no_wait_images is True
         assert executor.configuration.interpolate_sense_hat is True
+        assert executor.configuration.snapshot_sense_hat_display is True
+        assert executor.configuration.sense_hat_snapshot_dir == Path(__file__)
 
 
 ###########################################
