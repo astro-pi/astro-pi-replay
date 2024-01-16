@@ -11,8 +11,8 @@ from astro_pi_replay.configuration import (
 
 
 def test_configuration_equality():
-    assert Configuration(True, True, True, None) != Configuration(
-        True, False, True, None
+    assert Configuration(True, True, True, None, True, Path(__file__)) != Configuration(
+        True, False, True, None, True, Path(__file__)
     )
 
 
@@ -22,15 +22,17 @@ def test_configuration_default_values():
 
 
 def test_configuration_serde():
-    conf1 = Configuration(True, True, False, None)
+    conf1 = Configuration(True, True, False, None, True, Path(__file__))
     json = conf1._to_json()
     assert '"debug": false' in json
     assert '"interpolate_sense_hat": true' in json
     assert '"no_wait_images": true' in json
     assert '"sequence": null' in json
+    assert '"snapshot_sense_hat_display": true' in json
+    assert '"sense_hat_snapshot_dir"' in json
     new_conf = Configuration._from_json(json)
     assert new_conf == conf1
-    conf2 = Configuration(True, False, True, "sequence_id")
+    conf2 = Configuration(True, False, True, "sequence_id", True, Path(__file__))
     json = conf2._to_json()
     assert '"sequence": "sequence_id"' in json
 
@@ -41,10 +43,14 @@ def test_configuration_constructor_from_args():
         "debug": True,
         "sequence": None,
         "interpolate_sense_hat": True,
+        "snapshot_sense_hat_display": True,
+        "sense_hat_snapshot_dir": "/",
     }
     args = argparse.Namespace(**args)
     configuration = Configuration.from_args(args)
     assert configuration.no_wait_images is True
+    assert configuration.snapshot_sense_hat_display is True
+    assert str(configuration.sense_hat_snapshot_dir) == "/"
 
 
 def test_write_config_serdes_to_config_dir(tmp_path: Path, mock_config_filepath: Path):
@@ -52,7 +58,7 @@ def test_write_config_serdes_to_config_dir(tmp_path: Path, mock_config_filepath:
     os.remove(mock_config_filepath)
     assert not mock_config_filepath.exists()
     with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
-        conf = Configuration(True, True, True, "sequence_id")
+        conf = Configuration(True, True, True, "sequence_id", True, Path(__file__))
         conf.save()
         assert mock_config_filepath.exists()
         conf2 = Configuration.load()

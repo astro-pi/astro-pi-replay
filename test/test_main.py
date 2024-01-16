@@ -50,6 +50,8 @@ def test_main_cli_when_run_given_supplies_default_args(
         assert namespace.interpolate_sense_hat is True
         assert namespace.resolution == (4056, 3040)
         assert namespace.photography_type == "VIS"
+        assert namespace.snapshot_sense_hat_display is False
+        assert namespace.sense_hat_snapshot_dir == Path(os.getcwd())
 
 
 def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
@@ -70,6 +72,8 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
         "photography_type": "VIS",
         "sequence": None,
         "interpolate_sense_hat": True,
+        "snapshot_sense_hat_display": True,
+        "sense_hat_snapshot_dir": __file__,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 

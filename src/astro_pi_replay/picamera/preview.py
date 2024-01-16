@@ -102,7 +102,7 @@ class CameraPreview(multiprocessing.Process):
         being streamed.
         """
         if self.proc.stdout is not None:
-            logging.debug(
+            logger.debug(
                 f"Reading {self.file_width*self.file_height*3} bytes from pipe..."
             )
             frame_bytes = self.proc.stdout.read(self.file_width * self.file_height * 3)
@@ -112,9 +112,11 @@ class CameraPreview(multiprocessing.Process):
                 )
                 img = Image.fromarray(array)
                 imgtk = ImageTk.PhotoImage(image=img)
-                logging.debug("Adding new image to window")
+                logger.debug("Adding new image to window")
                 self.label.configure(image=imgtk)
                 self.label.image = imgtk  # type: ignore
                 self.label.after(self.interval, self._refresh)
+            else:
+                logger.debug("No frame bytes read")
         else:
             raise AstroPiReplayException(f"Cannot preview {self.file}")

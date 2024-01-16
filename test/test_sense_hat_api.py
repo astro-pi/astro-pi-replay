@@ -10,7 +10,7 @@ import test_utils
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.sense_hat.sense_hat import SenseHatAdapter
-from test_utils import TestConfiguration, get_test_resource
+from test_utils import TestConfiguration, assert_images_equal, get_test_resource
 
 ###########
 # Fixtures
@@ -452,3 +452,18 @@ def test_interpolates_values():
         or pressure < first_datum
         and pressure > second_datum
     )
+
+
+def test_snapshot_display(tmp_path: Path):
+    configuration = TestConfiguration(True, True, False, True, tmp_path)
+    executor = AstroPiExecutor(configuration=configuration)
+    sh = SenseHatAdapter(executor)
+
+    # When
+    sh.show_letter("A")
+    sh.show_letter("B")
+
+    assert (img_1 := tmp_path / "1.png").exists()
+    assert (img_2 := tmp_path / "2.png").exists()
+    assert_images_equal(img_1, get_test_resource("sense_hat_display_A.png"))
+    assert_images_equal(img_2, get_test_resource("sense_hat_display_B.png"))
