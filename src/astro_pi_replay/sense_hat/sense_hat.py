@@ -292,7 +292,7 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 self._text_dict[s] = char
 
         def _save_matrix(self):
-            arr: np.ndarray = self._image
+            arr: np.ndarray = np.rot90(self._image, k=3)
             img: Image.Image = Image.fromarray(arr)
             resized_img: Image.Image = img.resize((256, 256), resample=0)
             resized_img.save(
