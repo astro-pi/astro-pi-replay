@@ -92,7 +92,8 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
         assert False
 
 
-def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
+def test_replay_without_interpolation_should_replay_sequence_of_data():
+    executor = AstroPiExecutor(configuration=TestConfiguration(True, False, True))
     # Make the test deterministic
     with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
@@ -418,16 +419,16 @@ def test_interpolates_values():
     executor = AstroPiExecutor(configuration=configuration)
     sh = SenseHatAdapter(executor)
 
-    # Find the last two rows
+    # Find the frst two rows
     test_sh_data: Path = get_replay_sequence_dir() / "data" / "data.csv"
     # TODO this name should be static and globally defined
     df = executor._df_from_replay_file(str(test_sh_data), "datetime")
-    first_date = df.iloc[-2].name.to_pydatetime()
+    first_date = df.iloc[0].name.to_pydatetime()
     # TODO this column name should be statically defined
     column_to_compare = "pres"
-    first_datum = df.iloc[-2][column_to_compare]
-    second_date = df.iloc[-1].name.to_pydatetime()
-    second_datum = df.iloc[-1][column_to_compare]
+    first_datum = df.iloc[0][column_to_compare]
+    second_date = df.iloc[1].name.to_pydatetime()
+    second_datum = df.iloc[1][column_to_compare]
     test_utils.assume(
         [first_date < second_date, first_datum != second_datum],
         reason="Interpolation needs different values for a fair test",
@@ -437,6 +438,7 @@ def test_interpolates_values():
     in_between: datetime = first_date + timedelta(
         seconds=(second_date - first_date).total_seconds() / 2
     )
+    executor._state._start_time = first_date
     with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = in_between
         pressure = sh.get_pressure()
@@ -461,3 +463,16 @@ def test_snapshot_display(tmp_path: Path):
     assert (img_2 := tmp_path / "2.png").exists()
     assert_images_equal(img_1, get_test_resource("sense_hat_display_A.png"))
     assert_images_equal(img_2, get_test_resource("sense_hat_display_B.png"))
+
+
+def test_loop_with_interpolation_should_always_change():
+    configuration = TestConfiguration(True, True, False)
+    executor = AstroPiExecutor(configuration=configuration)
+    sh = SenseHatAdapter(executor)
+
+    # values should always change
+    results = set()
+    num_iterations: int = 10
+    for _ in range(num_iterations):
+        results.add(sh.get_pressure())
+    assert len(results) == num_iterations
