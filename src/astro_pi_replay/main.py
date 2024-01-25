@@ -124,6 +124,7 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.add_argument(
         "--snapshot-sense-hat-display",
+        action="store_true",
         default=False,
         help="Whether to save snapshots of the SenseHat display to "
         + "--sense-hat-snapshot-dir. Defaults to False.",
