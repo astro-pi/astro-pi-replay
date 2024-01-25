@@ -40,20 +40,24 @@ def test_replayed_data_is_consistent(executor: AstroPiExecutor):
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
 
-        assert sh.color.rgb == sh.color.color_raw[:3]
+        assert sh.color.rgb == sh.color.color[:3]
+        # the real rgb is just color.color[:3] and not raw.
         assert sh.color.red == sh.color.color[0]
         assert sh.color.green == sh.color.color[1]
         assert sh.color.blue == sh.color.color[2]
         assert sh.color.clear == sh.color.color[3]
         assert sh.color.gain == 1
         assert sh.color.max_raw == 1024
-        assert sh.color.red_raw == sh.color.rgb[0]
-        assert sh.color.green_raw == sh.color.rgb[1]
-        assert sh.color.blue_raw == sh.color.rgb[2]
+        assert sh.color.red_raw == sh.color.color_raw[0]
+        assert sh.color.green_raw == sh.color.color_raw[1]
+        assert sh.color.blue_raw == sh.color.color_raw[2]
         assert sh.color.clear_raw == sh.color.color_raw[3]
-        assert sh.color.color_raw[:3] == sh.color.rgb
         assert sh.color.clear_raw == sh.color.brightness
-        assert sh.colour.rgb == sh.colour.color_raw[:3]
+        assert sh.color.red_raw == sh.color.red * (sh.color.max_raw // 256)
+        assert sh.color.green_raw == sh.color.green * (sh.color.max_raw // 256)
+        assert sh.color.blue_raw == sh.color.blue * (sh.color.max_raw // 256)
+        assert sh.color.clear_raw == sh.color.clear * (sh.color.max_raw // 256)
+        assert sh.colour.rgb == sh.color.rgb
         assert sh.colour.integration_time == 0.0024
         assert sh.colour.integration_cycles == 1
         assert sh.temp == sh.temperature
