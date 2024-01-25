@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 import sys
-import venv
 from pathlib import Path
 from typing import Optional, Union
 
@@ -190,6 +189,8 @@ class VenvResolver:
             logger.info("Preparing environment (this may take a few moments)...")
             shutil.copytree(sys.prefix, venv_dir, symlinks=True)
         else:
+            import venv
+
             venv.create(
                 venv_dir, symlinks=True, system_site_packages=True, with_pip=True
             )

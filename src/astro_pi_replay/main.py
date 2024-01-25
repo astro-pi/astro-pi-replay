@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
+INSTALL_CMD: str = "install"
 
 
 def get_argument_parser() -> ArgumentParser:
@@ -115,6 +116,11 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.set_defaults(cmd="run")
 
+    install_parser = subparsers.add_parser(
+        INSTALL_CMD, help="Installs the internal libraries globally"
+    )
+    install_parser.set_defaults(cmd=INSTALL_CMD)
+
     return arg_parser
 
 
@@ -153,6 +159,8 @@ def _main(args: Namespace) -> None:
                 args.test_assets_only,
                 args.with_video,
             )
+        elif args.cmd == INSTALL_CMD:
+            AstroPiExecutor.install_global()
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
