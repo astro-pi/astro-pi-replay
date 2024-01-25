@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from functools import partial, wraps
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import pandas as pd
 import scipy as sp
@@ -48,6 +48,7 @@ class AstroPiExecutorState:
         self._last_sense_hat_row_index: int = 0
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
+        self._sense_hat_snapshot_index: int = 1
 
 
 class AstroPiExecutor:
@@ -171,10 +172,11 @@ class AstroPiExecutor:
             logger.debug("Returning actual decorator")
         return decorator
 
-    def _find_next_datum(self, df: pd.DataFrame) -> int:
+    def _get_elapsed_time_relative_to(self, first_time: pd.Timestamp) -> pd.Timestamp:
         """
-        Finds the next row in the given dataframe indexed by
-        datetime, based on the elapsed time.
+        Gets the elapsed time since the executor started and adds it to
+        the first_time given. The elapsed time is therefore relative to
+        the input.
         """
         start_time: datetime = self._state._start_time
         logger.debug(f"Start_time: {start_time}")
@@ -185,18 +187,30 @@ class AstroPiExecutor:
         delta_in_seconds: pd.Timedelta = pd.Timedelta(
             (now - start_time).total_seconds(), "seconds"
         )
-        first_time: pd.Timestamp = df.iloc[0].name
+        # first_time: pd.Timestamp = df.iloc[0].name
         proposed_time: pd.Timestamp = first_time + delta_in_seconds
+
+        logger.debug(f"now: {now}")
+        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
+        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+        logger.debug(f"first_time: {first_time}")
+        logger.debug(f"proposed_time: {proposed_time}")
+
+        return proposed_time
+
+    def _find_next_datum(self, df: pd.DataFrame) -> int:
+        """
+        Finds the next row in the given dataframe indexed by
+        datetime, based on the elapsed time.
+        """
+        first_time: pd.Timestamp = self._get_first_time(df)
+        proposed_time: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
 
         # Find the nearest time using the proposed time
         nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="backfill")[
             0
         ]
         logging.debug(f"Nearest i: {nearest_i}")
-        logger.debug(f"now: {now}")
-        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
-        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
-        logger.debug(f"first_time: {first_time}")
         logger.debug(f"proposed_time: {proposed_time}")
         self._state._last_sense_hat_row_index = nearest_i
 
@@ -232,11 +246,15 @@ class AstroPiExecutor:
         df = df.set_index(datetime_col)
         return df
 
+    def _get_first_time(self, df: pd.DataFrame):
+        return df.iloc[0].name
+
     def _interpolate(
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
-        d: datetime = datetime.now()
-        sub_df_dict: dict[str, list[float | int | datetime]] = {
+        first_time: pd.Timestamp = self._get_first_time(df)
+        d: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
+        sub_df_dict: dict[str, list[Union[float, int, datetime]]] = {
             datetime_col: [d.timestamp()]
         }
         for col_name in col_names:
@@ -246,8 +264,11 @@ class AstroPiExecutor:
                 )
             interpolator = self.interpolators[col_name]
             try:
-                value = interpolator(d.timestamp())
+                # convert to pydatetime to ensure in same timezone
+                # as the interpolated x values
+                value = interpolator(d.to_pydatetime().timestamp())
             except ValueError:
+                logger.debug(traceback.format_exc())
                 if d.timestamp() < interpolator.x[0]:
                     value = interpolator.y[0]
                 else:
@@ -432,6 +453,10 @@ class AstroPiExecutor:
                     "python.exe" if sys.platform == "win32" else "python"
                 )
                 resolved: Optional[str] = shutil.which(executable_name)
+                if resolved is None:
+                    # try python3
+                    executable_name = executable_name.replace("python", "python3")
+                    resolved = shutil.which(executable_name)
                 if resolved is None:
                     raise Exception(f"Cannot find {executable_name}. Is it installed?")
                 else:

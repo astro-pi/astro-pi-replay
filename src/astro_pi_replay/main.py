@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -98,6 +99,20 @@ def get_argument_parser() -> ArgumentParser:
     run_parser.add_argument(
         "--sequence", default=None, help="The sequence id to use in replays."
     )
+    run_parser.add_argument(
+        "--snapshot-sense-hat-display",
+        action="store_true",
+        default=False,
+        help="Whether to save snapshots of the SenseHat display to "
+        + "--sense-hat-snapshot-dir. Defaults to False.",
+    )
+    run_parser.add_argument(
+        "--sense-hat-snapshot-dir",
+        type=Path,
+        default=Path(os.getcwd()),
+        help="The directory in which to save snapshots of the SenseHat display. "
+        + "Defaults to the current directory.",
+    )
     run_parser.set_defaults(cmd="run")
 
     return arg_parser
@@ -111,6 +126,7 @@ def _main(args: Namespace) -> None:
         downloader = Downloader()
         if args.cmd == "run":
             if args.sequence is None:
+                downloader.check_for_sequences_override()
                 args.sequence = downloader.search_for_sequence(
                     args.resolution, args.photography_type
                 )
@@ -129,6 +145,7 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
+            downloader.check_for_sequences_override()
             downloader.install(
                 args.resolution,
                 args.photography_type,
