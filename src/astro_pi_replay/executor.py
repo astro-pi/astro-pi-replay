@@ -522,15 +522,23 @@ class AstroPiExecutor:
             #     print("Could not import setuptools")
 
             # venv_resolver.install(str(PROJECT_ROOT), editable=True)
+
+            # This isn't installing where I think it is
             venv_resolver.install(str(PROJECT_ROOT))
 
             # Before
             print("SITE PACKAGES INSTALLED BEFORE COPY?")
-            print(
-                list(
-                    (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).iterdir()
+            if (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).exists():
+                print(
+                    list(
+                        (
+                            venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME
+                        ).iterdir()
+                    )
                 )
-            )
+            else:
+                print(f"No {PROGRAM_NAME} inside venv site-packages")
+                print(list((venv_resolver.venv_info.site_packages_dir).iterdir()))
 
             # copy the resources already downloaded
             shutil.copytree(
