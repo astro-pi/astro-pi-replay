@@ -507,7 +507,7 @@ class AstroPiExecutor:
                         "-c",
                         "try: import setuptools as st; "
                         + 'print(f"i set: {st.__version__}"); '
-                        + 'except ImportError: print("i set not found")',
+                        + f'{os.linesep}except ImportError: print("i set not found")',
                     ],
                     capture_output=True,
                     check=True,
