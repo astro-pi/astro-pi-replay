@@ -497,9 +497,12 @@ class AstroPiExecutor:
                 import setuptools
 
                 logger.info("SETUPTOOLS VERSION:")
+                print("SETUPTOOLS VERSION:")
                 logger.info(setuptools.__version__)
+                print(setuptools.__version__)
             except ImportError:
-                pass
+                logger.info("Could not import setuptools...")
+                print("Could not import setuptools")
             venv_resolver.install(str(PROJECT_ROOT), editable=True)
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
