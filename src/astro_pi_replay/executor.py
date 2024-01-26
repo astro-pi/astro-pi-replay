@@ -496,6 +496,7 @@ class AstroPiExecutor:
             try:
                 import setuptools
 
+                logger.info("SETUPTOOLS VERSION:")
                 logger.info(setuptools.__version__)
             except ImportError:
                 pass
