@@ -97,9 +97,15 @@ class VenvResolver:
             if flags is not None:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
-            subprocess.run(
-                args, check=True, stdout=subprocess.DEVNULL
+            out = subprocess.run(
+                # args, check=True, stdout=subprocess.DEVNULL
+                args,
+                check=True,
+                text=True,
+                capture_output=True,
             )  # nosec B603: no user input
+            print("OUT:")
+            print(out.stdout)
         finally:
             if chdir:
                 os.chdir(before_directory)
