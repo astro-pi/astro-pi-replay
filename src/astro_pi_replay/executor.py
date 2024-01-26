@@ -534,6 +534,13 @@ class AstroPiExecutor:
                 dirs_exist_ok=True,  # bash cp semantics
             )
 
+            print("SITE PACKAGES INSTALLED?")
+            print(
+                list(
+                    (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).iterdir()
+                )
+            )
+
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
                 raise AstroPiReplayException(
