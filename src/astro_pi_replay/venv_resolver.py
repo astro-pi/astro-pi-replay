@@ -81,6 +81,7 @@ class VenvResolver:
             logger.debug(f"Initial working directory: {str(os.getcwd())}")
             if workdir is not None:
                 os.chdir(workdir)
+                logger.debug(f"Workir changed to {workdir}")
                 chdir = True
             print_name: str = name
             if name == os.curdir and workdir is not None:
@@ -97,6 +98,10 @@ class VenvResolver:
             if flags is not None:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
+
+            print(f"workdir files: {os.listdir(workdir)}")
+            print(f"name files: {os.listdir(name)}")
+
             out = subprocess.run(
                 # args, check=True, stdout=subprocess.DEVNULL
                 args,
