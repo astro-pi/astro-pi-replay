@@ -26,6 +26,7 @@ from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
 from astro_pi_replay.resources import (
     SENSE_HAT_CSV_FILE,
+    get_replay_dir,
     get_replay_sequence_dir,
     get_start_time,
 )
@@ -490,36 +491,48 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            # editable to access the resources already installed
-            # TODO copy the resources explicitly rather than depending
-            # on a pip quirk.
-            try:
-                import setuptools
+            # # editable to access the resources already installed
+            # # TODO copy the resources explicitly rather than depending
+            # # on a pip quirk.
+            # try:
+            #     import setuptools
 
-                logger.info("SETUPTOOLS VERSION:")
-                print("SETUPTOOLS VERSION:")
-                logger.info(setuptools.__version__)
-                print(setuptools.__version__)
+            #     logger.info("SETUPTOOLS VERSION:")
+            #     print("SETUPTOOLS VERSION:")
+            #     logger.info(setuptools.__version__)
+            #     print(setuptools.__version__)
 
-                out = subprocess.run(  # nosec B603
-                    [
-                        venv_resolver.venv_info.python,
-                        "-c",
-                        "try: import setuptools as st; "
-                        + 'print(f"i set: {st.__version__}"); '
-                        + f'{os.linesep}except ImportError: print("i set not found")',
-                    ],
-                    capture_output=True,
-                    check=True,
-                    text=True,
-                )
-                print("result of setuptools check:")
-                print(out.stdout)
+            #     out = subprocess.run(  # nosec B603
+            #         [
+            #             venv_resolver.venv_info.python,
+            #             "-c",
+            #             "try: import setuptools as st; "
+            #             + 'print(f"i set: {st.__version__}"); '
+            #             + f'{os.linesep}except ImportError: print("i set not found")',
+            #         ],
+            #         capture_output=True,
+            #         check=True,
+            #         text=True,
+            #     )
+            #     print("result of setuptools check:")
+            #     print(out.stdout)
 
-            except ImportError:
-                logger.info("Could not import setuptools...")
-                print("Could not import setuptools")
-            venv_resolver.install(str(PROJECT_ROOT), editable=True)
+            # except ImportError:
+            #     logger.info("Could not import setuptools...")
+            #     print("Could not import setuptools")
+
+            # venv_resolver.install(str(PROJECT_ROOT), editable=True)
+            venv_resolver.install(str(PROJECT_ROOT))
+
+            # copy the resources already downloaded
+            shutil.copytree(
+                get_replay_dir(),
+                venv_resolver.venv_info.site_packages_dir
+                / PROGRAM_NAME
+                / "resources"
+                / "replay",
+                dirs_exist_ok=True,  # bash cp semantics
+            )
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
