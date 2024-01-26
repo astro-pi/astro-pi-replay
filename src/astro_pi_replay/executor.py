@@ -493,6 +493,12 @@ class AstroPiExecutor:
             # editable to access the resources already installed
             # TODO copy the resources explicitly rather than depending
             # on a pip quirk.
+            try:
+                import setuptools
+
+                logger.info(setuptools.__version__)
+            except ImportError:
+                pass
             venv_resolver.install(str(PROJECT_ROOT), editable=True)
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
