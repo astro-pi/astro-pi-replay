@@ -524,6 +524,14 @@ class AstroPiExecutor:
             # venv_resolver.install(str(PROJECT_ROOT), editable=True)
             venv_resolver.install(str(PROJECT_ROOT))
 
+            # Before
+            print("SITE PACKAGES INSTALLED BEFORE COPY?")
+            print(
+                list(
+                    (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).iterdir()
+                )
+            )
+
             # copy the resources already downloaded
             shutil.copytree(
                 get_replay_dir(),
@@ -534,7 +542,7 @@ class AstroPiExecutor:
                 dirs_exist_ok=True,  # bash cp semantics
             )
 
-            print("SITE PACKAGES INSTALLED?")
+            print("SITE PACKAGES INSTALLED AFTER COPY?")
             print(
                 list(
                     (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).iterdir()
