@@ -101,6 +101,10 @@ class VenvResolver:
 
             print(f"workdir files: {os.listdir(workdir)}")
             print(f"name files: {os.listdir(name)}")
+            print(
+                "pyproject.toml contents: "
+                + f"{(Path(os.getcwd()) / 'pyproject.toml').read_text()}"
+            )
 
             out = subprocess.run(
                 # args, check=True, stdout=subprocess.DEVNULL
