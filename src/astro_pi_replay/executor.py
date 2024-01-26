@@ -500,6 +500,22 @@ class AstroPiExecutor:
                 print("SETUPTOOLS VERSION:")
                 logger.info(setuptools.__version__)
                 print(setuptools.__version__)
+
+                out = subprocess.run(  # nosec B603
+                    [
+                        venv_resolver.venv_info.python,
+                        "-c",
+                        "try: import setuptools as st; "
+                        + 'print(f"i set: {st.__version__}"); '
+                        + 'except ImportError: print("i set not found")',
+                    ],
+                    capture_output=True,
+                    check=True,
+                    text=True,
+                )
+                print("result of setuptools check:")
+                print(out.stdout)
+
             except ImportError:
                 logger.info("Could not import setuptools...")
                 print("Could not import setuptools")
