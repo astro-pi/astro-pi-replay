@@ -99,6 +99,13 @@ class VenvResolver:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
 
+            version = subprocess.run(  # nosec B603
+                [str(self.venv_info.pip), "--version"],
+                text=True,
+                check=True,
+                capture_output=True,
+            )
+            print(f"pip version: {version.stdout}")
             print(f"workdir files: {os.listdir(workdir)}")
             print(f"name files: {os.listdir(name)}")
             print(
