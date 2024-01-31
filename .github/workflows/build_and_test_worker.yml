@@ -54,12 +54,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-      #- name: Purge system setuptools
-      #  run: |
-      #    # Workaround for https://github.com/pypa/setuptools/issues/3269
-      #    # and https://github.com/pypa/pip/issues/6264
-      #    # TODO find another solution
-      #    sudo apt purge -y python3-setuptools
       - name: Build and test python
         run: |
           if [ -n "${{ inputs.pytest-debug }}" ]; then

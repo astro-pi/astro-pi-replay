@@ -491,54 +491,7 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            # # editable to access the resources already installed
-            # # TODO copy the resources explicitly rather than depending
-            # # on a pip quirk.
-            # try:
-            #     import setuptools
-
-            #     logger.info("SETUPTOOLS VERSION:")
-            #     print("SETUPTOOLS VERSION:")
-            #     logger.info(setuptools.__version__)
-            #     print(setuptools.__version__)
-
-            #     out = subprocess.run(  # nosec B603
-            #         [
-            #             venv_resolver.venv_info.python,
-            #             "-c",
-            #             "try: import setuptools as st; "
-            #             + 'print(f"i set: {st.__version__}"); '
-            #             + f'{os.linesep}except ImportError: print("i set not found")',
-            #         ],
-            #         capture_output=True,
-            #         check=True,
-            #         text=True,
-            #     )
-            #     print("result of setuptools check:")
-            #     print(out.stdout)
-
-            # except ImportError:
-            #     logger.info("Could not import setuptools...")
-            #     print("Could not import setuptools")
-
-            # venv_resolver.install(str(PROJECT_ROOT), editable=True)
-
-            # This isn't installing where I think it is
             venv_resolver.install(str(PROJECT_ROOT))
-
-            # Before
-            print("SITE PACKAGES INSTALLED BEFORE COPY?")
-            if (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).exists():
-                print(
-                    list(
-                        (
-                            venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME
-                        ).iterdir()
-                    )
-                )
-            else:
-                print(f"No {PROGRAM_NAME} inside venv site-packages")
-                print(list((venv_resolver.venv_info.site_packages_dir).iterdir()))
 
             # copy the resources already downloaded
             shutil.copytree(
@@ -548,13 +501,6 @@ class AstroPiExecutor:
                 / "resources"
                 / "replay",
                 dirs_exist_ok=True,  # bash cp semantics
-            )
-
-            print("SITE PACKAGES INSTALLED AFTER COPY?")
-            print(
-                list(
-                    (venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME).iterdir()
-                )
             )
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)

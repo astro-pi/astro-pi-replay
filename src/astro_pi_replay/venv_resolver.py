@@ -92,7 +92,6 @@ class VenvResolver:
                 "install",
                 name,
                 "--disable-pip-version-check",
-                "-vv",
             ]
             if editable:
                 args.insert(2, "--editable")
@@ -100,29 +99,9 @@ class VenvResolver:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
 
-            version = subprocess.run(  # nosec B603
-                [str(self.venv_info.pip), "--version"],
-                text=True,
-                check=True,
-                capture_output=True,
-            )
-            print(f"pip version: {version.stdout}")
-            print(f"workdir files: {os.listdir(workdir)}")
-            print(f"name files: {os.listdir(name)}")
-            print(
-                "pyproject.toml contents: "
-                + f"{(Path(os.getcwd()) / 'pyproject.toml').read_text()}"
-            )
-
-            out = subprocess.run(
-                # args, check=True, stdout=subprocess.DEVNULL
-                args,
-                check=True,
-                text=True,
-                capture_output=True,
+            subprocess.run(
+                args, check=True, stdout=subprocess.DEVNULL
             )  # nosec B603: no user input
-            print("OUT:")
-            print(out.stdout)
         finally:
             if chdir:
                 os.chdir(before_directory)
@@ -226,11 +205,11 @@ class VenvResolver:
         venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
         venv_info: VenvInfo = self._resolve_venv_dirs(venv_dir)
 
-        # upgrade pip
-        subprocess.run(
-            [str(venv_info.pip), "install", "--upgrade", "pip"],  # nosec B603
-            check=True,
-        )
+        # upgrade pip (must be >= 22.3 for a specific bugfix)
+        # see: https://github.com/pypa/pip/issues/6264#issuecomment-1088660972
+        update_pip_args: list[str] = [str(venv_info.pip), "install", "--upgrade", "pip"]
+        logger.debug(f"Upgrading pip: {' '.join(update_pip_args)}")
+        subprocess.run(update_pip_args, check=True)  # nosec B603
 
         if self.is_in_venv():
             logger.debug(
