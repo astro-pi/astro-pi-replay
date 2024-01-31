@@ -225,6 +225,13 @@ class VenvResolver:
         logger.info("Preparing environment (this may take a few moments)...")
         venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
         venv_info: VenvInfo = self._resolve_venv_dirs(venv_dir)
+
+        # upgrade pip
+        subprocess.run(
+            [str(venv_info.pip), "install", "--upgrade", "pip"],  # nosec B603
+            check=True,
+        )
+
         if self.is_in_venv():
             logger.debug(
                 "Detected that you running in a venv:"
