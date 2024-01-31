@@ -92,6 +92,7 @@ class VenvResolver:
                 "install",
                 name,
                 "--disable-pip-version-check",
+                "-vv",
             ]
             if editable:
                 args.insert(2, "--editable")
