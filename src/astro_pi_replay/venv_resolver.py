@@ -39,10 +39,12 @@ class VenvResolver:
     def __init__(
         self, venv_dir: Optional[Union[str, Path]] = None, init_venv: bool = True
     ) -> None:
+        self.platform: str = self._verify_platform()
         self.venv_dir: Path
+        self.venv_info: VenvInfo
         if venv_dir is None and init_venv:
             logger.debug("Initialising venv...")
-            self.venv_dir = self._init_venv()
+            self.venv_dir, self.venv_info = self._init_venv()
         elif venv_dir is None:
             raise AstroPiReplayRuntimeError(
                 "venv_dir is None " + "but init_venv is False. Aborting"
@@ -51,9 +53,19 @@ class VenvResolver:
             self.venv_dir = Path(venv_dir)
         if not self.venv_dir.exists() and init_venv:
             logger.debug(f"Venv {self.venv_dir} does not exist, initialising...")
-            self.venv_dir = self._init_venv(self.venv_dir)
-        self.platform: str = self._verify_platform()
-        self.venv_info: VenvInfo = self._resolve_venv_dirs()
+            self.venv_dir, self.venv_info = self._init_venv(self.venv_dir)
+        else:
+            self.venv_info = self._resolve_venv_dirs(self.venv_dir)
+
+    def copy_stubs(self, stubs: list[str], install_path: str):
+        logger.debug("Installing stubbed modules in the venv...")
+
+        for module in stubs:
+            logger.debug(f"Installing {module}")
+            shutil.copytree(
+                Path(install_path) / module,
+                self.venv_info.site_packages_dir / module,
+            )
 
     def install(
         self,
@@ -69,18 +81,27 @@ class VenvResolver:
             logger.debug(f"Initial working directory: {str(os.getcwd())}")
             if workdir is not None:
                 os.chdir(workdir)
+                logger.debug(f"Workir changed to {workdir}")
                 chdir = True
             print_name: str = name
             if name == os.curdir and workdir is not None:
                 print_name = workdir.name
             logger.debug(f"Installing {print_name} into venv...")
-            args: list[str] = [str(self.venv_info.pip), "install", name]
+            args: list[str] = [
+                str(self.venv_info.pip),
+                "install",
+                name,
+                "--disable-pip-version-check",
+            ]
             if editable:
                 args.insert(2, "--editable")
             if flags is not None:
                 args = [str(self.venv_info.pip), "install"] + flags + [name]
             logger.debug(" ".join(args))
-            subprocess.run(args, check=True)  # nosec B603: no user input
+
+            subprocess.run(
+                args, check=True, stdout=subprocess.DEVNULL
+            )  # nosec B603: no user input
         finally:
             if chdir:
                 os.chdir(before_directory)
@@ -130,7 +151,7 @@ class VenvResolver:
         logger.debug(out)
         return out.stdout
 
-    def _resolve_venv_dirs(self) -> VenvInfo:
+    def _resolve_venv_dirs(self, venv_dir: Path) -> VenvInfo:
         activate: Path
         deactivate: Optional[Path]
         executor: Optional[Path]
@@ -139,8 +160,8 @@ class VenvResolver:
         script_dir: Path
         site_packages_dir: Path
 
-        script_dir = self.venv_dir / "bin"
-        site_packages_dir = self.venv_dir / "lib"
+        script_dir = venv_dir / "bin"
+        site_packages_dir = venv_dir / "lib"
         site_packages_dir /= f"python{sys.version_info.major}.{sys.version_info.minor}"
         site_packages_dir /= "site-packages"
         activate = script_dir / "activate"
@@ -150,8 +171,8 @@ class VenvResolver:
         python = script_dir / "python"
 
         if self.platform in ["win32"]:
-            script_dir = self.venv_dir / "Scripts"
-            site_packages_dir = self.venv_dir / "Lib" / "site-packages"
+            script_dir = venv_dir / "Scripts"
+            site_packages_dir = venv_dir / "Lib" / "site-packages"
             activate = script_dir / (activate.name + ".bat")
             deactivate = script_dir / (deactivate.name + ".bat")
             executor = script_dir / (executor.name + ".exe")
@@ -168,7 +189,7 @@ class VenvResolver:
         for path in mandatory_paths:
             if not path.exists():
                 error_message: str = (
-                    f"Couldn't resolve {path} in {self.venv_dir}. "
+                    f"Couldn't resolve {path} in {venv_dir}. "
                     + "Try deleting the venv and recreating. If this issue persists, "
                     + f"please log an issue on github.com/{PROGRAM_NAME}."
                 )
@@ -179,7 +200,17 @@ class VenvResolver:
             activate, deactivate, executor, pip, python, script_dir, site_packages_dir
         )
 
-    def _init_venv(self, venv_dir: Path = Path("venv")) -> Path:
+    def _init_venv(self, venv_dir: Path = Path("venv")) -> tuple[Path, VenvInfo]:
+        logger.info("Preparing environment (this may take a few moments)...")
+        venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
+        venv_info: VenvInfo = self._resolve_venv_dirs(venv_dir)
+
+        # upgrade pip (must be >= 22.3 for a specific bugfix)
+        # see: https://github.com/pypa/pip/issues/6264#issuecomment-1088660972
+        update_pip_args: list[str] = [str(venv_info.pip), "install", "--upgrade", "pip"]
+        logger.debug(f"Upgrading pip: {' '.join(update_pip_args)}")
+        subprocess.run(update_pip_args, check=True)  # nosec B603
+
         if self.is_in_venv():
             logger.debug(
                 "Detected that you running in a venv:"
@@ -187,14 +218,13 @@ class VenvResolver:
                 + "However, running in replay mode will use a "
                 + "separate copied (modified) venv."
             )
-            logger.info("Preparing environment (this may take a few moments)...")
-            shutil.copytree(sys.prefix, venv_dir, symlinks=True)
-        else:
-            venv.create(
-                venv_dir, symlinks=True, system_site_packages=True, with_pip=True
-            )
 
-        return venv_dir
+            # Incorporate dependencies from the current venv into the
+            # Astro-Pi-Replay venv
+            with (venv_info.site_packages_dir / "extra.pth").open("w") as f:
+                f.write(str(Path(sys.prefix).resolve()))
+
+        return venv_dir, venv_info
 
     def _verify_platform(self) -> str:
         """Verifies that the curent platform is supported. Returns

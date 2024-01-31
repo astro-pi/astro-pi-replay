@@ -20,6 +20,12 @@ permissions:
   contents: write
 
 jobs:
+  integration-tests:
+    uses: ./.github/workflows/integration_test_worker.yml
+    with:
+      os: ${{ inputs.os }}
+      python-version: ${{ inputs.python-version }}
+    secrets: inherit
   update_semver_tags:
     runs-on: ${{ inputs.os }}
     steps:

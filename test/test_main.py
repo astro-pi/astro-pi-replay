@@ -41,7 +41,9 @@ def test_main_cli_when_run_given_supplies_default_args(
         namespace = mock_main.call_args.args[0]
         assert namespace.main == sense_hat_program.main
         assert namespace.cmd == args[1]
-        assert namespace.debug is False
+        assert namespace.debug is (
+            os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None
+        )
         assert namespace.mode is None
         assert namespace.no_match_original_photo_intervals is False
         assert namespace.venv_dir is None

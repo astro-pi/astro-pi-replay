@@ -96,18 +96,26 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
         assert False
 
 
-def test_replay_without_interpolation_should_replay_sequence_of_data():
-    executor = AstroPiExecutor(configuration=TestConfiguration(True, False, True))
-    # Make the test deterministic
-    with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
-        sh = SenseHatAdapter(executor)
-        assert sh.colour.colour == (9, 8, 8, 17)
-        assert executor._state._last_sense_hat_row_index == -1
+def test_replay_without_interpolation_should_replay_sequence_of_data(
+    executor: AstroPiExecutor,
+):
+    try:
+        # Make the test deterministic
+        with patch(
+            "astro_pi_replay.executor.datetime", wraps=datetime
+        ) as mock_datetime:
+            mock_datetime.now.return_value = executor._state._start_time + timedelta(
+                days=2
+            )
+            executor.configuration.interpolate_sense_hat = False
+            sh = SenseHatAdapter(executor)
+            assert sh.colour.colour == (9, 8, 8, 17)
+            assert executor._state._last_sense_hat_row_index == -1
+    finally:
+        executor.configuration.interpolate_sense_hat = True
 
 
 def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
-    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
@@ -124,7 +132,6 @@ def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
 
 
 def test_sense_hat_adapter_has_all_expected_attrs(executor: AstroPiExecutor):
-    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())

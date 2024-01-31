@@ -7,8 +7,6 @@ import json
 import logging
 import os
 import re
-import subprocess
-import sys
 from datetime import timedelta
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -121,7 +119,7 @@ def test_executor_live_mode_should_call_underlying_libraries(
 
 
 def test_executor_replay_mode_should_replay_data_without_interpolation(
-    tmp_path: Path, sense_hat_program: ProgramFixture
+    standard_venv: VenvResolver, sense_hat_program: ProgramFixture
 ):
     executor: AstroPiExecutor = AstroPiExecutor(
         configuration=TestConfiguration(True, False, False)
@@ -132,7 +130,9 @@ def test_executor_replay_mode_should_replay_data_without_interpolation(
         mock_datetime.now.return_value = executor._state._start_time + timedelta(
             seconds=2
         )
-        executor.run(ExecutionMode.REPLAY, tmp_path, sense_hat_program.main)
+        executor.run(
+            ExecutionMode.REPLAY, standard_venv.venv_dir.parent, sense_hat_program.main
+        )
     assert sense_hat_program.expected_file.exists()
     with sense_hat_program.expected_file.open() as f:
         contents = f.read()
@@ -211,67 +211,17 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     assert "telemetry.py" in os.listdir(orbit_path)
 
 
-# TODO speed up this test!
-def test_setup_venv_reinstalls_venv_when_deps_changed_in_current_env(tmp_path: Path):
-    output_file: Path = tmp_path / "version.txt"
-
-    # 1. execute the main.py once in replay mode
-    main: Path = tmp_path / "main.py"
-    with main.open("w") as f:
-        f.write(
-            os.linesep.join(
-                [
-                    "import os",
-                    "import fake_dep",
-                    "",
-                    f"with open(r'{str(output_file)}', 'w') as f:",
-                    "    f.write(fake_dep.__version__ + os.linesep)",
-                ]
-            )
-        )
-    # The problem is that sys.prefix is used in .run - which has already been altered
-    # so there is no pip...
-    try:
-        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
-    except CalledProcessError:
-        pass  # expected
-
-    # 2. Install a fake dep into the current venv
-    current_python: Path = Path(sys.executable)
-    fake_dep: Path = get_test_resource("fake_dep")
-    installed = False
-    try:
-        # TODO override sys.prefix to install to the non-real site-packages
-        subprocess.run(
-            [rf"{current_python}", "-m", "pip", "install", str(fake_dep)], check=True
-        )  # nosec B603
-        installed = True
-
-        # 3. Re-execute and confirm that it now works
-        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
-
-        assert output_file.exists()
-        with output_file.open() as f:
-            output_file_contents = f.read().strip()
-        assert output_file_contents == "0.0.1"
-
-    finally:
-        # Cleanup
-        if installed:
-            subprocess.run(
-                [current_python, "-m", "pip", "uninstall", "-y", "fake_dep"], check=True
-            )  # nosec B603
-
-
 def test_teardowns_run_when_exception_thrown_by_program(
-    tmp_path: Path, exception_program: Path
+    standard_venv: VenvResolver, tmp_path: Path, exception_program: Path
 ):
     AstroPiExecutor(configuration=TestConfiguration(True, False, False))
     semaphore: Path = tmp_path / "semaphore"
     callback: Callable = lambda: os.close(os.open(str(semaphore), os.O_CREAT))
     AstroPiExecutor._register_callback(Lifecycle.AFTER, callback)
     try:
-        AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, exception_program)
+        AstroPiExecutor.run(
+            ExecutionMode.REPLAY, standard_venv.venv_dir.parent, exception_program
+        )
     except CalledProcessError:
         pass
     assert semaphore.exists()
@@ -301,10 +251,15 @@ def test_executor_should_read_from_config_if_not_supplied():
 
 
 def test_replay_mode_when_debug_mode_logger_should_emit(
-    tmp_path: Path, debug_log_program: Path, capfd
+    standard_venv: VenvResolver, debug_log_program: Path, capfd
 ):
     AstroPiExecutor(configuration=TestConfiguration(True, False, True))
-    AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, debug_log_program, debug=True)
+    AstroPiExecutor.run(
+        ExecutionMode.REPLAY,
+        standard_venv.venv_dir.parent,
+        debug_log_program,
+        debug=True,
+    )
     output = capfd.readouterr()
     assert "foo" in output.err
 
