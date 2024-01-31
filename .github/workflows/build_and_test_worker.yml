@@ -54,6 +54,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+      - name: Try purging setuptools
+        run: |
+          sudo apt purge -y python3-setuptools
       - name: Build and test python
         run: |
           if [ -n "${{ inputs.pytest-debug }}" ]; then
