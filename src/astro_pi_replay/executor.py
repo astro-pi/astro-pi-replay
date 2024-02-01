@@ -542,11 +542,8 @@ class AstroPiExecutor:
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
                 logger.debug("venv_dirname is None - fetching value from env")
-                venv_dirname = (
-                    # TODO extract this into astro_pi_replay.config
-                    Path(os.environ.get("HOME", tempfile.gettempdir()))
-                    / f".{PROGRAM_NAME}"
-                )
+                # TODO extract this into astro_pi_replay.config
+                venv_dirname = Path.home() / f".{PROGRAM_NAME}"
                 logger.debug(f"Found {venv_dirname}")
 
             venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
