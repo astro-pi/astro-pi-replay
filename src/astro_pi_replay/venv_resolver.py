@@ -207,7 +207,14 @@ class VenvResolver:
 
         # upgrade pip (must be >= 22.3 for a specific bugfix)
         # see: https://github.com/pypa/pip/issues/6264#issuecomment-1088660972
-        update_pip_args: list[str] = [str(venv_info.pip), "install", "--upgrade", "pip"]
+        update_pip_args: list[str] = [
+            str(venv_info.python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+        ]
         logger.debug(f"Upgrading pip: {' '.join(update_pip_args)}")
         subprocess.run(update_pip_args, check=True)  # nosec B603
 
