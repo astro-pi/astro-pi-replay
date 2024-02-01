@@ -6,10 +6,13 @@ import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
+
 from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.downloader import Downloader
+from astro_pi_replay.exception import AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_resource
 
@@ -151,8 +154,19 @@ def _main(args: Namespace) -> None:
     if hasattr(args, "cmd"):
         downloader = Downloader()
         if args.cmd == "run":
+            is_offline: bool = False
             if args.sequence is None:
-                downloader.check_for_sequences_override()
+                try:
+                    downloader.check_for_sequences_override()
+                except (Timeout, ConnectionError) as e:
+                    is_offline = True
+                    logger.debug(
+                        "Could not check for sequence " + f"override file: {e}"
+                    )
+                except RequestException as e:
+                    logger.debug(f"Could not check for sequence " f"override file: {e}")
+                    logger.exception(e)
+
                 args.sequence = downloader.search_for_sequence(
                     args.resolution, args.photography_type
                 )
@@ -161,9 +175,24 @@ def _main(args: Namespace) -> None:
             if not downloader.has_installed(
                 args.resolution, args.photography_type, args.sequence
             ):
-                downloader.install(
-                    args.resolution, args.photography_type, args.sequence
-                )
+                try:
+                    downloader.install(
+                        args.resolution, args.photography_type, args.sequence
+                    )
+                except (Timeout, ConnectionError, HTTPError) as e:
+                    logger.debug(e)
+                    is_offline = True
+
+                if is_offline:
+                    raise AstroPiReplayRuntimeError(
+                        os.linesep.join(
+                            [
+                                "It looks like you are offline.",
+                                "You must be online to download "
+                                + f"the photo sequence '{args.sequence}'.",
+                            ]
+                        )
+                    )
 
             with get_resource("motd").open("r") as f:
                 sys.stdout.write(f.read())

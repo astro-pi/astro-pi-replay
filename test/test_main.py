@@ -86,3 +86,6 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
 @pytest.mark.skip(reason="TODO")
 def test_calls_executor_run_with_correct_args():
     pass
+
+
+# TODO test when downloader throws Exception, should still run
