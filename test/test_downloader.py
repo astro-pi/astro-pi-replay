@@ -25,7 +25,10 @@ def response_200_for(resource_path: str):
     response = MagicMock(spec=Response)
     type(response).status_code = PropertyMock(return_value=200)
     type(response).content = PropertyMock(
-        return_value=get_test_resource(resource_path).read_bytes()
+        # read_text preserves line endings whereas read_bytes does not
+        return_value=get_test_resource(resource_path)
+        .read_text()
+        .encode()
     )
     return response
 

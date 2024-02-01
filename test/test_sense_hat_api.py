@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -486,4 +487,5 @@ def test_loop_with_interpolation_should_always_change():
     num_iterations: int = 10
     for _ in range(num_iterations):
         results.add(sh.get_pressure())
+        time.sleep(1e-9)  # 1 ns
     assert len(results) == num_iterations
