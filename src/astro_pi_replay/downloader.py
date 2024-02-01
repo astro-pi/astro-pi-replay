@@ -190,13 +190,15 @@ class Downloader:
         have been any dynamic overrides to sequences.csv
         file, updating the sequences.csv file if so.
         """
-        res = requests.get(f"{version_url_prefix}/{SEQUENCES_FILENAME}", timeout=5)
 
-        if res.status_code == 200:
-            # override the file in resources
-            with open(SEQUENCES_FILE, "w") as f:
-                f.write(res.content.decode("utf-8"))
-        self.checked_for_sequences_override = True
+        try:
+            res = requests.get(f"{version_url_prefix}/{SEQUENCES_FILENAME}", timeout=5)
+            if res.status_code == 200:
+                # override the file in resources
+                with open(SEQUENCES_FILE, "w") as f:
+                    f.write(res.content.decode("utf-8"))
+        finally:
+            self.checked_for_sequences_override = True
 
     def search_for_sequence(
         self, resolution: tuple[int, int], photography_type: str
