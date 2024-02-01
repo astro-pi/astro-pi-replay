@@ -20,13 +20,12 @@ import pandas as pd
 import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
-from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, PROJECT_ROOT
+from astro_pi_replay import LOGGING_FORMAT, PACKAGE_ROOT, PROGRAM_CMD_NAME, PROGRAM_NAME
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
 from astro_pi_replay.resources import (
     SENSE_HAT_CSV_FILE,
-    get_replay_dir,
     get_replay_sequence_dir,
     get_start_time,
 )
@@ -483,7 +482,8 @@ class AstroPiExecutor:
         # already in one
         venv_resolver: VenvResolver = VenvResolver(venv_dir)
 
-        # Install the executor package (and transitive dependencies) as required
+        # Install the executor package
+        # transitive dependencies are covered due to the --system-site-packages
         logger.debug("Installing stubbed modules in the venv...")
 
         executor_install_path: Optional[str] = venv_resolver.is_package_installed(
@@ -491,16 +491,12 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            venv_resolver.install(str(PROJECT_ROOT))
 
-            # copy the resources already downloaded
+            # Copies the resources already downloaded as well
             shutil.copytree(
-                get_replay_dir(),
-                venv_resolver.venv_info.site_packages_dir
-                / PROGRAM_NAME
-                / "resources"
-                / "replay",
-                dirs_exist_ok=True,  # bash cp semantics
+                PACKAGE_ROOT,
+                venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME,
+                dirs_exist_ok=True,
             )
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
