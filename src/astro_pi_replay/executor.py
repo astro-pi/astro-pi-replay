@@ -274,7 +274,7 @@ class AstroPiExecutor:
             try:
                 # convert to pydatetime to ensure in same timezone
                 # as the interpolated x values
-                value = interpolator(d.to_pydatetime().timestamp())
+                value = interpolator(d.to_pydatetime(warn=False).timestamp())
             except ValueError:
                 logger.debug(traceback.format_exc())
                 if d.timestamp() < interpolator.x[0]:
