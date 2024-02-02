@@ -172,10 +172,9 @@ def _main(args: Namespace) -> None:
         downloader = Downloader()
         self_updater: SelfUpdater = SelfUpdater()
         if args.cmd == "run":
-            # TODO/FIXME need to make safe for offline
             self_updater.check_for_updates()
-            is_offline: bool = False
 
+            is_offline: bool = False
             if args.sequence is None:
                 try:
                     downloader.check_for_sequences_override()

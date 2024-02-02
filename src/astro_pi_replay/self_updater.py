@@ -13,28 +13,13 @@ from requests.exceptions import RequestException
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.resources import get_replay_dir
 from astro_pi_replay.venv_resolver import VenvInfo, VenvResolver
+from astro_pi_replay.version_utils import compare_semver
 
 logger = logging.getLogger(__name__)
 PYPI_URL: str = f"https://pypi.org/simple/{PROGRAM_NAME.replace('_','-')}"
 
 
 class SelfUpdater:
-    @staticmethod
-    def compare_semver(first: str, second: str) -> int:
-        """
-        Returns 0 when first is equal to second
-        Returns 1 when first is greater than second
-        Returns -1 when first is less than second
-        """
-        if first == second:
-            return 0
-        first_as_list: list[str] = first.split(".")
-        second_as_list: list[str] = second.split(".")
-        for i in range(len(first_as_list)):
-            if first_as_list[i] < second_as_list[i]:
-                return -1
-        return 1
-
     def _check_for_updates(self) -> list[str]:
         """
         Check PyPi for a new version
@@ -53,7 +38,7 @@ class SelfUpdater:
             json_data: dict = json.loads(response.content.decode("utf-8"))
 
             latest_available: str = json_data["versions"][-1]
-            if SelfUpdater.compare_semver(latest_available, __version__) == 1:
+            if compare_semver(latest_available, __version__) == 1:
                 to_return.append(f"An update to {PROGRAM_CMD_NAME} is available")
                 to_return.append(f"To update, run {PROGRAM_CMD_NAME} update")
         except (
