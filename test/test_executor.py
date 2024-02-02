@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, PROGRAM_NAME, __version__
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.executor import AstroPiExecutor, Lifecycle
 from astro_pi_replay.resources import get_start_time
@@ -144,6 +144,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
     os.environ.pop(CONFIG_FILE_ENV_VAR)
     os.remove(mock_config_filepath)
     with mock_config_filepath.open("w") as f:
+        # TODO fetch this from test fixture
         f.write(
             json.dumps(
                 {
@@ -153,6 +154,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     "interpolate_sense_hat": True,
                     "snapshot_sense_hat_display": True,
                     "sense_hat_snapshot_dir": __file__,
+                    f"{PROGRAM_NAME}_version": __version__,
                 }
             )
         )
@@ -164,6 +166,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
         assert executor.configuration.interpolate_sense_hat is True
         assert executor.configuration.snapshot_sense_hat_display is True
         assert executor.configuration.sense_hat_snapshot_dir == Path(__file__)
+        assert executor.configuration.astro_pi_replay_version == __version__
 
 
 ###########################################
@@ -195,7 +198,7 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
         f.write("")  # empty file
     AstroPiExecutor.run(ExecutionMode.REPLAY, tmp_path, main)
 
-    venv = VenvResolver(tmp_path / "venv", init_venv=False)
+    venv = VenvResolver(tmp_path / "venv", modify_venv_dir=False)
     assert venv.venv_dir.exists()
 
     assert "sense_hat" in os.listdir(venv.venv_info.site_packages_dir)

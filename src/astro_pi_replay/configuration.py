@@ -6,12 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from astro_pi_replay import PROGRAM_NAME
+from astro_pi_replay import PROGRAM_NAME, __version__
+from astro_pi_replay.version_utils import decrement_semver
 
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_CONFIG_FILE"
-CONFIG_FILE: Path = Path.home() / f".{PROGRAM_NAME}" / "config.json"
+CONFIG_FILE_NAME: str = "config.json"
+CONFIG_FILE: Path = Path.home() / f".{PROGRAM_NAME}" / CONFIG_FILE_NAME
 
 
 def get_config_file_path() -> Path:
@@ -33,11 +35,14 @@ class Configuration:
     sequence: Optional[str]
     snapshot_sense_hat_display: bool
     sense_hat_snapshot_dir: Path
+    astro_pi_replay_version: str
 
     @staticmethod
     def _from_json(jstr: str) -> "Configuration":
         d = json.loads(jstr)
         d["sense_hat_snapshot_dir"] = Path(d["sense_hat_snapshot_dir"])
+        if "astro_pi_replay_version" not in d:
+            d["astro_pi_replay_version"] = decrement_semver(__version__)
         return Configuration(**d)
 
     @staticmethod
@@ -49,6 +54,7 @@ class Configuration:
             args.sequence,
             args.snapshot_sense_hat_display,
             args.sense_hat_snapshot_dir,
+            __version__,
         )
 
     @staticmethod
@@ -78,6 +84,6 @@ class Configuration:
         config_file = get_config_file_path()
         config_file.parent.mkdir(exist_ok=True)
         if config_file.exists():
-            logger.debug("Overwriting config.json file")
+            logger.debug(f"Overwriting {CONFIG_FILE_NAME} file")
         with config_file.open("w") as f:
             f.write(self._to_json())
