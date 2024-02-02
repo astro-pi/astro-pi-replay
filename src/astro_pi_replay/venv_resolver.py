@@ -245,6 +245,13 @@ class VenvResolver:
         )
 
     def _init_venv(self, venv_dir: Path = Path("venv")) -> tuple[Path, VenvInfo]:
+        if self.platform == "win32":
+            # Windows venvs may/do not support symlinks
+            # and will emit a warning if unsupported (and then default
+            # to copying). For a more user-friendly experience, these
+            # warnings are suppressed.
+            logging.getLogger("venv").setLevel("ERROR")
+
         logger.info("Preparing environment (this may take a few moments)...")
         venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
         (venv_dir / VENV_REPLAY_VERSION_FILE_NAME).write_text(__version__)
@@ -282,6 +289,9 @@ class VenvResolver:
                 )
 
                 f.write(str(current_venv_info.site_packages_dir))
+
+        if self.platform == "win32":
+            logging.getLogger("venv").setLevel("WARNING")
 
         return venv_dir, venv_info
 
