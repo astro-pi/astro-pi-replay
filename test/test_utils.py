@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 TEST_PYPI_URL: str = "https://test.pypi.org/simple/"
 ProgramFixture = collections.namedtuple("ProgramFixture", ["main", "expected_file"])
-PROJECT_ROOT: Path = Path(__file__).parent.parent
 
 
 def is_raspberry_pi_os() -> bool:

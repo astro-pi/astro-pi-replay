@@ -4,6 +4,7 @@ Pillow>=9
 exif==1.6.0
 requests==2.31.0
 skyfield==1.46 # for orbit
+setuptools==69.0.3
 tqdm==4.66.1
 scipy>=1.9
 networkx==3.2.1
