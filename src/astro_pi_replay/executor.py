@@ -20,7 +20,7 @@ import pandas as pd
 import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
-from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME
+from astro_pi_replay import LOGGING_FORMAT, PACKAGE_ROOT, PROGRAM_CMD_NAME, PROGRAM_NAME
 from astro_pi_replay.configuration import Configuration, get_default_venv_dir
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
@@ -48,6 +48,7 @@ class AstroPiExecutorState:
         self._last_sense_hat_row_index: int = 0
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
+        self._sense_hat_snapshot_index: int = 1
 
 
 class AstroPiExecutor:
@@ -96,6 +97,10 @@ class AstroPiExecutor:
             cls.interpolators: dict[str, Interpolator] = {}
             cls._state: AstroPiExecutorState = state
 
+            if configuration is not None:
+                logger.debug(f"Received configuration: {str(configuration)}")
+            else:
+                logger.debug("Configuration not passed directly - loading")
             cls.configuration = (
                 configuration if configuration is not None else Configuration.load()
             )
@@ -103,6 +108,8 @@ class AstroPiExecutor:
             # TODO add option to be a bit like easyrandom / haskell type testing
             # random_mode = False # whether or not to randomly generate data
             # mode: ir or vis
+        else:
+            logger.debug("Executor already instantiated")
 
         return cls._instance
 
@@ -171,10 +178,11 @@ class AstroPiExecutor:
             logger.debug("Returning actual decorator")
         return decorator
 
-    def _find_next_datum(self, df: pd.DataFrame) -> int:
+    def _get_elapsed_time_relative_to(self, first_time: pd.Timestamp) -> pd.Timestamp:
         """
-        Finds the next row in the given dataframe indexed by
-        datetime, based on the elapsed time.
+        Gets the elapsed time since the executor started and adds it to
+        the first_time given. The elapsed time is therefore relative to
+        the input.
         """
         start_time: datetime = self._state._start_time
         logger.debug(f"Start_time: {start_time}")
@@ -185,17 +193,31 @@ class AstroPiExecutor:
         delta_in_seconds: pd.Timedelta = pd.Timedelta(
             (now - start_time).total_seconds(), "seconds"
         )
-        first_time: pd.Timestamp = df.iloc[0].name
+        # first_time: pd.Timestamp = df.iloc[0].name
         proposed_time: pd.Timestamp = first_time + delta_in_seconds
+
+        logger.debug(f"now: {now}")
+        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
+        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+        logger.debug(f"first_time: {first_time}")
+        logger.debug(f"proposed_time: {proposed_time}")
+
+        return proposed_time
+
+    def _find_next_datum(self, df: pd.DataFrame) -> int:
+        """
+        Finds the next row in the given dataframe indexed by
+        datetime, based on the elapsed time.
+        """
+        first_time: pd.Timestamp = self._get_first_time(df)
+        proposed_time: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
 
         # Find the nearest time using the proposed time
         nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="backfill")[
             0
         ]
-        logging.debug(f"Nearest i: {nearest_i}")
-        logger.debug(f"now: {now}")
-        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
-        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+
+        logger.debug(f"Nearest i: {nearest_i}")
         logger.debug(f"first_time: {first_time}")
         logger.debug(f"proposed_time: {proposed_time}")
         self._state._last_sense_hat_row_index = nearest_i
@@ -232,10 +254,14 @@ class AstroPiExecutor:
         df = df.set_index(datetime_col)
         return df
 
+    def _get_first_time(self, df: pd.DataFrame):
+        return df.iloc[0].name
+
     def _interpolate(
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
-        d: datetime = datetime.now()
+        first_time: pd.Timestamp = self._get_first_time(df)
+        d: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
         sub_df_dict: dict[str, list[Union[float, int, datetime]]] = {
             datetime_col: [d.timestamp()]
         }
@@ -246,8 +272,11 @@ class AstroPiExecutor:
                 )
             interpolator = self.interpolators[col_name]
             try:
-                value = interpolator(d.timestamp())
+                # convert to pydatetime to ensure in same timezone
+                # as the interpolated x values
+                value = interpolator(d.to_pydatetime(warn=False).timestamp())
             except ValueError:
+                logger.debug(traceback.format_exc())
                 if d.timestamp() < interpolator.x[0]:
                     value = interpolator.y[0]
                 else:
@@ -256,6 +285,11 @@ class AstroPiExecutor:
         sub_df: pd.DataFrame = pd.DataFrame.from_dict(sub_df_dict)
         sub_df = sub_df.set_index(datetime_col)
         return sub_df.iloc[0]
+
+    @staticmethod
+    def _reset():
+        AstroPiExecutor._instance = None
+        AstroPiExecutor._df_from_replay_file.cache_clear()
 
     def _replay_next(
         self,
@@ -397,10 +431,25 @@ class AstroPiExecutor:
         with main.open() as f:
             contents = f.read()
         with main_copy.open("w") as f:
-            f.write("import logging" + os.linesep)
-            f.write("logging.basicConfig(level=logging.DEBUG)" + os.linesep)
+            f.write(
+                os.linesep.join(
+                    [
+                        "import logging",
+                        "logging.basicConfig(level=logging.DEBUG,"
+                        + f"format='{LOGGING_FORMAT}')",
+                        "import datetime",
+                        "logging.Formatter.formatTime = (lambda self, record, "
+                        + "datefmt=None: datetime.datetime.fromtimestamp("
+                        + "record.created, "
+                        + "datetime.timezone.utc).astimezone().isoformat(sep='T',"
+                        + "timespec='milliseconds'))"
+                        + os.linesep,
+                    ]
+                )
+            )
             f.write(contents)
 
+        logger.debug(f"Copying {main_copy} into {main}")
         shutil.copy2(main_copy, main)
         # Teardown is taken care of in add_name_is_main_guard
         return main
@@ -426,55 +475,15 @@ class AstroPiExecutor:
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        def list_dependencies(python: Optional[Path] = None) -> str:
-            if python is None:
-                executable_name: str = (
-                    "python.exe" if sys.platform == "win32" else "python"
-                )
-                resolved: Optional[str] = shutil.which(executable_name)
-                if resolved is None:
-                    # try python3
-                    executable_name = executable_name.replace("python", "python3")
-                    resolved = shutil.which(executable_name)
-                if resolved is None:
-                    raise Exception(f"Cannot find {executable_name}. Is it installed?")
-                else:
-                    python = Path(resolved)
-            args: list[str] = [rf"{str(python)}", "-m", "pip", "freeze"]
-            logger.debug(" ".join(args))
-            out = subprocess.run(
-                args, text=True, check=True, capture_output=True, shell=False
-            )  # nosec B603
-            logger.debug(out)
-            return out.stdout
-
-        # 1. Compare the current environment and the venv for changes.
-        # Deletes the venv if there is a change so that the venv
-        # dependencies remain up to date.
         if venv_dir.exists():
-            current_deps: str = list_dependencies()  # current venv
-            logger.debug(f"current_deps: {current_deps}")
-            logger.debug("")
+            return VenvResolver(venv_dir)
 
-            existing_venv: VenvResolver = VenvResolver(venv_dir)
-            # The problem is here
-            executor_venv_deps = existing_venv.list_dependencies()
-            logger.debug(f"executor_venv_deps: {executor_venv_deps}")
-            if current_deps == executor_venv_deps:
-                logger.debug("venv already created - skipping")
-                return existing_venv
-            else:
-                logger.debug(
-                    "Dependencies have changed - deleting "
-                    + f"old venv at {venv_dir} and recreating..."
-                )
-            shutil.rmtree(venv_dir)
-
-        # 2. Copy or creates the venv to the venv_dir, depending on if we're
+        # Copy or creates the venv to the venv_dir, depending on if we're
         # already in one
         venv_resolver: VenvResolver = VenvResolver(venv_dir)
 
-        # 3. Install the executor package as required
+        # Install the executor package
+        # transitive dependencies are covered due to the --system-site-packages
         logger.debug("Installing stubbed modules in the venv...")
 
         executor_install_path: Optional[str] = venv_resolver.is_package_installed(
@@ -482,11 +491,13 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            # editable to access the resources already installed...
-            # TODO copy the resources explicitly rather than depending
-            # on a pip quirk.
-            # TODO do not rely on curdir since people will not be running from the root!
-            venv_resolver.install(os.curdir, editable=True)
+
+            # Copies the resources already downloaded as well
+            shutil.copytree(
+                PACKAGE_ROOT,
+                venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME,
+                dirs_exist_ok=True,
+            )
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
@@ -494,15 +505,8 @@ class AstroPiExecutor:
                     f"Could not set up {PROGRAM_CMD_NAME} environment"
                 )
 
-        # 4. Install stubs into the venv
-        logger.debug("Installing stubbed modules in the venv...")
-
-        for module in AstroPiExecutor.MODULES_TO_STUB:
-            logger.debug(f"Installing {module}")
-            shutil.copytree(
-                Path(executor_install_path) / module,
-                venv_resolver.venv_info.site_packages_dir / module,
-            )
+        # Install stubs into the venv
+        venv_resolver.copy_stubs(AstroPiExecutor.MODULES_TO_STUB, executor_install_path)
 
         return venv_resolver
 
@@ -511,7 +515,7 @@ class AstroPiExecutor:
         execution_mode: Optional[ExecutionMode],
         venv_dirname: Optional[Path],
         main: Path,
-        debug: bool = False,
+        debug: bool = os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
     ) -> None:
         """
         This method runs the given main file using the given execution mode.
@@ -526,7 +530,7 @@ class AstroPiExecutor:
 
         if execution_mode is None:
             execution_mode = AstroPiExecutor._detect_execution_mode()
-            logging.debug(f"Detected execution mode: {execution_mode}")
+            logger.debug(f"Detected execution mode: {execution_mode}")
         if not main.exists() or not main.is_file():
             raise AstroPiReplayException(f"File {main} is not a regular file")
 
@@ -566,7 +570,7 @@ class AstroPiExecutor:
         main = AstroPiExecutor.add_name_is_main_guard(main)
 
         if debug:
-            AstroPiExecutor.add_debug_logging_config(main)
+            main = AstroPiExecutor.add_debug_logging_config(main)
 
         try:
             # Run the program that was passed in
@@ -575,7 +579,7 @@ class AstroPiExecutor:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
                 args: list[str] = [rf"{python}", "-u", str(main.resolve())]
-                logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+                logger.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):
                     """Hides the internals of the lib

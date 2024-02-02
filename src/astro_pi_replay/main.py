@@ -1,17 +1,31 @@
+import cProfile
+import datetime
 import logging
+import os
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
+from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
+
+from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.downloader import Downloader
+from astro_pi_replay.exception import AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_resource
 from astro_pi_replay.self_updater import SelfUpdater
 
 logger = logging.getLogger(__name__)
+logging.Formatter.formatTime = (  # type: ignore[method-assign]
+    lambda self, record, datefmt=None: datetime.datetime.fromtimestamp(
+        record.created, datetime.timezone.utc
+    )
+    .astimezone()
+    .isoformat(sep="T", timespec="milliseconds")
+)
+
 
 RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
@@ -21,7 +35,20 @@ VERSION_CMD: str = "version"
 
 def get_argument_parser() -> ArgumentParser:
     arg_parser = ArgumentParser(prog=PROGRAM_CMD_NAME, description="")
-    arg_parser.add_argument("--debug", action="store_true", help="Emit debug messages")
+    arg_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Emit debug messages",
+        default=os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
+    )
+    arg_parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable profiling (to stdout unless " + "--profile-filename is specified)",
+    )
+    arg_parser.add_argument(
+        "--profile-filename", help="Redirect profiling output to " + "a file"
+    )
     subparsers = arg_parser.add_subparsers(help="sub-command help")
 
     download_parser = subparsers.add_parser(
@@ -101,6 +128,20 @@ def get_argument_parser() -> ArgumentParser:
     run_parser.add_argument(
         "--sequence", default=None, help="The sequence id to use in replays."
     )
+    run_parser.add_argument(
+        "--snapshot-sense-hat-display",
+        action="store_true",
+        default=False,
+        help="Whether to save snapshots of the SenseHat display to "
+        + "--sense-hat-snapshot-dir. Defaults to False.",
+    )
+    run_parser.add_argument(
+        "--sense-hat-snapshot-dir",
+        type=Path,
+        default=Path(os.getcwd()),
+        help="The directory in which to save snapshots of the SenseHat display. "
+        + "Defaults to the current directory.",
+    )
     run_parser.set_defaults(cmd="run")
     update_parser = subparsers.add_parser(
         UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
@@ -121,16 +162,32 @@ def get_argument_parser() -> ArgumentParser:
 
 
 def _main(args: Namespace) -> None:
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO, format=LOGGING_FORMAT
+    )
 
     logger.debug(args)
+
     if hasattr(args, "cmd"):
         downloader = Downloader()
         self_updater: SelfUpdater = SelfUpdater()
         if args.cmd == "run":
+            # TODO/FIXME need to make safe for offline
             self_updater.check_for_updates()
+            is_offline: bool = False
 
             if args.sequence is None:
+                try:
+                    downloader.check_for_sequences_override()
+                except (Timeout, ConnectionError) as e:
+                    is_offline = True
+                    logger.debug(
+                        "Could not check for sequence " + f"override file: {e}"
+                    )
+                except RequestException as e:
+                    logger.debug(f"Could not check for sequence " f"override file: {e}")
+                    logger.exception(e)
+
                 args.sequence = downloader.search_for_sequence(
                     args.resolution, args.photography_type
                 )
@@ -139,9 +196,24 @@ def _main(args: Namespace) -> None:
             if not downloader.has_installed(
                 args.resolution, args.photography_type, args.sequence
             ):
-                downloader.install(
-                    args.resolution, args.photography_type, args.sequence
-                )
+                try:
+                    downloader.install(
+                        args.resolution, args.photography_type, args.sequence
+                    )
+                except (Timeout, ConnectionError, HTTPError) as e:
+                    logger.debug(e)
+                    is_offline = True
+
+                if is_offline:
+                    raise AstroPiReplayRuntimeError(
+                        os.linesep.join(
+                            [
+                                "It looks like you are offline.",
+                                "You must be online to download "
+                                + f"the photo sequence '{args.sequence}'.",
+                            ]
+                        )
+                    )
 
             with get_resource("motd").open("r") as f:
                 sys.stdout.write(f.read())
@@ -149,6 +221,7 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
+            downloader.check_for_sequences_override()
             downloader.install(
                 args.resolution,
                 args.photography_type,
@@ -170,4 +243,22 @@ def _main(args: Namespace) -> None:
 def main() -> None:
     arg_parser = get_argument_parser()
     args: Namespace = arg_parser.parse_args(sys.argv[1:])
-    _main(args)
+    if args.profile:
+        logger.debug("Profiling enabled")
+        if hasattr(args, "profile_filename"):
+            logger.debug(f"Redirecting profile output to {args.profile_filename}")
+            cProfile.runctx(
+                "_main(args)",
+                globals(),
+                locals(),
+                filename=args.profile_filename,
+                sort="cumulative",
+            )
+            logger.info(
+                "Convert profile output to svg: gprof2dot -f pstats "
+                + f"{args.profile_filename} | dot -Tsvg -o {args.profile_filename}.svg"
+            )
+        else:
+            cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
+    else:
+        _main(args)

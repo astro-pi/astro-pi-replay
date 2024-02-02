@@ -12,7 +12,7 @@ from requests.exceptions import RequestException
 
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.resources import get_replay_dir
-from astro_pi_replay.venv_resolver import VenvResolver
+from astro_pi_replay.venv_resolver import VenvInfo, VenvResolver
 
 logger = logging.getLogger(__name__)
 PYPI_URL: str = f"https://pypi.org/simple/{PROGRAM_NAME.replace('_','-')}"
@@ -70,9 +70,9 @@ class SelfUpdater:
         for line in self._check_for_updates():
             logger.info(line)
 
-    def _update(self, venv: VenvResolver) -> None:
+    def _update(self, venv_info: VenvInfo) -> None:
         subprocess.run(  # nosec B603
-            [str(venv.venv_info.pip), "install", "--update", "astro_pi_replay"],
+            [str(venv_info.pip), "install", "--update", "astro_pi_replay"],
             check=True,
         )
         logger.info("Update complete")
@@ -82,7 +82,7 @@ class SelfUpdater:
         Update requested (via Astro-Pi-Replay update)
         """
         venv_path: Path = venv_dirname if venv_dirname is not None else Path(sys.prefix)
-        venv: VenvResolver = VenvResolver(venv_path, init_venv=False)
+        venv_info: VenvInfo = VenvResolver.resolve_venv_dirs(venv_path, sys.platform)
 
         # move the replay dirs to a temporary location to avoid redownloading them
         temp_dir: Path = Path(mkdtemp())
@@ -91,13 +91,13 @@ class SelfUpdater:
         success: bool = False
         try:
             # now the replay dir is currently temp_dir / replay_dir.name
-            self._update(venv)
+            self._update(venv_info)
             success = True
         finally:
             if success:
                 shutil.move(
                     temp_dir / replay_dir.name,
-                    venv.venv_info.site_packages_dir / PROGRAM_NAME / "resources",
+                    venv_info.site_packages_dir / PROGRAM_NAME / "resources",
                 )
             else:
                 shutil.move(temp_dir / replay_dir.name, replay_dir.parent)

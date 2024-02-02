@@ -42,12 +42,11 @@ def configuration() -> Configuration:
 
 
 @pytest.fixture(scope="module")
-def executor(configuration: Configuration):
+def executor(clear_caches_module, configuration: Configuration):
+    logger.debug("About to instantiate the picamera executor")
     executor = AstroPiExecutor(configuration=configuration)
     return executor
 
-
-# TODO overwrite the sleeping deltas to be 0 seconds on as many tests as possible
 
 ########
 # TESTS
@@ -91,8 +90,8 @@ def test_replay_capture_should_replay_captured_photos_in_given_file(
     # TODO assert on content
 
 
-def test_replay_capture_to_numpy_array():
-    cam = PiCameraAdapter()
+def test_replay_capture_to_numpy_array(executor: AstroPiExecutor):
+    cam = PiCameraAdapter(executor)
     width, height = cam.resolution
     output = np.zeros((height, width, 3), dtype=np.uint8)
     zeros = output.copy()
@@ -220,8 +219,10 @@ def test_replay_capture_sequence_with_filenames(
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.parametrize("format", video_formats)
-def test_replay_start_recording_supports_all_video_formats(tmp_path: Path, format: str):
-    cam = PiCameraAdapter()
+def test_replay_start_recording_supports_all_video_formats(
+    tmp_path: Path, format: str, executor: AstroPiExecutor
+):
+    cam = PiCameraAdapter(executor)
     output = tmp_path / f"example.{format}"
     # TODO make deterministic
     cam.start_recording(str(output), format=format)

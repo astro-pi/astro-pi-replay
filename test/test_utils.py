@@ -9,16 +9,20 @@ from pathlib import Path
 from typing import Iterable, Optional, Union
 from unittest.mock import MagicMock, _patch, patch
 
+import numpy as np
 import pandas as pd
 import pytest
+from PIL import Image
 
+from astro_pi_replay import __version__
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 
 logger = logging.getLogger(__name__)
 
-TEST_PYPI_URL = "https://test.pypi.org/simple/"
+TEST_PYPI_URL: str = "https://test.pypi.org/simple/"
 ProgramFixture = collections.namedtuple("ProgramFixture", ["main", "expected_file"])
+PROJECT_ROOT: Path = Path(__file__).parent.parent
 
 
 def is_raspberry_pi_os() -> bool:
@@ -265,10 +269,20 @@ def get_test_asset_path() -> str:
 
 
 def TestConfiguration(
-    no_wait_images: bool, interpolate_sense_hat: bool, debug: bool
+    no_wait_images: bool,
+    interpolate_sense_hat: bool,
+    debug: bool,
+    snapshot_sense_hat_display: bool = False,
+    sense_hat_snapshot_dir: Path = Path(__file__),
 ) -> Configuration:
     return Configuration(
-        no_wait_images, interpolate_sense_hat, debug, get_test_asset_path()
+        no_wait_images,
+        interpolate_sense_hat,
+        debug,
+        get_test_asset_path(),
+        snapshot_sense_hat_display,
+        sense_hat_snapshot_dir,
+        __version__,
     )
 
 
@@ -278,3 +292,20 @@ def assume(predicate: Union[bool, Iterable[bool]], reason: Optional[str] = None)
     else:
         for pred in predicate:
             assert pred, reason
+
+
+def assert_images_equal(
+    actual: Union[str, Path], expected: Union[str, Path], tolerance: float = 0.0
+):
+    """
+    Calculates the mean squared error between the actual and
+    expected images and asserts that it is below or equal to the
+    given threshold.
+    """
+    actual_img: np.ndarray = np.array(Image.open(actual))
+    expected_img: np.ndarray = np.array(Image.open(expected))
+
+    mean_squared_error: float = float(
+        np.square(np.subtract(actual_img, expected_img)).mean()
+    )
+    assert mean_squared_error <= tolerance

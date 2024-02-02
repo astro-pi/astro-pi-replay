@@ -77,6 +77,7 @@ DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
 
 ifdef SKIP_DOWNLOAD
 DOWNLOAD_CMD:=
+DOCKER_IMAGE_NAME:=$(DOCKER_IMAGE_NAME)-slim
 else
 DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(BIN_NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
@@ -105,7 +106,8 @@ all:
 	@echo "publish_test_pypi - Build and publish a release to test PyPi."
 	@echo "setup_developer   - Install pre-commit hooks and venv to"
 	@echo "                    the developer environment."
-	@echo "test              - Run all tests except smoke-tests using pytest."
+	@echo "test              - Run all unit tests using pytest."
+	@echo "test_integration  - Run all integration tests using pytest."
 	@echo "test_smoke        - Run the smoke tests (using TestPyPi) with pytest."
 	@echo "uninstall         - Uninstall the Python package from the OS user environment"
 	@echo "version           - Print the package version"
@@ -144,6 +146,7 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg BIN_NAME="$(BIN_NAME)" \
 	  --build-arg PYTHON_VERSION="$(PYTHON_VERSION)" \
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
+	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 
 build_docs: $(VENV) $(DOC_SOURCES)
@@ -170,6 +173,8 @@ diagnostics:
 	@echo "Detected major version is: $(VERSION_MAJOR)"
 	@echo "Detected minor version is: $(VERSION_MINOR)"
 	@echo "Detected patch version is: $(VERSION_PATCH)"
+	@echo "Detected SKIP_DOWNLOAD: $(SKIP_DOWNLOAD)"
+	@echo "Docker image name: $(DOCKER_IMAGE_NAME)"
 
 $(DIST_DIR):	$(VENV)
 	. $(VENV_NAME)/bin/activate; $(PYTHON3) $(PYFLAGS) -m $(BUILD)
@@ -231,6 +236,10 @@ setup_developer: $(VENV_NAME) pre_commit_install hooks_install
 
 test: $(VENV_NAME)
 	. $(VENV_NAME)/bin/activate; $(PYTEST) $(PYTEST_FLAGS)
+
+test_integration:
+	@echo "Running integration tests"
+	cd test/integration; ./execute_tests.sh "INTEGRATION_TESTS"
 
 test_smoke:
 	@echo "Running smoke tests"
