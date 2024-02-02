@@ -1,4 +1,5 @@
 from pathlib import Path
+from test.test_utils import get_test_resource
 from typing import Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -11,7 +12,6 @@ from astro_pi_replay.downloader import (
     asset_prefix,
     version_url_prefix,
 )
-from test_utils import get_test_resource
 
 
 # Helper methods for mocking requests library

@@ -4,6 +4,12 @@ import shutil
 import site
 import uuid
 from pathlib import Path
+from test.test_utils import (
+    TEST_PYPI_URL,
+    ProgramFixture,
+    TestConfiguration,
+    get_test_asset_path,
+)
 from typing import Iterable
 from unittest.mock import patch
 
@@ -18,12 +24,6 @@ from astro_pi_replay.configuration import (
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_replay.venv_resolver import VenvResolver
-from test_utils import (
-    TEST_PYPI_URL,
-    ProgramFixture,
-    TestConfiguration,
-    get_test_asset_path,
-)
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import test.test_utils as test_utils
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -15,7 +16,6 @@ import pytest
 from colorzero import Color
 from PIL import Image
 
-import test_utils
 from astro_pi_replay.executor import AstroPiExecutor, Configuration
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter

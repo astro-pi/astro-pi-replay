@@ -10,6 +10,12 @@ import re
 from datetime import timedelta
 from pathlib import Path
 from subprocess import CalledProcessError
+from test.test_utils import (
+    ProgramFixture,
+    TestConfiguration,
+    get_test_resource,
+    prepare_executor_to_run_in_fake_live_venv,
+)
 from typing import Callable
 from unittest.mock import Mock, patch
 
@@ -21,12 +27,6 @@ from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.executor import AstroPiExecutor, Lifecycle
 from astro_pi_replay.resources import get_start_time
 from astro_pi_replay.venv_resolver import VenvResolver
-from test_utils import (
-    ProgramFixture,
-    TestConfiguration,
-    get_test_resource,
-    prepare_executor_to_run_in_fake_live_venv,
-)
 
 logger = logging.getLogger(__name__)
 

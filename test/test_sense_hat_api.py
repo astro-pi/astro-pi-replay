@@ -1,17 +1,17 @@
 import json
 import math
+import test.test_utils as test_utils
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from test.test_utils import TestConfiguration, assert_images_equal, get_test_resource
 from unittest.mock import patch
 
 import pytest
 
-import test_utils
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.sense_hat.sense_hat import SenseHatAdapter
-from test_utils import TestConfiguration, assert_images_equal, get_test_resource
 
 ###########
 # Fixtures
