@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import uuid
 from pathlib import Path
+from test.test_utils import get_test_resource, prepare_executor_to_run_in_standard_venv
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from packaging import version
@@ -16,7 +17,6 @@ from requests import Response
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.self_updater import SelfUpdater
 from astro_pi_replay.venv_resolver import VenvResolver
-from test_utils import get_test_resource, prepare_executor_to_run_in_standard_venv
 
 PROJECT_ROOT: Path = Path(__file__).parent.parent
 SRC_DIR: Path = PROJECT_ROOT / "src"
@@ -186,7 +186,7 @@ def test_self_updater_updates_files_successfully(
     # 3. Build a new wheel from the copy
     subprocess.run(
         [str(standard_venv.venv_info.pip), "install", "build"], check=True
-    )  # nosec: B
+    )  # nosec: B603
     # TODO speed this up as it's slow - it creates a stdist before a wheel
     # creates a new venv etc...
     subprocess.run(  # nosec B603
@@ -204,24 +204,25 @@ def test_self_updater_updates_files_successfully(
     # WHEN
     # 4. Install the new wheel
     self_updater: SelfUpdater = SelfUpdater()
+
+    def mock_update_side_effect(_):
+        args: list[str] = [
+            str(standard_venv.venv_info.pip),
+            "install",
+            "--upgrade",
+            str(tmp_path / "dist" / f"{PROGRAM_NAME}-{next_version}-py3-none-any.whl"),
+        ]
+        out = subprocess.run(args, check=True)  # nosec B603
+        return out
+
     with patch.object(self_updater, "_update") as mock_update:
         with patch(
             "astro_pi_replay.self_updater.shutil.move",
             side_effect=lambda source, dest: shutil.copytree(
-                source, dest / source.name
+                source, dest / source.name, dirs_exist_ok=True  # Linux cp semantics
             ),
         ):
-            mock_update.side_effect = lambda _: subprocess.run(  # nosec B603
-                [
-                    str(standard_venv.venv_info.pip),
-                    "install",
-                    "--upgrade",
-                    tmp_path
-                    / "dist"
-                    / f"{PROGRAM_NAME}-{next_version}-py3-none-any.whl",
-                ],
-                check=True,
-            )
+            mock_update.side_effect = mock_update_side_effect
             self_updater.update()
 
     # THEN
