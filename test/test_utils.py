@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from PIL import Image
 
+from astro_pi_replay import __version__
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 
@@ -220,6 +221,7 @@ def TestConfiguration(
         get_test_asset_path(),
         snapshot_sense_hat_display,
         sense_hat_snapshot_dir,
+        __version__,
     )
 
 

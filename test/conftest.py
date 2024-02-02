@@ -10,7 +10,11 @@ from unittest.mock import patch
 import pytest
 
 from astro_pi_replay import PROGRAM_NAME
-from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, Configuration
+from astro_pi_replay.configuration import (
+    CONFIG_FILE_ENV_VAR,
+    CONFIG_FILE_NAME,
+    Configuration,
+)
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_replay.venv_resolver import VenvResolver
@@ -191,7 +195,7 @@ clear_caches_module = pytest.fixture(clear_caches, scope="module", autouse=True)
 
 @pytest.fixture(autouse=True)
 def mock_config_filepath(test_configuration: Configuration, tmp_path: Path):
-    test_config_path: Path = tmp_path / "config.json"
+    test_config_path: Path = tmp_path / CONFIG_FILE_NAME
     with patch("astro_pi_replay.configuration.CONFIG_FILE", test_config_path):
         test_configuration.save()
         yield test_config_path
