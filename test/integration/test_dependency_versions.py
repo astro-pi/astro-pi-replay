@@ -9,7 +9,7 @@ from typing import Optional
 import pytest
 from packaging import version
 
-from astro_pi_replay import PROJECT_ROOT
+from test_utils import PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 

@@ -216,7 +216,9 @@ class VenvResolver:
             "pip",
         ]
         logger.debug(f"Upgrading pip: {' '.join(update_pip_args)}")
-        subprocess.run(update_pip_args, check=True)  # nosec B603
+        subprocess.run(
+            update_pip_args, check=True, stdout=subprocess.DEVNULL  # nosec B603
+        )
 
         if self.is_in_venv():
             logger.debug(
@@ -229,7 +231,11 @@ class VenvResolver:
             # Incorporate dependencies from the current venv into the
             # Astro-Pi-Replay venv
             with (venv_info.site_packages_dir / "extra.pth").open("w") as f:
-                f.write(str(Path(sys.prefix).resolve()))
+                current_venv: VenvResolver = VenvResolver(
+                    Path(sys.prefix).resolve(), init_venv=False
+                )
+
+                f.write(str(current_venv.venv_info.site_packages_dir))
 
         return venv_dir, venv_info
 
