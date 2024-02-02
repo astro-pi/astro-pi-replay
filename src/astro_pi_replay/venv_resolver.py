@@ -18,11 +18,6 @@ VENV_REPLAY_VERSION_FILE_NAME: str = "astro_pi_replay_version.txt"
 VENV_CONFIG_FILE_NAME: str = "pyvenv.cfg"
 
 
-class Win32SymlinkLogFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord):
-        return "Unable to symlink" in record.message
-
-
 @dataclasses.dataclass
 class VenvInfo:
     activate: Path
@@ -250,12 +245,12 @@ class VenvResolver:
         )
 
     def _init_venv(self, venv_dir: Path = Path("venv")) -> tuple[Path, VenvInfo]:
-        log_filter: Optional[logging.Filter] = None
         if self.platform == "win32":
-            # Windows venvs may/do not support symlinks and will default to copying
-            # instead - so suppress these messages to users.
-            log_filter = Win32SymlinkLogFilter("win32-symlink-log-filter")
-            logging.getLogger("venv").addFilter(log_filter)
+            # Windows venvs may/do not support symlinks
+            # and will emit a warning if unsupported (and then default
+            # to copying). For a more user-friendly experience, these
+            # warnings are suppressed.
+            logging.getLogger("venv").setLevel("ERROR")
 
         logger.info("Preparing environment (this may take a few moments)...")
         venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
@@ -295,8 +290,8 @@ class VenvResolver:
 
                 f.write(str(current_venv_info.site_packages_dir))
 
-        if log_filter is not None:
-            logging.getLogger("venv").removeFilter(log_filter)
+        if self.platform == "win32":
+            logging.getLogger("venv").setLevel("WARNING")
 
         return venv_dir, venv_info
 
