@@ -64,7 +64,7 @@ class VenvResolver:
                     "Rebuild required but modify_venv_dir is False. Aborting"
                 )
             else:
-                logger.debug("Venv exists and does not rebuilding!")
+                logger.debug("Venv exists and does not need rebuilding!")
                 venv_dir = Path(_venv_dir)
                 venv_info = VenvResolver.resolve_venv_dirs(venv_dir, self.platform)
         elif _venv_dir is not None:
@@ -290,8 +290,8 @@ class VenvResolver:
         config: Path = venv_dir / VENV_CONFIG_FILE_NAME
         try:
             venv_python_version: str = [
-                line
-                for line in config.read_text().split(os.linesep)
+                line.strip()
+                for line in config.read_text().split("\n")  # works on Windows as well
                 if line.startswith("version")
             ][0].split(" ")[2]
         except IndexError:
