@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+from test.test_utils import ProgramFixture
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +9,6 @@ import pytest
 from astro_pi_replay import PROGRAM_NAME
 from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
 from astro_pi_replay.main import _main, main
-from test_utils import ProgramFixture
 
 
 @pytest.mark.skip(reason="TODO")
