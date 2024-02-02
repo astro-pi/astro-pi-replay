@@ -28,6 +28,7 @@ jobs:
     secrets: inherit
   update_semver_tags:
     runs-on: ${{ inputs.os }}
+    needs: integration-tests
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
