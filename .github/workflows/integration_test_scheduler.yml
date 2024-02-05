@@ -13,7 +13,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ['3.9']
-    uses: ./.github/workflows/deploy_worker.yml
+    uses: ./.github/workflows/integration_test_worker.yml
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
