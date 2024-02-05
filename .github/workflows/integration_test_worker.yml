@@ -3,6 +3,10 @@ name: Integration test worker
 on:
   workflow_call:
     inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to use (currently ignored)
       python-version:
         required: true
         type: string
