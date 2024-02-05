@@ -10,6 +10,18 @@ for %%I in (%0) do set SCRIPT_NAME=%%~nxI
 goto :main
 
 rem HELPER FUNCTIONS
+:findActivationScript
+  setlocal enabledelayedexpansion
+  for %%I in ("%VENV_NAME%\Scripts\*.bat") do (
+    if "%%~nI"=="Activate" (
+      set activation_script=%VENV_NAME%\Scripts\Activate.bat
+    ) else if "%%~nI"=="activate" (
+      set activation_script=%VENV_NAME%\Scripts\activate.bat
+    )
+  )
+  endlocal & set ACTIVATION_SCRIPT="%activation_script%"
+exit /b
+
 :bold
   setlocal enabledelayedexpansion
   echo [1m %~1 [0m
@@ -17,18 +29,18 @@ rem HELPER FUNCTIONS
 exit /b
 
 :usage
-call :bold "NAME"
-echo     %SCRIPT_NAME%
-call :bold "SYNOPSIS"
-echo     %SCRIPT_NAME% [--%LOCAL% ^| -h]
-call :bold "DESCRIPTION"
-echo     Execute the smoke tests in this directory using the latest installable
-echo     wheel from TestPyPI. The test simply consists of taking a picture using
-echo     the PiCamera API.
-echo.
-echo     The following options are available:
-echo.
-echo         --%LOCAL% Use a local wheel instead of the one from TestPyPI.
+  call :bold "NAME"
+  echo     %SCRIPT_NAME%
+  call :bold "SYNOPSIS"
+  echo     %SCRIPT_NAME% [--%LOCAL% ^| -h]
+  call :bold "DESCRIPTION"
+  echo     Execute the smoke tests in this directory using the latest installable
+  echo     wheel from TestPyPI. The test simply consists of taking a picture using
+  echo     the PiCamera API.
+  echo.
+  echo     The following options are available:
+  echo.
+  echo         --%LOCAL% Use a local wheel instead of the one from TestPyPI.
 exit /b
 
 :parse_args
@@ -66,7 +78,8 @@ rem Create the virtual environment
 python -m venv %VENV_NAME%
 
 rem Activate the virtual environment
-call %VENV_NAME%\Scripts\Activate.bat
+call :findActivationScript
+call %ACTIVATION_SCRIPT%
 
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   echo Installing local wheel
