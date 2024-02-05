@@ -21,7 +21,7 @@ import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
 from astro_pi_replay import LOGGING_FORMAT, PACKAGE_ROOT, PROGRAM_CMD_NAME, PROGRAM_NAME
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.configuration import Configuration, get_default_venv_dir
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
 from astro_pi_replay.resources import (
@@ -541,10 +541,9 @@ class AstroPiExecutor:
         # TODO create spinner/progress bar for this
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
-                logger.debug("venv_dirname is None - fetching value from env")
-                # TODO extract this into astro_pi_replay.config
-                venv_dirname = Path.home() / f".{PROGRAM_NAME}"
-                logger.debug(f"Found {venv_dirname}")
+                logging.debug("venv_dirname is None - fetching value from env")
+                venv_dirname = get_default_venv_dir()
+                logging.debug(f"Found {venv_dirname}")
 
             venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
 

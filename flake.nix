@@ -42,6 +42,7 @@
 
             # For development only
             pkgs.graphviz
+            pkgs.ffmpeg-full
 
             pythonPkgs.python
             pythonPkgs.tkinter

@@ -110,16 +110,17 @@ def __standard_venv(tmp_path_factory) -> VenvResolver:
     venv_dir: Path = parent_dir / "standard_venv"
     AstroPiExecutor._setup_venv(parent_dir, venv_dir.name)
     logger.debug("Base standard venv is setup")
-    return VenvResolver(venv_dir)
+    return VenvResolver(venv_dir, modify_venv_dir=False)
 
 
 @pytest.fixture
 def standard_venv(tmp_path: Path, __standard_venv: VenvResolver) -> VenvResolver:
     venv_dir: Path = tmp_path / "venv"
     logger.debug("Copying base venv...")
-    shutil.copytree(__standard_venv.venv_dir, venv_dir)
+    VenvResolver._copy_venv(__standard_venv.venv_dir, venv_dir)
     logger.debug("Finished copying base venv")
-    return VenvResolver(venv_dir)
+
+    return VenvResolver(venv_dir, modify_venv_dir=False)
 
 
 @pytest.fixture(scope="session")
@@ -187,6 +188,10 @@ def clear_caches():
     Ensure that each test always starts with a fresh state.
     """
     AstroPiExecutor._reset()
+
+
+clear_caches_function = pytest.fixture(clear_caches, autouse=True)
+clear_caches_module = pytest.fixture(clear_caches, scope="module", autouse=True)
 
 
 clear_caches_function = pytest.fixture(clear_caches, autouse=True)

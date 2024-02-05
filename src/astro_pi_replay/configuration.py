@@ -23,6 +23,10 @@ def get_config_file_path() -> Path:
     return CONFIG_FILE
 
 
+def get_default_venv_dir() -> Path:
+    return Path.home() / f".{PROGRAM_NAME}"
+
+
 @dataclass
 class Configuration:
     """

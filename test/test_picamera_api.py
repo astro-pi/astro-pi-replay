@@ -16,7 +16,8 @@ import pytest
 from colorzero import Color
 from PIL import Image
 
-from astro_pi_replay.executor import AstroPiExecutor, Configuration
+from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
@@ -36,7 +37,7 @@ video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"
 
 
 @pytest.fixture(scope="module")
-def configuration():
+def configuration() -> Configuration:
     return test_utils.TestConfiguration(True, False, False)
 
 

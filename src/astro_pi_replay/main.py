@@ -8,13 +8,14 @@ from pathlib import Path
 
 from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 
-from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME
+from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.downloader import Downloader
 from astro_pi_replay.exception import AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_resource
+from astro_pi_replay.self_updater import SelfUpdater
 
 logger = logging.getLogger(__name__)
 logging.Formatter.formatTime = (  # type: ignore[method-assign]
@@ -28,6 +29,8 @@ logging.Formatter.formatTime = (  # type: ignore[method-assign]
 
 RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
+UPDATE_CMD: str = "update"
+VERSION_CMD: str = "version"
 
 
 def get_argument_parser() -> ArgumentParser:
@@ -140,6 +143,20 @@ def get_argument_parser() -> ArgumentParser:
         + "Defaults to the current directory.",
     )
     run_parser.set_defaults(cmd="run")
+    update_parser = subparsers.add_parser(
+        UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
+    )
+    update_parser.set_defaults(cmd=UPDATE_CMD)
+    update_parser.add_argument(
+        "--venv_dir",
+        type=Path,
+        required=False,
+        help=f"Path to venv (if not using ~/.{PROGRAM_NAME})",
+    )
+    version_parser = subparsers.add_parser(
+        VERSION_CMD, help="Print out the current version of the tool."
+    )
+    version_parser.set_defaults(cmd=VERSION_CMD)
 
     return arg_parser
 
@@ -153,7 +170,10 @@ def _main(args: Namespace) -> None:
 
     if hasattr(args, "cmd"):
         downloader = Downloader()
+        self_updater: SelfUpdater = SelfUpdater()
         if args.cmd == "run":
+            self_updater.check_for_updates()
+
             is_offline: bool = False
             if args.sequence is None:
                 try:
@@ -208,6 +228,12 @@ def _main(args: Namespace) -> None:
                 args.test_assets_only,
                 args.with_video,
             )
+        elif args.cmd == UPDATE_CMD:
+            self_updater.update(args.venv_dir)
+            sys.exit(0)
+        elif args.cmd == VERSION_CMD:
+            print(f"{PROGRAM_CMD_NAME}: {__version__}")
+            sys.exit(0)
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
