@@ -63,6 +63,10 @@ def smoke_test_venv():
         "https://pypi.org/simple/",
         f"{program_name}=={version if version_to_test is None else version_to_test}",
     ]
+    local_wheel: Optional[str] = os.environ.get("SMOKE_TEST_LOCAL_WHEEL", None)
+    if local_wheel is not None:
+        logger.debug(f"Using local wheel instead of TestPyPI: {local_wheel}")
+        cmd = [rf"{str(venv_pip)}", "install", local_wheel]
     logger.debug(" ".join(cmd))
     subprocess.run(cmd, check=True)  # nosec B603
 

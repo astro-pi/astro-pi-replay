@@ -52,6 +52,11 @@ REQUIREMENTS_DEV_TXT:=requirements-dev.txt
 REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
+ifdef SMOKE_TEST_LOCAL
+SMOKE_TEST_FLAGS:=--local
+else
+SMOKE_TEST_FLAGS:=
+endif
 VENV_NAME:=venv
 # Dynamic configuration to ensure pyproject.toml is the source of truth
 NAME:=$(shell cat $(PYPROJECT) | \
@@ -243,7 +248,7 @@ test_integration:
 
 test_smoke:
 	@echo "Running smoke tests"
-	cd test/smoke_tests; ./execute_smoke_tests.sh
+	cd test/smoke_tests; ./execute_smoke_tests.sh $(SMOKE_TEST_FLAGS)
 
 uninstall:
 	$(PIP) uninstall --user $(NAME)
@@ -261,5 +266,6 @@ $(VENV_NAME): $(VENV_NAME)/touchfile
 
 version:
 	@echo $(VERSION)
+	@echo $(SMOKE_TEST_FLAGS)
 
 .PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
