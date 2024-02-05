@@ -175,8 +175,8 @@ def test_self_updater_updates_files_successfully(
                 "",
                 "class SelfUpdater:",
                 "    def update(self, venv_dir: Optional[Path]):",
-                f"        with open('{str(expected_file)}', 'w') as f:",
-                f"            f.write('{expected_message}')",
+                f"        with open({repr(str(expected_file))}, 'w') as f:",
+                f"            f.write({repr(expected_message)})",
                 os.linesep,
                 os.linesep,
             ]
