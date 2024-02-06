@@ -31,7 +31,7 @@ jobs:
     needs: integration-tests
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
@@ -56,7 +56,7 @@ jobs:
     needs: update_semver_tags
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
@@ -89,7 +89,7 @@ jobs:
     needs: smoke_tests
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python_version }}
           cache: 'pip'
