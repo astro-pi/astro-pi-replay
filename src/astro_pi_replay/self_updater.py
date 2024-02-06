@@ -11,7 +11,6 @@ import requests
 from requests.exceptions import RequestException
 
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
-from astro_pi_replay.resources import get_replay_dir
 from astro_pi_replay.venv_resolver import VenvInfo, VenvResolver
 from astro_pi_replay.version_utils import compare_semver
 
@@ -61,6 +60,7 @@ class SelfUpdater:
     def _update(self, venv_info: VenvInfo) -> None:
         subprocess.run(  # nosec B603
             [str(venv_info.pip), "install", "--upgrade", "astro_pi_replay"],
+            stdout=subprocess.DEVNULL,
             check=True,
         )
         logger.info("Update complete")
@@ -74,7 +74,11 @@ class SelfUpdater:
 
         # move the replay dirs to a temporary location to avoid redownloading them
         temp_dir: Path = Path(mkdtemp())
-        replay_dir: Path = get_replay_dir()
+        # replay_dir: Path = get_replay_dir()
+        replay_dir: Path = (
+            venv_info.site_packages_dir / PROGRAM_NAME / "resources" / "replay"
+        )
+        # TODO shouldn't replay dir depend on venv anyway?
         shutil.move(replay_dir, temp_dir)
         success: bool = False
         try:
@@ -83,15 +87,14 @@ class SelfUpdater:
             success = True
         finally:
             if success:
-                target: Path = (
-                    venv_info.site_packages_dir / PROGRAM_NAME / "resources" / "replay"
-                )
-                if target.exists():
-                    shutil.rmtree(replay_dir)
+                logger.debug("Successful")
+                source: Path = temp_dir / replay_dir.name
+                target: Path = replay_dir
+                logger.debug(f"Moving {source} into {target.parent}")
                 shutil.move(
-                    temp_dir / replay_dir.name,
-                    target,
+                    source,
+                    target.parent,
                 )
-
             else:
+                logger.debug("Unsuccessful")
                 shutil.move(temp_dir / replay_dir.name, replay_dir.parent)
