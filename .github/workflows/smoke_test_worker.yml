@@ -1,0 +1,67 @@
+name: Smoke test worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to run on.
+      pytest-debug:
+        required: false
+        type: string
+        description: Set this to make pytest emit debug logs.
+      python-version:
+        required: true
+        type: string
+        description: The python version to run.
+      version-to-test:
+        required: false
+        type: string
+        description: The version to test, defaults to latest.
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to run on.
+      pytest-debug:
+        required: false
+        type: string
+        description: Set this to make pytest emit debug logs.
+      python-version:
+        required: true
+        type: string
+        description: The python version to run.
+      version-to-test:
+        required: false
+        type: string
+        description: The version to test, defaults to latest.
+
+permissions:
+  contents: write
+
+jobs:
+  smoke_tests:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+      - name: Install Windows dependencies and execute
+        if: ${{ inputs.os == 'windows-latest' }}
+        run: |
+          cd test/smoke_tests
+          .\execute_smoke_tests.bat
+        with:
+          VERSION_TO_TEST: ${{ inputs.version-to-test }}
+          PYTEST_DEBUG: ${{ inputs.pytest-debug }}
+      - name: Execute smoke tests on Linux/MacOS
+        if: ${{ inputs.os != 'windows-latest' }}
+        run: |
+          make test_smoke
+        with:
+          VERSION_TO_TEST: ${{ inputs.version-to-test }}
+          PYTEST_DEBUG: ${{ inputs.pytest-debug }}
