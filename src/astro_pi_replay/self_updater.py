@@ -83,9 +83,15 @@ class SelfUpdater:
             success = True
         finally:
             if success:
+                target: Path = (
+                    venv_info.site_packages_dir / PROGRAM_NAME / "resources" / "replay"
+                )
+                if target.exists():
+                    shutil.rmtree(replay_dir)
                 shutil.move(
                     temp_dir / replay_dir.name,
-                    venv_info.site_packages_dir / PROGRAM_NAME / "resources",
+                    target,
                 )
+
             else:
                 shutil.move(temp_dir / replay_dir.name, replay_dir.parent)
