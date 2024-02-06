@@ -90,6 +90,9 @@ class SelfUpdater:
                 logger.debug("Successful")
                 source: Path = temp_dir / replay_dir.name
                 target: Path = replay_dir
+                if target.exists():
+                    # the replay directory is included in the manifest
+                    shutil.rmtree(target)
                 logger.debug(f"Moving {source} into {target.parent}")
                 shutil.move(
                     source,
