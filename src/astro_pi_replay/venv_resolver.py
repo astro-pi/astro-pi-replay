@@ -43,15 +43,16 @@ class VenvResolver:
 
     def _setup(
         self, _venv_dir: Optional[Union[str, Path]], modify_venv_dir: bool
-    ) -> tuple[Path, VenvInfo]:
+    ) -> tuple[Path, VenvInfo, bool]:
         # Separated function for type-checking
         venv_dir: Path
         venv_info: VenvInfo
 
+        should_rebuild: bool = False
         if _venv_dir is not None and Path(_venv_dir).exists():
             logger.debug(f"Venv {_venv_dir} exists...")
             logger.debug("Checking if it should be rebuilt...")
-            should_rebuild: bool = VenvResolver._should_rebuild_venv(Path(_venv_dir))
+            should_rebuild = VenvResolver._should_rebuild_venv(Path(_venv_dir))
             if should_rebuild and modify_venv_dir:
                 logger.debug(
                     f"Removing venv_dir {_venv_dir} as it is "
@@ -87,7 +88,7 @@ class VenvResolver:
                     "venv_dir is None " + "but modify_venv_dir is False. Aborting"
                 )
 
-        return (venv_dir, venv_info)
+        return (venv_dir, venv_info, should_rebuild)
 
     def __init__(
         self, venv_dir: Optional[Union[str, Path]] = None, modify_venv_dir: bool = True
@@ -99,7 +100,10 @@ class VenvResolver:
         self.platform: str = self._verify_platform()
         self.venv_dir: Path
         self.venv_info: VenvInfo
-        self.venv_dir, self.venv_info = self._setup(venv_dir, modify_venv_dir)
+        self.rebuilt: bool
+        self.venv_dir, self.venv_info, self.rebuilt = self._setup(
+            venv_dir, modify_venv_dir
+        )
 
     def copy_stubs(self, stubs: list[str], install_path: str):
         logger.debug("Installing stubbed modules in the venv...")
@@ -348,6 +352,7 @@ class VenvResolver:
         if not rebuild_venv:
             # check that the replay version has not changed
             replay_version_file: Path = venv_dir / VENV_REPLAY_VERSION_FILE_NAME
+            logger.debug(f"Reading {replay_version_file}")
             if not replay_version_file.exists():
                 logger.debug(f"File {replay_version_file} does not exist")
                 rebuild_venv = True
