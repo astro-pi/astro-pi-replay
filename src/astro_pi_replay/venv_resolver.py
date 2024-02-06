@@ -254,7 +254,18 @@ class VenvResolver:
             logging.getLogger("venv").setLevel("ERROR")
 
         logger.info("Preparing environment (this may take a few moments)...")
-        venv.create(venv_dir, symlinks=True, system_site_packages=True, with_pip=True)
+        try:
+            venv.create(
+                venv_dir, symlinks=True, system_site_packages=True, with_pip=True
+            )
+        except subprocess.CalledProcessError as e:
+            import traceback
+
+            logger.error(e)
+            logger.error(e.stdout)
+            logger.error(e.stderr)
+            traceback.print_exc()
+            raise e
         (venv_dir / VENV_REPLAY_VERSION_FILE_NAME).write_text(__version__)
 
         venv_info: VenvInfo = VenvResolver.resolve_venv_dirs(venv_dir, self.platform)
