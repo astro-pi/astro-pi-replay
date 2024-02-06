@@ -475,12 +475,19 @@ class AstroPiExecutor:
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        if venv_dir.exists():
-            return VenvResolver(venv_dir)
+        already_exists: bool = venv_dir.exists()
 
         # Copy or creates the venv to the venv_dir, depending on if we're
         # already in one
         venv_resolver: VenvResolver = VenvResolver(venv_dir)
+
+        if already_exists and not venv_resolver.rebuilt:
+            logger.debug("Venv already exists and is compatible - ")
+            logger.debug(
+                "therefore assuming that the executor and its stubs "
+                + "do not need to be installed"
+            )
+            return venv_resolver
 
         # Install the executor package
         # transitive dependencies are covered due to the --system-site-packages
@@ -506,6 +513,7 @@ class AstroPiExecutor:
                 )
 
         # Install stubs into the venv
+        logger.debug(f"Installing stubs into venv at {executor_install_path}")
         venv_resolver.copy_stubs(AstroPiExecutor.MODULES_TO_STUB, executor_install_path)
 
         return venv_resolver
