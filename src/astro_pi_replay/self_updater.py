@@ -34,6 +34,7 @@ class SelfUpdater:
                 timeout=3,
             )
             if response.status_code != 200:
+                logger.debug(f"Received status code {response.status_code}")
                 return to_return
             json_data: dict = json.loads(response.content.decode("utf-8"))
 
@@ -41,6 +42,8 @@ class SelfUpdater:
             if compare_semver(latest_available, __version__) == 1:
                 to_return.append(f"An update to {PROGRAM_CMD_NAME} is available")
                 to_return.append(f"To update, run {PROGRAM_CMD_NAME} update")
+            else:
+                logger.debug(f"An update to {PROGRAM_NAME} is not required")
         except (
             RequestException,
             TimeoutError,
@@ -57,7 +60,7 @@ class SelfUpdater:
 
     def _update(self, venv_info: VenvInfo) -> None:
         subprocess.run(  # nosec B603
-            [str(venv_info.pip), "install", "--update", "astro_pi_replay"],
+            [str(venv_info.pip), "install", "--upgrade", "astro_pi_replay"],
             check=True,
         )
         logger.info("Update complete")
