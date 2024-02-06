@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -17,6 +18,8 @@ from requests import Response
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.self_updater import SelfUpdater
 from astro_pi_replay.venv_resolver import VenvResolver
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT: Path = Path(__file__).parent.parent
 SRC_DIR: Path = PROJECT_ROOT / "src"
@@ -216,14 +219,8 @@ def test_self_updater_updates_files_successfully(
         return out
 
     with patch.object(self_updater, "_update") as mock_update:
-        with patch(
-            "astro_pi_replay.self_updater.shutil.move",
-            side_effect=lambda source, dest: shutil.copytree(
-                source, dest / source.name, dirs_exist_ok=True  # Linux cp semantics
-            ),
-        ):
-            mock_update.side_effect = mock_update_side_effect
-            self_updater.update()
+        mock_update.side_effect = mock_update_side_effect
+        self_updater.update()
 
     # THEN
     # 5. Verify everything was updated
@@ -236,7 +233,9 @@ def test_self_updater_updates_files_successfully(
 
     # The next time the updater is executed, it should
     # just create the file since it is has now been overwritten
-    subprocess.run([PROGRAM_CMD_NAME, "update"], check=True)  # nosec B603
+    subprocess.run(
+        [PROGRAM_CMD_NAME, "--debug", "update"], check=True, capture_output=True
+    )  # nosec B603
     assert expected_file.exists()
     assert expected_message in expected_file.read_text()
 
