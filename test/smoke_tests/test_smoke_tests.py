@@ -5,7 +5,7 @@ import subprocess
 import sys
 import venv
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 import pytest
 
@@ -45,12 +45,15 @@ def get_executor() -> Path:
 @pytest.fixture(scope="session", autouse=True)
 def smoke_test_venv():
     logger.debug(f"Creating {VENV_NAME}")
-    venv.create(env_dir=VENV_NAME, symlinks=True, with_pip=True)
+    venv.create(env_dir=VENV_NAME, symlinks=sys.platform != "win32", with_pip=True)
 
     program_name, cmd_name, version = get_program_name_and_version()
     logger.debug(f"Installing {cmd_name} into venv")
     venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
+
+    version_to_test: Optional[str] = os.environ.get("VERSION_TO_TEST", None)
+
     cmd: list[str] = [
         rf"{str(venv_pip)}",
         "install",
@@ -58,7 +61,7 @@ def smoke_test_venv():
         "https://test.pypi.org/simple/",
         "--extra-index-url",
         "https://pypi.org/simple/",
-        f"{program_name}=={version}",
+        f"{program_name}=={version if version_to_test is None else version_to_test}",
     ]
     logger.debug(" ".join(cmd))
     subprocess.run(cmd, check=True)  # nosec B603
@@ -96,8 +99,10 @@ def teardown() -> Iterable[None]:
 
 
 def test_smoke_test(example_program):
-    cmd: list[str] = [
-        rf"{str(get_executor())}",
+    cmd: list[str] = [rf"{str(get_executor())}"]
+    if os.environ.get("PYTEST_DEBUG") is not None:
+        cmd.append("--debug")
+    cmd += [
         "run",
         str(example_program),
         "--no-match-original-photo-intervals",

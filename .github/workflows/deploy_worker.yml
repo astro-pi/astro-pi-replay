@@ -79,24 +79,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    needs: publish_to_test_pypi
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ inputs.python-version }}
-          cache: 'pip'
-      - name: Install Windows dependencies and execute
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          cd test/smoke_tests
-          .\execute_smoke_tests.bat
-      - name: Execute smoke tests on Linux/MacOS
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          make test_smoke
-
+    uses: ./.github/workflows/smoke_test_worker.yml
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ inputs.python-version }}
+    secrets: inherit
   publish_to_prod_pypi:
     runs-on: ${{ inputs.os }}
     needs: smoke_tests
