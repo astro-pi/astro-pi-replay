@@ -87,6 +87,7 @@ python -m venv %VENV_NAME%
 
 rem Activate the virtual environment
 call :findActivationScript
+call %ACTIVATION_SCRIPT%
 
 rem Install dependencies
 pip install -r requirements.txt
