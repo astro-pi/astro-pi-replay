@@ -55,13 +55,13 @@ jobs:
         run: |
           cd test/smoke_tests
           .\execute_smoke_tests.bat
-        with:
+        env:
           VERSION_TO_TEST: ${{ inputs.version-to-test }}
           PYTEST_DEBUG: ${{ inputs.pytest-debug }}
       - name: Execute smoke tests on Linux/MacOS
         if: ${{ inputs.os != 'windows-latest' }}
         run: |
           make test_smoke
-        with:
+        env:
           VERSION_TO_TEST: ${{ inputs.version-to-test }}
           PYTEST_DEBUG: ${{ inputs.pytest-debug }}
