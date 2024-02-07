@@ -88,6 +88,9 @@ python -m venv %VENV_NAME%
 rem Activate the virtual environment
 call :findActivationScript
 
+rem Install dependencies
+pip install -r requirements.txt
+
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   echo Installing local wheel
   call :mktempd
