@@ -215,6 +215,15 @@ def test_self_updater_updates_files_successfully(
             "--upgrade",
             str(tmp_path / "dist" / f"{PROGRAM_NAME}-{next_version}-py3-none-any.whl"),
         ]
+
+        # the replay dir is included in the manifest
+        (
+            standard_venv.venv_info.site_packages_dir
+            / PROGRAM_NAME
+            / "resources"
+            / "replay"
+        ).mkdir()
+
         out = subprocess.run(args, check=True)  # nosec B603
         return out
 
