@@ -1,4 +1,4 @@
-rem @echo off
+@echo off
 
 rem GLOBALS
 set LOCAL="local"
@@ -87,39 +87,17 @@ python -m venv %VENV_NAME%
 
 rem Activate the virtual environment
 call :findActivationScript
-rem call venv\Scripts\activate.bat
 
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   echo Installing local wheel
   call :mktempd
   pip install build
-  python -m build --outdir "%tempdir%" "%PROJECT_ROOT%"
-  set wheel_count=0
-  for %%F in ("%tempdir%\*.whl") do (
-    set \a wheel_count+=1
-    set wheel=%%F
-  )
-  if not %wheel_count% equ 1 (
-    echo There was a problem building the wheel
-    exit /b 1
-  )
-  set SMOKE_TEST_LOCAL_WHEEL=%wheel%
-) else (
-  rem Install dependencies
-  pip install -r requirements.txt
-)
-
-if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
-  echo Installing local wheel
-  call :mktempd
-  pip install build
-  python -m build --outdir "!TEMP_DIR!" "%PROJECT_ROOT%\"
-  set wheel_count=0
+  python -m build --outdir "!TEMP_DIR!" "%PROJECT_ROOT%"
   for %%F in ("!TEMP_DIR!\*.whl") do (
     set wheel=%%F
   )
   if not defined wheel (
-    echo Something went wrong building the wheel
+    echo There was a problem building the wheel
     exit /b 1
   )
 )
