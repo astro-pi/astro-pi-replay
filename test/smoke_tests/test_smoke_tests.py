@@ -48,11 +48,17 @@ def smoke_test_venv():
     venv.create(env_dir=VENV_NAME, symlinks=sys.platform != "win32", with_pip=True)
 
     program_name, cmd_name, version = get_program_name_and_version()
-    logger.debug(f"Installing {cmd_name} into venv")
+    logger.debug(f"Installing {cmd_name} version {version} into venv")
     venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
 
     version_to_test: Optional[str] = os.environ.get("VERSION_TO_TEST", None)
+    logger.debug(f"Version to test: {version_to_test}")
+    version_to_use: str = (
+        version
+        if version_to_test is None or not version_to_test.strip()
+        else version_to_test
+    )
 
     cmd: list[str] = [
         rf"{str(venv_pip)}",
@@ -61,8 +67,12 @@ def smoke_test_venv():
         "https://test.pypi.org/simple/",
         "--extra-index-url",
         "https://pypi.org/simple/",
-        f"{program_name}=={version if version_to_test is None else version_to_test}",
+        f"{program_name}=={version_to_use}",
     ]
+    local_wheel: Optional[str] = os.environ.get("SMOKE_TEST_LOCAL_WHEEL", None)
+    if local_wheel is not None:
+        logger.debug(f"Using local wheel instead of TestPyPI: {local_wheel}")
+        cmd = [rf"{str(venv_pip)}", "install", local_wheel]
     logger.debug(" ".join(cmd))
     subprocess.run(cmd, check=True)  # nosec B603
 

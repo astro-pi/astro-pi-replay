@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -10,6 +11,7 @@ from pathlib import Path
 from test.test_utils import get_test_resource, prepare_executor_to_run_in_standard_venv
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from packaging import version
 from packaging.version import Version
 from requests import Response
@@ -17,6 +19,8 @@ from requests import Response
 from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.self_updater import SelfUpdater
 from astro_pi_replay.venv_resolver import VenvResolver
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT: Path = Path(__file__).parent.parent
 SRC_DIR: Path = PROJECT_ROOT / "src"
@@ -212,18 +216,21 @@ def test_self_updater_updates_files_successfully(
             "--upgrade",
             str(tmp_path / "dist" / f"{PROGRAM_NAME}-{next_version}-py3-none-any.whl"),
         ]
+
+        # the replay dir is included in the manifest
+        (
+            standard_venv.venv_info.site_packages_dir
+            / PROGRAM_NAME
+            / "resources"
+            / "replay"
+        ).mkdir()
+
         out = subprocess.run(args, check=True)  # nosec B603
         return out
 
     with patch.object(self_updater, "_update") as mock_update:
-        with patch(
-            "astro_pi_replay.self_updater.shutil.move",
-            side_effect=lambda source, dest: shutil.copytree(
-                source, dest / source.name, dirs_exist_ok=True  # Linux cp semantics
-            ),
-        ):
-            mock_update.side_effect = mock_update_side_effect
-            self_updater.update()
+        mock_update.side_effect = mock_update_side_effect
+        self_updater.update()
 
     # THEN
     # 5. Verify everything was updated
@@ -236,7 +243,9 @@ def test_self_updater_updates_files_successfully(
 
     # The next time the updater is executed, it should
     # just create the file since it is has now been overwritten
-    subprocess.run([PROGRAM_CMD_NAME, "update"], check=True)  # nosec B603
+    subprocess.run(
+        [PROGRAM_CMD_NAME, "--debug", "update"], check=True, capture_output=True
+    )  # nosec B603
     assert expected_file.exists()
     assert expected_message in expected_file.read_text()
 
@@ -249,3 +258,22 @@ def test_self_updater_updates_files_successfully(
     )
     assert venv_replay_dir.exists() and (vis_dir := venv_replay_dir / "VIS").exists()
     assert len(list(vis_dir.iterdir())) > 0
+
+
+def test_when_update_fails_resources_are_not_deleted(standard_venv: VenvResolver):
+    self_updater: SelfUpdater = SelfUpdater()
+    venv_replay_dir: Path = (
+        standard_venv.venv_info.site_packages_dir
+        / PROGRAM_NAME
+        / "resources"
+        / "replay"
+    )
+
+    # When
+    with patch.object(self_updater, "_update") as mock_update:
+        mock_update.side_effect = OSError("Some os error")
+        with pytest.raises(OSError):
+            self_updater.update(standard_venv.venv_dir)
+
+    # Then
+    assert venv_replay_dir.exists() and len(list(venv_replay_dir.iterdir())) > 1
