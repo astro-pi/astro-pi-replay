@@ -92,7 +92,7 @@ if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   echo Installing local wheel
   call :mktempd
   pip install build
-  python -m build --outdir "!TEMP_DIR!" "%PROJECT_ROOT%"
+  python -m build --outdir "!TEMP_DIR!" "%PROJECT_ROOT%\"
   for %%F in ("!TEMP_DIR!\*.whl") do (
     set wheel=%%F
   )
