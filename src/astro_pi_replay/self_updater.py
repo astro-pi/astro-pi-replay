@@ -80,24 +80,17 @@ class SelfUpdater:
         )
         # TODO shouldn't replay dir depend on venv anyway?
         shutil.move(replay_dir, temp_dir)
-        success: bool = False
         try:
             # now the replay dir is currently temp_dir / replay_dir.name
             self._update(venv_info)
-            success = True
         finally:
-            if success:
-                logger.debug("Successful")
-                source: Path = temp_dir / replay_dir.name
-                target: Path = replay_dir
-                if target.exists():
-                    # the replay directory is included in the manifest
-                    shutil.rmtree(target)
-                logger.debug(f"Moving {source} into {target.parent}")
-                shutil.move(
-                    source,
-                    target.parent,
-                )
-            else:
-                logger.debug("Unsuccessful")
-                shutil.move(temp_dir / replay_dir.name, replay_dir.parent)
+            source: Path = temp_dir / replay_dir.name
+            target: Path = replay_dir
+            if target.exists():
+                # the replay directory is included in the manifest
+                shutil.rmtree(target)
+            logger.debug(f"Moving {source} into {target.parent}")
+            shutil.move(
+                source,
+                target.parent,
+            )
