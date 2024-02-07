@@ -48,7 +48,7 @@ def smoke_test_venv():
     venv.create(env_dir=VENV_NAME, symlinks=sys.platform != "win32", with_pip=True)
 
     program_name, cmd_name, version = get_program_name_and_version()
-    logger.debug(f"Installing {cmd_name} into venv")
+    logger.debug(f"Installing {cmd_name} version {version} into venv")
     venv_pip: Path = get_venv_script_dir() / "pip"
     logger.debug(os.listdir(venv_pip.parent))
 
@@ -56,7 +56,7 @@ def smoke_test_venv():
     logger.debug(f"Version to test: {version_to_test}")
     version_to_use: str = (
         version
-        if version_to_test is None or len(version_to_test) == 1
+        if version_to_test is None or not version_to_test.strip()
         else version_to_test
     )
 
