@@ -11,6 +11,7 @@ from pathlib import Path
 from test.test_utils import get_test_resource, prepare_executor_to_run_in_standard_venv
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from packaging import version
 from packaging.version import Version
 from requests import Response
@@ -257,3 +258,22 @@ def test_self_updater_updates_files_successfully(
     )
     assert venv_replay_dir.exists() and (vis_dir := venv_replay_dir / "VIS").exists()
     assert len(list(vis_dir.iterdir())) > 0
+
+
+def test_when_update_fails_resources_are_not_deleted(standard_venv: VenvResolver):
+    self_updater: SelfUpdater = SelfUpdater()
+    venv_replay_dir: Path = (
+        standard_venv.venv_info.site_packages_dir
+        / PROGRAM_NAME
+        / "resources"
+        / "replay"
+    )
+
+    # When
+    with patch.object(self_updater, "_update") as mock_update:
+        mock_update.side_effect = OSError("Some os error")
+        with pytest.raises(OSError):
+            self_updater.update(standard_venv.venv_dir)
+
+    # Then
+    assert venv_replay_dir.exists() and len(list(venv_replay_dir.iterdir())) > 1
