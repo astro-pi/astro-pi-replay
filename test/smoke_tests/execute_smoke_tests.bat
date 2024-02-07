@@ -1,9 +1,10 @@
-@echo off
+rem @echo off
 
 rem GLOBALS
 set LOCAL="local"
 set VENV_NAME=venv
 set TRUE=true
+set WHEEL_FILE=wheel.txt
 for %%I in ("%~dp0\..") do set PROJECT_ROOT=%%~dpI
 for %%I in (%0) do set SCRIPT_NAME=%%~nxI
 
@@ -19,7 +20,7 @@ rem HELPER FUNCTIONS
       set activation_script=%VENV_NAME%\Scripts\activate.bat
     )
   )
-  endlocal & set ACTIVATION_SCRIPT="%activation_script%"
+  endlocal & set ACTIVATION_SCRIPT=%activation_script%
 exit /b
 
 :bold
@@ -48,12 +49,14 @@ exit /b
   if "%1"=="" (
     exit /b
   ) else if "%1"=="--local" (
-    set USE_LOCAL_WHEEL="%TRUE%"
+    set USE_LOCAL_WHEEL=%TRUE%
   ) else if "%1"=="-h" (
     call :usage
-    exit /b
+    rem Exit immediately
+    exit /b 1
   ) else (
     call :usage
+    rem Exit immediately
     exit /b 1
   )
   endlocal & set "USE_LOCAL_WHEEL=%USE_LOCAL_WHEEL%"
@@ -62,24 +65,29 @@ exit /b
 :mktempd
   setlocal enabledelayedexpansion
   set "temp_template=%TEMP%\TempDir_"
-  set "tempdir=!temp_template!!random!"
-  if exist "!tempdir!" goto mktempd
-  mkdir "!tempdir!"
-  endlocal & set "tempdir=%tempdir%"
+  set "temporary_dir=!temp_template!!random!"
+  if exist "!temporary_dir!" goto :mktempd
+  mkdir "!temporary_dir!"
+  set final="!temporary_dir!"
+  endlocal & set TEMP_DIR=%final%
 exit /b
 
 rem MAIN SCRIPT START ####
 :main
+setlocal enabledelayedexpansion
 
 rem Parse the first arg
 call :parse_args %1
+if not %errorlevel% equ 0 (
+  exit /b 1
+)
 
 rem Create the virtual environment
 python -m venv %VENV_NAME%
 
 rem Activate the virtual environment
 call :findActivationScript
-call %ACTIVATION_SCRIPT%
+rem call venv\Scripts\activate.bat
 
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   echo Installing local wheel
@@ -101,18 +109,38 @@ if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
   pip install -r requirements.txt
 )
 
+if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
+  echo Installing local wheel
+  call :mktempd
+  pip install build
+  python -m build --outdir "!TEMP_DIR!" "%PROJECT_ROOT%\"
+  set wheel_count=0
+  for %%F in ("!TEMP_DIR!\*.whl") do (
+    set wheel=%%F
+  )
+  if not defined wheel (
+    echo Something went wrong building the wheel
+    exit /b 1
+  )
+)
+
 rem Provide user instructions
 echo Virtual environment "%VENV_NAME%" has been created and activated.
 echo Use "deactivate" to exit the virtual environment.
 
+if defined wheel (
+  set SMOKE_TEST_LOCAL_WHEEL=!wheel!
+)
+
 rem Execute the smoke tests
-set ASTRO_PI_EXECUTOR_REPLAY_SEQUENCE="VIS/test_data"
+set ASTRO_PI_REPLAY_REPLAY_SEQUENCE="VIS/test_data"
 set PYTEST_PROFILE=SMOKE_TESTS
 pytest -o log_cli=true --log-cli-level=DEBUG --noconftest
 set PYTEST_ERROR=%ERRORLEVEL%
 echo %PYTEST_ERROR%
 rem Unset environment variables
-set ASTRO_PI_EXECUTOR_REPLAY_SEQUENCE=
+set ASTRO_PI_REPLAY_REPLAY_SEQUENCE=
 set PYTEST_PROFILE=
 set SMOKE_TEST_LOCAL_WHEEL=
 if %PYTEST_ERROR% GEQ 1 EXIT /B %PYTEST_ERROR%
+endlocal
