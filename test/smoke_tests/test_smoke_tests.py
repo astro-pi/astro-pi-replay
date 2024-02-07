@@ -53,6 +53,12 @@ def smoke_test_venv():
     logger.debug(os.listdir(venv_pip.parent))
 
     version_to_test: Optional[str] = os.environ.get("VERSION_TO_TEST", None)
+    logger.debug(f"Version to test: {version_to_test}")
+    version_to_use: str = (
+        version
+        if version_to_test is None or len(version_to_test) == 1
+        else version_to_test
+    )
 
     cmd: list[str] = [
         rf"{str(venv_pip)}",
@@ -61,7 +67,7 @@ def smoke_test_venv():
         "https://test.pypi.org/simple/",
         "--extra-index-url",
         "https://pypi.org/simple/",
-        f"{program_name}=={version if version_to_test is None else version_to_test}",
+        f"{program_name}=={version_to_use}",
     ]
     local_wheel: Optional[str] = os.environ.get("SMOKE_TEST_LOCAL_WHEEL", None)
     if local_wheel is not None:
