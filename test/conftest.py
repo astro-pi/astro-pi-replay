@@ -4,22 +4,26 @@ import shutil
 import site
 import uuid
 from pathlib import Path
+from test.test_utils import (
+    TEST_PYPI_URL,
+    ProgramFixture,
+    TestConfiguration,
+    get_test_asset_path,
+)
 from typing import Iterable
 from unittest.mock import patch
 
 import pytest
 
 from astro_pi_replay import PROGRAM_NAME
-from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, Configuration
+from astro_pi_replay.configuration import (
+    CONFIG_FILE_ENV_VAR,
+    CONFIG_FILE_NAME,
+    Configuration,
+)
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_replay.venv_resolver import VenvResolver
-from test_utils import (
-    TEST_PYPI_URL,
-    ProgramFixture,
-    TestConfiguration,
-    get_test_asset_path,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +101,29 @@ def smoke_test_venv(tmp_path_factory) -> VenvResolver:
 
 
 @pytest.fixture(scope="session")
+def __standard_venv(tmp_path_factory) -> VenvResolver:
+    """
+    A venv created by the Astro-Pi-Replay tool to be copied
+    directly (as a cache) for subsequent tests
+    """
+    parent_dir: Path = tmp_path_factory.mktemp("standard_venv")
+    venv_dir: Path = parent_dir / "standard_venv"
+    AstroPiExecutor._setup_venv(parent_dir, venv_dir.name)
+    logger.debug("Base standard venv is setup")
+    return VenvResolver(venv_dir, modify_venv_dir=False)
+
+
+@pytest.fixture
+def standard_venv(tmp_path: Path, __standard_venv: VenvResolver) -> VenvResolver:
+    venv_dir: Path = tmp_path / "venv"
+    logger.debug("Copying base venv...")
+    VenvResolver._copy_venv(__standard_venv.venv_dir, venv_dir)
+    logger.debug("Finished copying base venv")
+
+    return VenvResolver(venv_dir, modify_venv_dir=False)
+
+
+@pytest.fixture(scope="session")
 def live_venv(tmp_path_factory) -> VenvResolver:
     """
     A venv with all the expected AstroPiExecutor.MODULES_TO_STUB
@@ -156,22 +183,24 @@ def test_configuration():
     return TestConfiguration(False, False, False)
 
 
-@pytest.fixture(autouse=True)
-def clear_caches(tmp_path: Path, test_configuration):
+def clear_caches():
     """
     Ensure that each test always starts with a fresh state.
-    This is run before each test.
     """
-    # Before
+    AstroPiExecutor._reset()
 
-    # ensure fresh cache
-    AstroPiExecutor._instance = None
-    AstroPiExecutor._df_from_replay_file.cache_clear()
+
+clear_caches_function = pytest.fixture(clear_caches, autouse=True)
+clear_caches_module = pytest.fixture(clear_caches, scope="module", autouse=True)
+
+
+clear_caches_function = pytest.fixture(clear_caches, autouse=True)
+clear_caches_module = pytest.fixture(clear_caches, scope="module", autouse=True)
 
 
 @pytest.fixture(autouse=True)
 def mock_config_filepath(test_configuration: Configuration, tmp_path: Path):
-    test_config_path: Path = tmp_path / "config.json"
+    test_config_path: Path = tmp_path / CONFIG_FILE_NAME
     with patch("astro_pi_replay.configuration.CONFIG_FILE", test_config_path):
         test_configuration.save()
         yield test_config_path

@@ -13,10 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 import astro_pi_replay.picamera.mmalobj as mo
 from astro_pi_replay.custom_types import IO_TYPE, RGB
-from astro_pi_replay.exception import (
-    AstroPiReplayException,
-    AstroPiReplayRuntimeError,
-)
+from astro_pi_replay.exception import AstroPiReplayException, AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.abstract_camera import PiCamera
 from astro_pi_replay.picamera.encoders import PiEncoder, PiVideoEncoder
@@ -344,13 +341,15 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
 
         def start_preview(self, **options) -> PiRenderer:
             if self._preview_proc is None:
-                preview: CameraPreview = CameraPreview(
-                    str(get_replay_sequence_dir() / "videos" / "OrbitAz.mp4")
-                )
-                self._preview_proc = preview
-                preview.start()
+                if all([self._has_ffmpeg, self._has_ffprobe, self._has_tkinter]):
+                    preview: CameraPreview = CameraPreview(
+                        str(get_replay_sequence_dir() / "videos" / "video.mp4")
+                    )
+                    self._preview_proc = preview
+                    preview.start()
                 renderer = PiRenderer(self)
                 self._preview = renderer
+                self._previewing = True
                 return renderer
             elif self.preview is not None:
                 return self.preview
@@ -458,7 +457,8 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             if self._preview_proc is not None:
                 self._preview_proc.terminate()
                 self._preview_proc = None
-                self._preview = None
+            self._preview = None
+            self._previewing = False
 
         def stop_recording(self, splitter_port: int = 1) -> None:
             super().stop_recording(splitter_port)
@@ -490,7 +490,6 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                 )
                 return True
             except FileNotFoundError:
-                logger.error("ffmpeg not found. Please install it.")
                 return False
 
         @property
@@ -504,7 +503,15 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                 )
                 return True
             except FileNotFoundError:
-                logger.error("ffprobe not found. Please install it.")
+                return False
+
+        @property
+        def _has_tkinter(self) -> bool:
+            try:
+                import tkinter  # noqa: F401
+
+                return True
+            except ImportError:
                 return False
 
         def _get_ports(

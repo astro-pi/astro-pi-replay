@@ -24,6 +24,7 @@ dependencies = [
   "skyfield >= 1.46",
   "typing_extensions >= 4.7.1",
   "tqdm >= 4.66.0",
+  "setuptools>=61.0",
   "scipy >= 1.11.2; python_version >= '3.11'",
   "scipy == 1.8.1; python_version < '3.11'",
   "exif >= 1.6.0",
@@ -62,3 +63,5 @@ extend-exclude = '''
 skips = ["B101", "B404"]
 exclude = ["test/resources"]
 
+[tool.pyright]
+pythonPlatform = "All"

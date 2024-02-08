@@ -1,16 +1,17 @@
 import json
 import math
+import test.test_utils as test_utils
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from test.test_utils import TestConfiguration, assert_images_equal, get_test_resource
 from unittest.mock import patch
 
 import pytest
 
-import test_utils
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.sense_hat.sense_hat import SenseHatAdapter
-from test_utils import TestConfiguration, get_test_resource
 
 ###########
 # Fixtures
@@ -40,20 +41,24 @@ def test_replayed_data_is_consistent(executor: AstroPiExecutor):
         mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
         sh = SenseHatAdapter(executor)
 
-        assert sh.color.rgb == sh.color.color_raw[:3]
+        assert sh.color.rgb == sh.color.color[:3]
+        # the real rgb is just color.color[:3] and not raw.
         assert sh.color.red == sh.color.color[0]
         assert sh.color.green == sh.color.color[1]
         assert sh.color.blue == sh.color.color[2]
         assert sh.color.clear == sh.color.color[3]
         assert sh.color.gain == 1
         assert sh.color.max_raw == 1024
-        assert sh.color.red_raw == sh.color.rgb[0]
-        assert sh.color.green_raw == sh.color.rgb[1]
-        assert sh.color.blue_raw == sh.color.rgb[2]
+        assert sh.color.red_raw == sh.color.color_raw[0]
+        assert sh.color.green_raw == sh.color.color_raw[1]
+        assert sh.color.blue_raw == sh.color.color_raw[2]
         assert sh.color.clear_raw == sh.color.color_raw[3]
-        assert sh.color.color_raw[:3] == sh.color.rgb
         assert sh.color.clear_raw == sh.color.brightness
-        assert sh.colour.rgb == sh.colour.color_raw[:3]
+        assert sh.color.red_raw == sh.color.red * (sh.color.max_raw // 256)
+        assert sh.color.green_raw == sh.color.green * (sh.color.max_raw // 256)
+        assert sh.color.blue_raw == sh.color.blue * (sh.color.max_raw // 256)
+        assert sh.color.clear_raw == sh.color.clear * (sh.color.max_raw // 256)
+        assert sh.colour.rgb == sh.color.rgb
         assert sh.colour.integration_time == 0.0024
         assert sh.colour.integration_cycles == 1
         assert sh.temp == sh.temperature
@@ -92,17 +97,26 @@ def test_setters_assign_correctly(executor: AstroPiExecutor):
         assert False
 
 
-def test_replay_should_replay_sequence_of_data(executor: AstroPiExecutor):
-    # Make the test deterministic
-    with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
-        sh = SenseHatAdapter(executor)
-        assert sh.colour.colour == (9, 8, 8, 17)
-        assert executor._state._last_sense_hat_row_index == -1
+def test_replay_without_interpolation_should_replay_sequence_of_data(
+    executor: AstroPiExecutor,
+):
+    try:
+        # Make the test deterministic
+        with patch(
+            "astro_pi_replay.executor.datetime", wraps=datetime
+        ) as mock_datetime:
+            mock_datetime.now.return_value = executor._state._start_time + timedelta(
+                days=2
+            )
+            executor.configuration.interpolate_sense_hat = False
+            sh = SenseHatAdapter(executor)
+            assert sh.colour.colour == (9, 8, 8, 17)
+            assert executor._state._last_sense_hat_row_index == -1
+    finally:
+        executor.configuration.interpolate_sense_hat = True
 
 
 def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
-    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
@@ -119,7 +133,6 @@ def test_sense_hat_adapter_has_all_expected_methods(executor: AstroPiExecutor):
 
 
 def test_sense_hat_adapter_has_all_expected_attrs(executor: AstroPiExecutor):
-    executor.configuration.interpolate_sense_hat = True
     sh = SenseHatAdapter(executor)
     with get_test_resource("sense_hat_interface.json").open() as f:
         sense_hat_interface = json.loads(f.read())
@@ -418,16 +431,16 @@ def test_interpolates_values():
     executor = AstroPiExecutor(configuration=configuration)
     sh = SenseHatAdapter(executor)
 
-    # Find the last two rows
+    # Find the frst two rows
     test_sh_data: Path = get_replay_sequence_dir() / "data" / "data.csv"
     # TODO this name should be static and globally defined
     df = executor._df_from_replay_file(str(test_sh_data), "datetime")
-    first_date = df.iloc[-2].name.to_pydatetime()
+    first_date = df.iloc[0].name.to_pydatetime()
     # TODO this column name should be statically defined
     column_to_compare = "pres"
-    first_datum = df.iloc[-2][column_to_compare]
-    second_date = df.iloc[-1].name.to_pydatetime()
-    second_datum = df.iloc[-1][column_to_compare]
+    first_datum = df.iloc[0][column_to_compare]
+    second_date = df.iloc[1].name.to_pydatetime()
+    second_datum = df.iloc[1][column_to_compare]
     test_utils.assume(
         [first_date < second_date, first_datum != second_datum],
         reason="Interpolation needs different values for a fair test",
@@ -437,6 +450,7 @@ def test_interpolates_values():
     in_between: datetime = first_date + timedelta(
         seconds=(second_date - first_date).total_seconds() / 2
     )
+    executor._state._start_time = first_date
     with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
         mock_datetime.now.return_value = in_between
         pressure = sh.get_pressure()
@@ -446,3 +460,32 @@ def test_interpolates_values():
         or pressure < first_datum
         and pressure > second_datum
     )
+
+
+def test_snapshot_display(tmp_path: Path):
+    configuration = TestConfiguration(True, True, False, True, tmp_path)
+    executor = AstroPiExecutor(configuration=configuration)
+    sh = SenseHatAdapter(executor)
+
+    # When
+    sh.show_letter("A")
+    sh.show_letter("B")
+
+    assert (img_1 := tmp_path / "1.png").exists()
+    assert (img_2 := tmp_path / "2.png").exists()
+    assert_images_equal(img_1, get_test_resource("sense_hat_display_A.png"))
+    assert_images_equal(img_2, get_test_resource("sense_hat_display_B.png"))
+
+
+def test_loop_with_interpolation_should_always_change():
+    configuration = TestConfiguration(True, True, False)
+    executor = AstroPiExecutor(configuration=configuration)
+    sh = SenseHatAdapter(executor)
+
+    # values should always change
+    results = set()
+    num_iterations: int = 10
+    for _ in range(num_iterations):
+        results.add(sh.get_pressure())
+        time.sleep(1e-9)  # 1 ns
+    assert len(results) == num_iterations

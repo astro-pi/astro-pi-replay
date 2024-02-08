@@ -1,0 +1,26 @@
+name: Integration test worker
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+        description: The OS to use (currently ignored)
+      python-version:
+        required: true
+        type: string
+        description: The python version to run
+
+jobs:
+  integration_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+      - name: Execute smoke tests on Linux
+        run: |
+          make test_integration
