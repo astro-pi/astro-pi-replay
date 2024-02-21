@@ -64,7 +64,7 @@ class AstroPiExecutor:
     The class is a singleton
     """
 
-    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit"]
+    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit", "gpiozero"]
     NOT_FOUND = f"{PROGRAM_CMD_NAME} not found"
 
     """
