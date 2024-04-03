@@ -510,7 +510,6 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
 
             if executor.configuration.snapshot_sense_hat_display:
                 self._save_matrix()
-                pass
 
             # Emit event to subscriber # TODO refactor this out
             if self._display_proc is not None:
@@ -533,6 +532,9 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
 
             self._image[y, x] = np.array(pixel, dtype=np.uint8)
 
+            if executor.configuration.snapshot_sense_hat_display:
+                self._save_matrix()
+
         # TODO move to abstract class
         def set_rotation(self, r: int, redraw: bool = True) -> None:
             # rotation is defined clockwise!
@@ -546,6 +548,9 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 # to anticlockwise
                 num_anticlockwise_turns: int = ((old - r) % 360) // 90
                 self._image = np.rot90(self._image, k=num_anticlockwise_turns)
+
+                if executor.configuration.snapshot_sense_hat_display:
+                    self._save_matrix()
 
         def show_letter(
             self,
