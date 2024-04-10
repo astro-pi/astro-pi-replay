@@ -20,6 +20,7 @@ from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
+from astro_pi_replay.picamera.exc import PiCameraMMALError
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
 from astro_pi_replay.resources import get_replay_sequence_dir
 
@@ -359,6 +360,13 @@ def test_picamera_adapter_has_all_expected_attrs():
         expected_picamera_interface["attrs"],
     ):
         assert hasattr(cam, attr), f"Expecting PiCameraAdapter to have {attr}"
+
+
+# TODO do not use the reset cache.
+def test_picamera_multiple_opens_causes_warning():
+    PiCameraAdapter()
+    with pytest.raises(PiCameraMMALError):
+        PiCameraAdapter()
 
 
 # TODO test custom objects e.g. renderers, streams, encoders?

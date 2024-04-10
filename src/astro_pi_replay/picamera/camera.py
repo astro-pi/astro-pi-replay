@@ -20,6 +20,7 @@ from astro_pi_replay.picamera.encoders import PiEncoder, PiVideoEncoder
 from astro_pi_replay.picamera.exc import (
     PiCameraAlreadyRecording,
     PiCameraError,
+    PiCameraMMALError,
     PiCameraNotRecording,
     PiCameraRuntimeError,
     PiCameraValueError,
@@ -54,8 +55,18 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
     else:
         executor = maybe_executor
 
+    executor._state._picamera_instances_count += 1
+    if executor._state._picamera_instances_count > 1:
+        logger.error(
+            "This error happens when you initialise "
+            + "multiple PiCamera objects and the Raspberry Pi runs out "
+            + "of memory. To fix it, store a reference and use a single "
+            + "PiCamera instance."
+        )
+        raise PiCameraMMALError("Failed to enable connection: Out of resources")
+
     class _PiCameraAdapter(PiCamera):
-        # TODO make these instance attribtues
+        # TODO make these instance attributes
         _preview_proc: Optional[multiprocessing.Process] = None
         _recording_proc: Optional[subprocess.Popen[bytes]] = None
         _recording_fmt: Optional[str] = None
