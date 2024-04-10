@@ -49,6 +49,7 @@ class AstroPiExecutorState:
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
         self._sense_hat_snapshot_index: int = 1
+        self._picamera_instances_count: int = 0
 
 
 class AstroPiExecutor:
@@ -290,6 +291,7 @@ class AstroPiExecutor:
     def _reset():
         AstroPiExecutor._instance = None
         AstroPiExecutor._df_from_replay_file.cache_clear()
+        AstroPiExecutor._state = AstroPiExecutorState()
 
     def _replay_next(
         self,
