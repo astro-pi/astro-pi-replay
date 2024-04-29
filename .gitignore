@@ -159,7 +159,7 @@ cython_debug/
 # indicate a temporary file
 *~
 
-.DS_Store
+**/*.DS_Store
 *.qcow[2]
 *.iso
 *.fd
