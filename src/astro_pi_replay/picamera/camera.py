@@ -179,6 +179,17 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
 
             return final_output, final_format
 
+        def _validate_exif_tags(self):
+            for key, value in self.exif_tags.items():
+                try:
+                    # the real implementation requires a len() to be implemented
+                    len(value)
+                except TypeError:
+                    raise TypeError(
+                        f"Exif tag {key} must implement len() but is a {type(value)}."
+                        + "Should it be a bytes or string?"
+                    )
+
         def capture(
             self,
             output: IO_TYPE,
@@ -240,6 +251,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                     im = im.convert("YCbCr")
                 elif final_format in ["jpeg", "jpg"] and len(self.exif_tags.keys()) > 0:
                     # exif tags are only supported for jpeg in the original picamera
+                    self._validate_exif_tags()
                     exif = modify_exif_tags(im.getexif(), self.exif_tags)
                 im.save(stream, format=None, exif=exif)
             mo.close_stream(stream, opened)
