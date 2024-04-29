@@ -1,4 +1,3 @@
-import glob
 import hashlib
 import json
 import logging
@@ -15,9 +14,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 
+import exif
 import pandas as pd
 from exif import DATETIME_STR_FORMAT, Image
-from numpy.dtypes import DateTime64DType, Float64DType, Int64DType
+
+# from numpy.typing import DateTime64DType, Float64DType, Int64DType
 from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME
@@ -27,6 +28,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 GDRIVE: str = "gdrive"
+
+GPS_TAGS: list[str] = [
+    "gps_latitude",
+    "gps_longitude",
+    "gps_latitude_ref",
+    "gps_longitude_ref",
+    "gps_altitude",
+    "gps_altitude_ref",
+]
 
 
 class Uploader:
@@ -79,31 +89,38 @@ class Uploader:
     ) -> Path:
         logger.info("Creating zipfile")
 
-        tempdir: Path = Path(tempfile.mkdtemp())  # TODO resource closure
-        tempzip = tempdir / (str(uuid.uuid4()) + ".zip")
+        tempdir: Optional[Path] = None
+        try:
+            tempdir = Path(tempfile.mkdtemp())
+            tempzip = tempdir / (str(uuid.uuid4()) + ".zip")
 
-        # TODO make the zip deterministic:
-        # use the -X (or --no-extra) flag,
-        # and normalise ALL permissions  - chmod on Unix:
-        #   https://stackoverflow.com/a/27500472/5509894 for Windows
-        # and modified times of all files being zipped - os.utime
-        logger.debug(f"Creating zipfile in {tempzip}")
+            # TODO make the zip deterministic:
+            # use the -X (or --no-extra) flag,
+            # and normalise ALL permissions  - chmod on Unix:
+            #   https://stackoverflow.com/a/27500472/5509894 for Windows
+            # and modified times of all files being zipped - os.utime
+            logger.debug(f"Creating zipfile in {tempzip}")
 
-        with zipfile.ZipFile(tempzip, mode="x", compression=zipfile.ZIP_LZMA) as z:
-            for f in tqdm(self.deterministic_traversal(directory_to_zip)):
-                logger.debug(f)
-                if include_filter is None or include_filter(f):
-                    z.write(
-                        f, arcname=str(Path(f).relative_to(directory_to_zip.parent))
-                    )
+            with zipfile.ZipFile(
+                tempzip, mode="x", compression=zipfile.ZIP_DEFLATED
+            ) as z:
+                for f in tqdm(self.deterministic_traversal(directory_to_zip)):
+                    logger.debug(f)
+                    if include_filter is None or include_filter(f):
+                        z.write(
+                            f, arcname=str(Path(f).relative_to(directory_to_zip.parent))
+                        )
 
-        final_path: Path = (
-            directory_to_zip.parent / (zip_name + ".zip")
-            if zip_name is not None
-            else Path(str(directory_to_zip) + ".zip")
-        )
-        shutil.copy2(tempzip, str(final_path))
-        return final_path
+            final_path: Path = (
+                directory_to_zip.parent / (zip_name + ".zip")
+                if zip_name is not None
+                else Path(str(directory_to_zip) + ".zip")
+            )
+            shutil.copy2(tempzip, str(final_path))
+            return final_path
+        finally:
+            if tempdir is not None:
+                shutil.rmtree(tempdir)
 
     @staticmethod
     def hash_directory_content(directory: Path):
@@ -160,28 +177,6 @@ class Uploader:
             self._upload_file(f, url)
 
 
-# def ls() -> list[dict[str,str]]:
-#    file_id: str = "1wjAQPWNN2Yp6JeabT8af1YNkpCwG-mvf"
-#    args: list[str] = [GDRIVE, "files", "list", "--parent", file_id]
-#    logger.debug(" ".join(args))
-#    proc: subprocess.CompletedProcess = subprocess.run(
-#        args,
-#        check=True,
-#        capture_output=True,
-#        text=True)
-#    out: str = proc.stdout.strip()
-#    lines: list[list[str]] = [re.split(r"\s+", line) \
-#       for line in "".join(out).splitlines()]
-#    headers: list[str] = lines[0]
-#    final: list[dict[str,str]] = []
-#    for line in lines[1:]:
-#        d = {}
-#        for i, header in enumerate(headers):
-#            d[header] = line[i]
-#        final.append(d)
-#    return final
-
-
 class AssetPreparer:
     CACHE_LOCATION = Path.home() / ".cache" / PROGRAM_NAME
 
@@ -201,7 +196,17 @@ class AssetPreparer:
             # TODO will also need original datetime format
             # and also the time slice being taken (if not using all)
         },
-        "AstroX": {},
+        "AstroX": {
+            "fileId": "",
+            "sha256": "",
+            "photography_type": "VIS",
+            "photos": {"prefix": "", "suffix": "jpg"},
+            "videos": {"prefix": "video"},
+            "sense_hat": {
+                "data": "data.csv",
+                "mapping": {"yaw": "", "pitch": "", "roll": ""},
+            },
+        },
     }
 
     def __init__(self) -> None:
@@ -306,42 +311,43 @@ class AssetPreparer:
         # Expected format:
         # for raw formats: col_[x|y|z]) e.g. accel_x
         # otherwise: col_[roll|pitch|yaw] e.g. accel_roll
-        expected_columns: dict[
-            str, type[Float64DType | Int64DType | DateTime64DType]
-        ] = {
-            "acc_abs": Float64DType,
-            "acc_x": Float64DType,
-            "acc_y": Float64DType,
-            "acc_z": Float64DType,
-            # "acc_roll": Float64DType,
-            # "acc_pitch": Float64DType,
-            # "acc_yaw": Float64DType,
-            # "gyro_roll": Float64DType,
-            # "gyro_pitch": Float64DType,
-            # "gyro_yaw": Float64DType,
-            # "compass": Float64DType,
-            "blue": Int64DType,
-            "clear": Int64DType,
-            "datetime": DateTime64DType,
-            "green": Int64DType,
-            "gyro_x": Float64DType,
-            "gyro_y": Float64DType,
-            "gyro_z": Float64DType,
-            "h": Float64DType,
-            "h_average": Float64DType,
-            "h_max": Float64DType,
-            "h_min": Float64DType,
-            "hum": Float64DType,
-            "mag_x": Float64DType,
-            "mag_y": Float64DType,
-            "mag_z": Float64DType,
-            "pitch": Float64DType,
-            "pres": Float64DType,
-            "red": Int64DType,
-            "roll": Float64DType,
-            "temp": Float64DType,
-            "yaw": Float64DType,
-        }
+        expected_columns: dict = {}
+        # expected_columns: dict[
+        #     str, type[Float64DType | Int64DType | DateTime64DType]
+        # ] = {
+        #     "acc_abs": Float64DType,
+        #     "acc_x": Float64DType,
+        #     "acc_y": Float64DType,
+        #     "acc_z": Float64DType,
+        #     # "acc_roll": Float64DType,
+        #     # "acc_pitch": Float64DType,
+        #     # "acc_yaw": Float64DType,
+        #     # "gyro_roll": Float64DType,
+        #     # "gyro_pitch": Float64DType,
+        #     # "gyro_yaw": Float64DType,
+        #     # "compass": Float64DType,
+        #     "blue": Int64DType,
+        #     "clear": Int64DType,
+        #     "datetime": DateTime64DType,
+        #     "green": Int64DType,
+        #     "gyro_x": Float64DType,
+        #     "gyro_y": Float64DType,
+        #     "gyro_z": Float64DType,
+        #     "h": Float64DType,
+        #     "h_average": Float64DType,
+        #     "h_max": Float64DType,
+        #     "h_min": Float64DType,
+        #     "hum": Float64DType,
+        #     "mag_x": Float64DType,
+        #     "mag_y": Float64DType,
+        #     "mag_z": Float64DType,
+        #     "pitch": Float64DType,
+        #     "pres": Float64DType,
+        #     "red": Int64DType,
+        #     "roll": Float64DType,
+        #     "temp": Float64DType,
+        #     "yaw": Float64DType,
+        # }
         actual_columns: set = set(df.columns)
         logger.debug("Checking column names...")
         expected_set: set = set(expected_columns.keys())
@@ -364,6 +370,9 @@ class AssetPreparer:
                 )
 
     def prepare_sequences(self) -> None:
+        """
+        Downloads the base assets from google drive and then processes them.
+        """
         for sequence_id, metadata in self.sequence_to_file_id_map.items():
             logger.debug(f"Processing {sequence_id}")
             self._verify_metadata(metadata)
@@ -395,20 +404,34 @@ class AssetPreparer:
             datetimes: list[tuple[datetime, str]] = []
             prefix: str = metadata["photos"]["prefix"]
             suffix: str = metadata["photos"]["suffix"]
-            globs: list[str] = glob.glob(rf"{prefix}*.{suffix}", root_dir=downloaded)
+
+            photos: list[Path] = [
+                file
+                for file in downloaded.iterdir()
+                if file.name.startswith(prefix) and file.suffix == suffix
+            ]
             logger.debug(
-                f"Found {len(globs)} photos matching the prefix {prefix} and "
+                f"Found {len(photos)} photos matching the prefix {prefix} and "
                 + rf"suffix {suffix} in {downloaded}"
             )
-            for photo in globs:
+            for photo in photos:
                 datetimes.append(
                     (
                         datetime.strptime(
-                            Image(photo).datetime_digitized, DATETIME_STR_FORMAT
+                            Image(str(photo)).datetime_digitized, DATETIME_STR_FORMAT
                         ),
-                        photo,
+                        str(photo),
                     )
                 )
+
+                # strip GPS tags and overwrite file
+                im = exif.Image(str(photo))
+                for gps_tag in GPS_TAGS:
+                    if im.get(gps_tag) is not None:
+                        im.delete(gps_tag)
+                with open(photo, "wb") as f:
+                    f.write(im.get_file())
+
                 shutil.move(photo, photos_dir)
 
             logger.debug(f"Creating the {photo_index_file.name} file")
