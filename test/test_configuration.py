@@ -14,8 +14,8 @@ from astro_pi_replay.configuration import (
 
 def test_configuration_equality():
     assert Configuration(
-        True, True, True, None, True, Path(__file__), "0.0.1"
-    ) != Configuration(True, False, True, None, True, Path(__file__), "0.0.1")
+        True, True, True, None, True, Path(__file__), "0.0.1", True
+    ) != Configuration(True, False, True, None, True, Path(__file__), "0.0.1", True)
 
 
 def test_configuration_default_values():
@@ -24,7 +24,7 @@ def test_configuration_default_values():
 
 
 def test_configuration_serde():
-    conf1 = Configuration(True, True, False, None, True, Path(__file__), "1.1.1")
+    conf1 = Configuration(True, True, False, None, True, Path(__file__), "1.1.1", True)
     json = conf1._to_json()
     assert '"debug": false' in json
     assert '"interpolate_sense_hat": true' in json
@@ -36,7 +36,7 @@ def test_configuration_serde():
     new_conf = Configuration._from_json(json)
     assert new_conf == conf1
     conf2 = Configuration(
-        True, False, True, "sequence_id", True, Path(__file__), "1.1.1"
+        True, False, True, "sequence_id", True, Path(__file__), "1.1.1", True
     )
     json = conf2._to_json()
     assert '"sequence": "sequence_id"' in json
@@ -50,6 +50,7 @@ def test_configuration_constructor_from_args():
         "interpolate_sense_hat": True,
         "snapshot_sense_hat_display": True,
         "sense_hat_snapshot_dir": "/",
+        "is_transparent_to_user": True,
     }
     args = argparse.Namespace(**args)
     configuration = Configuration.from_args(args)
@@ -57,6 +58,7 @@ def test_configuration_constructor_from_args():
     assert configuration.snapshot_sense_hat_display is True
     assert str(configuration.sense_hat_snapshot_dir) == "/"
     assert configuration.astro_pi_replay_version == __version__
+    assert configuration.is_transparent_to_user is True
 
 
 def test_write_config_serdes_to_config_dir(tmp_path: Path, mock_config_filepath: Path):
@@ -65,7 +67,7 @@ def test_write_config_serdes_to_config_dir(tmp_path: Path, mock_config_filepath:
     assert not mock_config_filepath.exists()
     with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
         conf = Configuration(
-            True, True, True, "sequence_id", True, Path(__file__), "2.1.1"
+            True, True, True, "sequence_id", True, Path(__file__), "2.1.1", True
         )
         conf.save()
         assert mock_config_filepath.exists()
