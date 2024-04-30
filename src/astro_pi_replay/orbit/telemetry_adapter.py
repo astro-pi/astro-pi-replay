@@ -20,7 +20,15 @@ class EarthSatellite(skyfield.api.EarthSatellite):
     def coordinates(self) -> GeographicPosition:
         return coordinates(self)
 
-    def at(self, _: Time) -> typing.Union[Barycentric, Geocentric, ICRF]:
+    def at(self, x: Time) -> typing.Union[Barycentric, Geocentric, ICRF]:
+        # Although the value is not used in this stub, it is nice to check
+        # the type since it will fail if it is incorrect in the real
+        # implementation.
+        if not isinstance(x, Time):
+            raise ValueError(
+                "please provide the at() method with a Time "
+                + f"instance as its argument, instead of the value {str(x)}"
+            )
         new_t: Time = self._now(self.get_executor())
         return super().at(new_t)
 
