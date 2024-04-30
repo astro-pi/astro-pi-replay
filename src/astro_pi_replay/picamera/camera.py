@@ -48,7 +48,9 @@ photo_formats = [
 video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
 
-def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamera:
+def PiCameraAdapter(
+    maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwargs
+) -> PiCamera:
     executor: AstroPiExecutor
     if maybe_executor is None:
         executor = AstroPiExecutor()
@@ -343,6 +345,20 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
         def remove_overlay(self, overlay: PiOverlayRenderer) -> None:
             return super().remove_overlay(overlay)
 
+        def __setattr__(self, name, value):
+            attributes_to_warn = set(["resolution"])
+            if (
+                not executor.configuration.is_transparent_to_user
+                and name in attributes_to_warn
+            ):
+                logger.warning(
+                    f"Setting {name} does not have an effect on "
+                    + "the images taken using the replay tool (which are pre-recorded)."
+                    + "However, it will work as expected if executed on a real Astro "
+                    + "Pi Flight Unit."
+                )
+            object.__setattr__(self, name, value)
+
         def split_recording(
             self,
             output: IO_TYPE,
@@ -581,7 +597,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             else:
                 return "bgra"
 
-    return _PiCameraAdapter()
+    return _PiCameraAdapter(*args, **kwargs)
 
 
 # TODO move me

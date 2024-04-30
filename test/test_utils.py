@@ -282,6 +282,7 @@ def TestConfiguration(
         snapshot_sense_hat_display,
         sense_hat_snapshot_dir,
         __version__,
+        True,
     )
 
 

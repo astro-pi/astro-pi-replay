@@ -105,10 +105,6 @@ class AstroPiExecutor:
             cls.configuration = (
                 configuration if configuration is not None else Configuration.load()
             )
-
-            # TODO add option to be a bit like easyrandom / haskell type testing
-            # random_mode = False # whether or not to randomly generate data
-            # mode: ir or vis
         else:
             logger.debug("Executor already instantiated")
 

@@ -74,6 +74,7 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
         "interpolate_sense_hat": True,
         "snapshot_sense_hat_display": True,
         "sense_hat_snapshot_dir": __file__,
+        "is_transparent_to_user": True,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 
