@@ -20,7 +20,11 @@ from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
-from astro_pi_replay.picamera.exc import PiCameraMMALError, PiCameraValueError
+from astro_pi_replay.picamera.exc import (
+    PiCameraClosed,
+    PiCameraMMALError,
+    PiCameraValueError,
+)
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
 from astro_pi_replay.resources import get_replay_sequence_dir
 
@@ -373,6 +377,13 @@ def test_picamera_invalid_resolution_throws_error():
     with pytest.raises(PiCameraValueError) as e:
         cam.resolution = (4096, 3040)
         e.match("Invalid resolution")
+
+
+def test_picamera_closed_capture_throws_error():
+    cam = PiCameraAdapter()
+    cam.close()
+    with pytest.raises(PiCameraClosed):
+        cam.capture("foo.jpg")
 
 
 # TODO test custom objects e.g. renderers, streams, encoders?

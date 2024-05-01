@@ -18,6 +18,7 @@ from astro_pi_replay.picamera.abstract_camera import PiCamera
 from astro_pi_replay.picamera.encoders import PiEncoder, PiVideoEncoder
 from astro_pi_replay.picamera.exc import (
     PiCameraAlreadyRecording,
+    PiCameraClosed,
     PiCameraError,
     PiCameraMMALError,
     PiCameraNotRecording,
@@ -123,6 +124,10 @@ def PiCameraAdapter(
                 fill=cast(RGB, self.annotate_foreground.rgb_bytes),
             )
 
+        def _check_camera_open(self) -> None:
+            if self._closed:
+                raise PiCameraClosed("Camera is closed")
+
         def _teardown_background_processes(self):
             for process in [self._preview_proc, self._recording_proc]:
                 if process is not None and process.poll() is None:
@@ -195,6 +200,7 @@ def PiCameraAdapter(
             bayer: bool = False,
             **options,
         ) -> None:
+            self._check_camera_open()
             final_format: str = self._detect_format(output, format)
 
             name: str = str(
@@ -472,7 +478,6 @@ def PiCameraAdapter(
                     self.resolution, final_format, encoder, self._recording_proc
                 )
                 self._recording_consumer.start()
-                # TODO make sure this is closed properly on closure
 
             # TODO make sure this is consistent with the _recording_proc
             self._recording_fmt = final_format  # TODO move to an encoder object.
@@ -571,7 +576,7 @@ def PiCameraAdapter(
             always connected to a splitter component, so requests for a video port
             also have to specify which splitter port they want to use.
             """
-            # self._check_camera_open()
+            self._check_camera_open()
             if from_video_port and (splitter_port in self._encoders):
                 raise PiCameraAlreadyRecording(
                     "The camera is already using port %d " % splitter_port
@@ -604,4 +609,3 @@ def PiCameraAdapter(
                 return "bgra"
 
     return _PiCameraAdapter(*args, **kwargs)
-
