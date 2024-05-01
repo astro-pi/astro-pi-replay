@@ -56,3 +56,9 @@ class PiCameraMMALError(PiCameraError):
     """
     Raised when an MMAL operation fails for whatever reason.
     """
+
+
+class PiCameraClosed(PiCameraRuntimeError):
+    """
+    Raised when a method is called on a camera which has already been closed.
+    """
