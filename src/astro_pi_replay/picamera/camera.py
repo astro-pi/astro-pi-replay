@@ -49,7 +49,9 @@ photo_formats = [
 video_formats = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"]
 
 
-def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamera:
+def PiCameraAdapter(
+    maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwargs
+) -> PiCamera:
     executor: AstroPiExecutor
     if maybe_executor is None:
         executor = AstroPiExecutor()
@@ -145,8 +147,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             output: IO_TYPE,
             format: Optional[str],
             allowed_formats: list[str] = photo_formats,
-        ) -> tuple[IO_TYPE, str]:
-            final_output: IO_TYPE
+        ) -> str:
             final_format: str
 
             if format is None and isinstance(output, str):
@@ -155,30 +156,23 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                     raise PiCameraValueError(
                         f"Couldn't detect a valid format in {output}"
                     )
-                final_output = ".".join(split[:-1])
                 final_format = split[-1]
+                # always use jpeg
+                if final_format == "jpg":
+                    final_format = "jpeg"
             elif format not in allowed_formats and isinstance(output, str):
                 raise PiCameraValueError("Format not allowed")
-            elif format is not None and isinstance(output, str) and format == "jpeg":
-                # change format so it appears to not overwrite the suffix
-                # given in the filename
-                if output.endswith(".jpg"):
-                    final_format = "jpg"
-                else:
-                    final_format = format
-
-                final_output = re.sub(r"\.jpg$", "", output)
-                final_output = re.sub(r"\.jpeg$", "", final_output)
+            elif format is not None and isinstance(output, str) and format == "jpg":
+                # match the real implementation
+                raise PiCameraValueError("Unsupported format jpg")
             elif format is not None and isinstance(output, str):
-                final_output = re.sub(r"\." + format + r"$", "", output)
                 final_format = format
             else:
-                final_output = output
                 if format is None:
                     raise PiCameraValueError("Must specify a format")
                 final_format = format
 
-            return final_output, final_format
+            return final_format
 
         def _validate_exif_tags(self):
             for key, value in self.exif_tags.items():
@@ -201,7 +195,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             bayer: bool = False,
             **options,
         ) -> None:
-            final_output, final_format = self._detect_format(output, format)
+            final_format: str = self._detect_format(output, format)
 
             name: str = str(
                 executor._replay_next(
@@ -228,10 +222,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             if resize is not None:
                 im = im.resize(resize)
 
-            if isinstance(final_output, str):
-                stream, opened = mo.open_stream(f"{final_output}.{final_format}")
-            else:
-                stream, opened = mo.open_stream(final_output)
+            stream, opened = mo.open_stream(output)
 
             # raw image
             if final_format is not None and final_format in [
@@ -254,7 +245,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                     # exif tags are only supported for jpeg in the original picamera
                     self._validate_exif_tags()
                     exif = modify_exif_tags(im.getexif(), self.exif_tags)
-                im.save(stream, format=None, exif=exif)
+                im.save(stream, format=final_format, exif=exif)
             mo.close_stream(stream, opened)
 
         def capture_continuous(
@@ -268,11 +259,11 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             bayer: bool = False,
             **options,
         ) -> Iterable:
-            final_output, final_format = self._detect_format(output, format)
+            final_format = self._detect_format(output, format)
             counter: int = 1
             while True:
-                if isinstance(final_output, str):
-                    filename: str = final_output.format(
+                if isinstance(output, str):
+                    filename: str = output.format(
                         counter=counter, timestamp=datetime.datetime.now()
                     )
                     self.capture(
@@ -344,6 +335,20 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
         def remove_overlay(self, overlay: PiOverlayRenderer) -> None:
             return super().remove_overlay(overlay)
 
+        def __setattr__(self, name, value):
+            attributes_to_warn = set(["resolution"])
+            if (
+                not executor.configuration.is_transparent_to_user
+                and name in attributes_to_warn
+            ):
+                logger.warning(
+                    f"Setting {name} does not have an effect on "
+                    + "the images taken using the replay tool (which are pre-recorded)."
+                    + "However, it will work as expected if executed on a real Astro "
+                    + "Pi Flight Unit."
+                )
+            object.__setattr__(self, name, value)
+
         def split_recording(
             self,
             output: IO_TYPE,
@@ -398,7 +403,7 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                 raise PiCameraError("Recording already started")
 
             # Determine the format
-            final_output, final_format = self._detect_format(
+            final_format = self._detect_format(
                 output, format, allowed_formats=video_formats
             )
 
@@ -446,8 +451,8 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
                     self, camera_port, output_port, final_format, resize, **options
                 )
                 self._encoders[splitter_port] = encoder
-            if isinstance(final_output, str):
-                command_args.append(f"{final_output}.{final_format}")
+            if isinstance(output, str):
+                command_args.append(output)
 
                 logger.debug(" ".join(command_args))
                 # non-blocking.
@@ -598,4 +603,5 @@ def PiCameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> PiCamer
             else:
                 return "bgra"
 
-    return _PiCameraAdapter()
+    return _PiCameraAdapter(*args, **kwargs)
+

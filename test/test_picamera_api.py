@@ -101,7 +101,6 @@ def test_replay_capture_to_numpy_array(executor: AstroPiExecutor):
     # TODO assert on content.
 
 
-# FIXME
 def test_replay_capture_to_PiRGBArray(executor: AstroPiExecutor):
     cam = PiCameraAdapter(executor)
     width, height = cam.resolution
