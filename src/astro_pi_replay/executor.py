@@ -430,17 +430,21 @@ class AstroPiExecutor:
             contents = f.read()
         with main_copy.open("w") as f:
             f.write(
+                # TODO only write import datetime
+                # if not already overloaded by from datetime import datetime
                 os.linesep.join(
                     [
-                        "import logging",
-                        "logging.basicConfig(level=logging.DEBUG,"
+                        "import logging as replay_tool_logging",
+                        "replay_tool_logging.basicConfig("
+                        + "level=replay_tool_logging.DEBUG,"
                         + f"format='{LOGGING_FORMAT}')",
-                        "import datetime",
-                        "logging.Formatter.formatTime = (lambda self, record, "
-                        + "datefmt=None: datetime.datetime.fromtimestamp("
+                        "import datetime as replay_tool_datetime",
+                        "replay_tool_logging.Formatter.formatTime = ("
+                        + "lambda self, record, "
+                        + "datefmt=None: replay_tool_datetime.datetime.fromtimestamp("
                         + "record.created, "
-                        + "datetime.timezone.utc).astimezone().isoformat(sep='T',"
-                        + "timespec='milliseconds'))"
+                        + "replay_tool_datetime.timezone.utc).astimezone().isoformat("
+                        + "sep='T',timespec='milliseconds'))"
                         + os.linesep,
                     ]
                 )
