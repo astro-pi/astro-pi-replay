@@ -238,6 +238,7 @@ def PiCameraAdapter(
                 "bgra",
             ]:
                 np_image = np.array(im)
+                # TODO ensure image is resized correctly...
                 if final_format.startswith("bgr"):
                     np_image[:, :, [0, 1, 2]] = np_image[
                         :, :, [2, 1, 0]
