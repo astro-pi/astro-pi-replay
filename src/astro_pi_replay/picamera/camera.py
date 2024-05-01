@@ -146,8 +146,7 @@ def PiCameraAdapter(
             output: IO_TYPE,
             format: Optional[str],
             allowed_formats: list[str] = photo_formats,
-        ) -> tuple[IO_TYPE, str]:
-            final_output: IO_TYPE
+        ) -> str:
             final_format: str
 
             if format is None and isinstance(output, str):
@@ -156,30 +155,23 @@ def PiCameraAdapter(
                     raise PiCameraValueError(
                         f"Couldn't detect a valid format in {output}"
                     )
-                final_output = ".".join(split[:-1])
                 final_format = split[-1]
+                # always use jpeg
+                if final_format == "jpg":
+                    final_format = "jpeg"
             elif format not in allowed_formats and isinstance(output, str):
                 raise PiCameraValueError("Format not allowed")
-            elif format is not None and isinstance(output, str) and format == "jpeg":
-                # change format so it appears to not overwrite the suffix
-                # given in the filename
-                if output.endswith(".jpg"):
-                    final_format = "jpg"
-                else:
-                    final_format = format
-
-                final_output = re.sub(r"\.jpg$", "", output)
-                final_output = re.sub(r"\.jpeg$", "", final_output)
+            elif format is not None and isinstance(output, str) and format == "jpg":
+                # match the real implementation
+                raise PiCameraValueError("Unsupported format jpg")
             elif format is not None and isinstance(output, str):
-                final_output = re.sub(r"\." + format + r"$", "", output)
                 final_format = format
             else:
-                final_output = output
                 if format is None:
                     raise PiCameraValueError("Must specify a format")
                 final_format = format
 
-            return final_output, final_format
+            return final_format
 
         def _validate_exif_tags(self):
             for key, value in self.exif_tags.items():
@@ -202,7 +194,7 @@ def PiCameraAdapter(
             bayer: bool = False,
             **options,
         ) -> None:
-            final_output, final_format = self._detect_format(output, format)
+            final_format: str = self._detect_format(output, format)
 
             name: str = str(
                 executor._replay_next(
@@ -229,10 +221,7 @@ def PiCameraAdapter(
             if resize is not None:
                 im = im.resize(resize)
 
-            if isinstance(final_output, str):
-                stream, opened = mo.open_stream(f"{final_output}.{final_format}")
-            else:
-                stream, opened = mo.open_stream(final_output)
+            stream, opened = mo.open_stream(output)
 
             # raw image
             if final_format is not None and final_format in [
@@ -255,7 +244,7 @@ def PiCameraAdapter(
                     # exif tags are only supported for jpeg in the original picamera
                     self._validate_exif_tags()
                     exif = modify_exif_tags(im.getexif(), self.exif_tags)
-                im.save(stream, format=None, exif=exif)
+                im.save(stream, format=final_format, exif=exif)
             mo.close_stream(stream, opened)
 
         def capture_continuous(
@@ -269,11 +258,11 @@ def PiCameraAdapter(
             bayer: bool = False,
             **options,
         ) -> Iterable:
-            final_output, final_format = self._detect_format(output, format)
+            final_format = self._detect_format(output, format)
             counter: int = 1
             while True:
-                if isinstance(final_output, str):
-                    filename: str = final_output.format(
+                if isinstance(output, str):
+                    filename: str = output.format(
                         counter=counter, timestamp=datetime.datetime.now()
                     )
                     self.capture(
@@ -407,7 +396,7 @@ def PiCameraAdapter(
                 raise PiCameraError("Recording already started")
 
             # Determine the format
-            final_output, final_format = self._detect_format(
+            final_format = self._detect_format(
                 output, format, allowed_formats=video_formats
             )
 
@@ -455,8 +444,8 @@ def PiCameraAdapter(
                     self, camera_port, output_port, final_format, resize, **options
                 )
                 self._encoders[splitter_port] = encoder
-            if isinstance(final_output, str):
-                command_args.append(f"{final_output}.{final_format}")
+            if isinstance(output, str):
+                command_args.append(output)
 
                 logger.debug(" ".join(command_args))
                 # non-blocking.
