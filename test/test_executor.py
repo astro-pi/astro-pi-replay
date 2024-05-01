@@ -155,6 +155,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     "snapshot_sense_hat_display": True,
                     "sense_hat_snapshot_dir": __file__,
                     f"{PROGRAM_NAME}_version": __version__,
+                    "is_transparent_to_user": True,
                 }
             )
         )

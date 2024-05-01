@@ -20,6 +20,7 @@ from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
+from astro_pi_replay.picamera.exc import PiCameraMMALError, PiCameraValueError
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
 from astro_pi_replay.resources import get_replay_sequence_dir
 
@@ -100,7 +101,6 @@ def test_replay_capture_to_numpy_array(executor: AstroPiExecutor):
     # TODO assert on content.
 
 
-# FIXME
 def test_replay_capture_to_PiRGBArray(executor: AstroPiExecutor):
     cam = PiCameraAdapter(executor)
     width, height = cam.resolution
@@ -359,6 +359,20 @@ def test_picamera_adapter_has_all_expected_attrs():
         expected_picamera_interface["attrs"],
     ):
         assert hasattr(cam, attr), f"Expecting PiCameraAdapter to have {attr}"
+
+
+# TODO do not use the reset cache.
+def test_picamera_multiple_opens_causes_warning():
+    PiCameraAdapter()
+    with pytest.raises(PiCameraMMALError):
+        PiCameraAdapter()
+
+
+def test_picamera_invalid_resolution_throws_error():
+    cam = PiCameraAdapter()
+    with pytest.raises(PiCameraValueError) as e:
+        cam.resolution = (4096, 3040)
+        e.match("Invalid resolution")
 
 
 # TODO test custom objects e.g. renderers, streams, encoders?

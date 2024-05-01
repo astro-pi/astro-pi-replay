@@ -142,6 +142,15 @@ def get_argument_parser() -> ArgumentParser:
         help="The directory in which to save snapshots of the SenseHat display. "
         + "Defaults to the current directory.",
     )
+    run_parser.add_argument(
+        "--is-transparent-to-user",
+        action="store_false",
+        default=True,
+        help="Whether to warn the user when a called method or accessed "
+        + "attribute that would work using the real hardware is not fully "
+        + "implemented by the replay tool. By default, the replay tool continues "
+        + "silently (as if it were in transparent).",
+    )
     run_parser.set_defaults(cmd="run")
     update_parser = subparsers.add_parser(
         UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
