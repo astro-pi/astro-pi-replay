@@ -18,6 +18,7 @@ from astro_pi_replay.custom_types import (
     XYZDict,
 )
 from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.preview.teardown_protocol import SupportsBackgroundTaskTeardown
 from astro_pi_replay.sense_hat.abstract_sense_hat import (
     SenseHatAPI,
     SenseHatColourSensorAPI,
@@ -145,7 +146,7 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
     else:
         executor = maybe_executor
 
-    class _SenseHatAdapter(SenseHatAPI):
+    class _SenseHatAdapter(SenseHatAPI, SupportsBackgroundTaskTeardown):
         """
         This is an object that conforms to the SenseHat interface
         that returns default values for every function call.
@@ -245,6 +246,7 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
             self._stick = SenseHatStickAPI()
 
             self._display_proc: Optional[SenseHatDisplay] = None
+            self._teardown_registered = False
 
         def _close_window(self) -> None:
             if self._display_proc is not None:
@@ -265,9 +267,11 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 pass
 
         def _open_window(self) -> None:
-            # TODO add teardown using weakref.finalize
-            self._display_proc = SenseHatDisplay(self._image)
-            self._display_proc.start()
+            def _open_window_internal():
+                self._display_proc = SenseHatDisplay(self._image)
+                self._display_proc.start()
+
+            self._register_background_proc(_open_window_internal, self._close_window)
 
         def _get_char_pixels(self, s: str) -> list[list[int]]:
             """
