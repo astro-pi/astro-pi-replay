@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "picamera2"
+description = "A stub of picamera2 for use by the Astro Pi Replay tool."
+version = "0.0.1"
+authors = [
+  { name="Geraint Ballinger", email="geraint.ballinger@raspberrypi.org" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+dependencies = []
+
+[tool.isort]
+atomic = true
+line_length = 88
+profile = "black"
+skip_gitignore = true
+src_paths = ["src", "test"]
+skip_glob = ["test/resources", "venv"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+(
+  ^/test/resources
+)
+'''
+
+[tool.bandit]
+skips = ["B101", "B404"]
+exclude = ["test/resources"]
+
+[tool.pyright]
+pythonPlatform = "All"
