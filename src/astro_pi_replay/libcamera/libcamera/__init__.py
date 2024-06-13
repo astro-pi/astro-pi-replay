@@ -1,21 +1,43 @@
-from . import _libcamera 
-from . import controls
-from ._libcamera import Camera
-from .colorspace import ColorSpace
-from .controls.controls import ControlType, ControlId, ControlInfo, ControlValue
-from .orientation import Orientation
-from .rectangle import Rectangle
-from .size import Size
-from .transform import Transform
+from . import _libcamera
+from ._libcamera import (
+    Camera,
+    CameraConfiguration,
+    CameraManager,
+    ColorSpace,
+    ControlId,
+    controls,
+    ControlInfo,
+    ControlType,
+    ControlValue,
+    Orientation,
+    PixelFormat,
+    Rectangle,
+    SensorConfiguration,
+    Size,
+    Stream, 
+    StreamRole,
+    StreamConfiguration,
+    Transform
+)
 
 __all__ = [
     "_libcamera",
-    "controls",
     "Camera",
+    "CameraConfiguration",
+    "CameraManager",
     "ColorSpace",
-    "ControlType", "ControlId", "ControlInfo", "ControlValue",
+    "ControlType",
+    "ControlId",
+    "controls",
+    "ControlInfo",
+    "ControlValue",
     "Orientation",
+    "PixelFormat",
     "Rectangle",
+    "SensorConfiguration",
     "Size",
-    "Transform", 
+    "Stream",
+    "StreamRole",
+    "StreamConfiguration",
+    "Transform",
 ]

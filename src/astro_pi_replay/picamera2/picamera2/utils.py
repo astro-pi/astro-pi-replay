@@ -1,6 +1,5 @@
-from libcamera import ColorSpace, Orientation, Rectangle, Size, Transform
-
 import picamera2.formats as formats
+from libcamera import ColorSpace, Orientation, Rectangle, Size, Transform
 
 
 def convert_from_libcamera_type(value):
@@ -8,7 +7,9 @@ def convert_from_libcamera_type(value):
         value = (value.x, value.y, value.width, value.height)
     elif isinstance(value, Size):
         value = (value.width, value.height)
-    elif isinstance(value, (list, tuple)) and all(isinstance(item, Rectangle) for item in value):
+    elif isinstance(value, (list, tuple)) and all(
+        isinstance(item, Rectangle) for item in value
+    ):
         value = [(v.x, v.y, v.width, v.height) for v in value]
     return value
 
@@ -16,7 +17,9 @@ def convert_from_libcamera_type(value):
 def colour_space_to_libcamera(colour_space, format):
     # libcamera may complain if we supply an RGB format stream with a YCbCr matrix or range.
     if formats.is_RGB(format):
-        colour_space = ColorSpace(colour_space)  # it could be shared with other streams, so copy it
+        colour_space = ColorSpace(
+            colour_space
+        )  # it could be shared with other streams, so copy it
         colour_space.ycbcrEncoding = ColorSpace.YcbcrEncoding.Null
         colour_space.range = ColorSpace.Range.Full
     return colour_space
@@ -32,7 +35,10 @@ def colour_space_from_libcamera(colour_space):
     if colour_space is None:  # USB webcams might have a "None" colour space
         return None
     for cs in COLOUR_SPACE_TABLE:
-        if colour_space.primaries == cs.primaries and colour_space.transferFunction == cs.transferFunction:
+        if (
+            colour_space.primaries == cs.primaries
+            and colour_space.transferFunction == cs.transferFunction
+        ):
             return cs
     return colour_space
 
@@ -45,7 +51,7 @@ _TRANSFORM_TO_ORIENTATION_TABLE = {
     Transform(transpose=1): Orientation.Rotate90Mirror,
     Transform(transpose=1, hflip=1): Orientation.Rotate270,
     Transform(transpose=1, vflip=1): Orientation.Rotate90,
-    Transform(transpose=1, hflip=1, vflip=1): Orientation.Rotate270Mirror
+    Transform(transpose=1, hflip=1, vflip=1): Orientation.Rotate270Mirror,
 }
 
 _ORIENTATION_TO_TRANSFORM_TABLE = {
@@ -56,7 +62,7 @@ _ORIENTATION_TO_TRANSFORM_TABLE = {
     Orientation.Rotate90Mirror: Transform(transpose=1),
     Orientation.Rotate270: Transform(transpose=1, hflip=1),
     Orientation.Rotate90: Transform(transpose=1, vflip=1),
-    Orientation.Rotate270Mirror: Transform(transpose=1, hflip=1, vflip=1)
+    Orientation.Rotate270Mirror: Transform(transpose=1, hflip=1, vflip=1),
 }
 
 
@@ -72,4 +78,3 @@ def transform_to_orientation(transform):
 def orientation_to_transform(orientation):
     # Return a copy of the object.
     return Transform(_ORIENTATION_TO_TRANSFORM_TABLE[orientation])
-

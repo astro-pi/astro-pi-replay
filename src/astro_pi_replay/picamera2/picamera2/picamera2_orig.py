@@ -1,51 +1,51 @@
-#"""
-#Copied from picamera2 commit e6c6d9232eaee5a1d4ec9178d9694a5554c1b0db
-#under a BSD 2-Clause License.
-#"""
+# """
+# Copied from picamera2 commit e6c6d9232eaee5a1d4ec9178d9694a5554c1b0db
+# under a BSD 2-Clause License.
+# """
 #
 ##!/usr/bin/python3
-#"""picamera2 main class"""
+# """picamera2 main class"""
 #
-#import atexit
-#import json
-#import logging
-#import os
-#import selectors
-#import sys
-#import tempfile
-#import threading
-#import time
-#from enum import Enum
-#from functools import partial
-#from typing import Any, Dict, List, Tuple
+# import atexit
+# import json
+# import logging
+# import os
+# import selectors
+# import sys
+# import tempfile
+# import threading
+# import time
+# from enum import Enum
+# from functools import partial
+# from typing import Any, Dict, List, Tuple
 #
-#import libcamera
-#import numpy as np
-#import picamera2.formats as formats
-#import picamera2.platform as Platform
-#import picamera2.utils as utils
-#from libcamera import controls
-#from picamera2.allocators import Allocator, DmaAllocator
-#from picamera2.encoders import Encoder, H264Encoder, MJPEGEncoder, Quality
-#from picamera2.outputs import FfmpegOutput, FileOutput
-#from picamera2.previews import DrmPreview, NullPreview, QtGlPreview, QtPreview
-#from PIL import Image
+# import libcamera
+# import numpy as np
+# import picamera2.formats as formats
+# import picamera2.platform as Platform
+# import picamera2.utils as utils
+# from libcamera import controls
+# from picamera2.allocators import Allocator, DmaAllocator
+# from picamera2.encoders import Encoder, H264Encoder, MJPEGEncoder, Quality
+# from picamera2.outputs import FfmpegOutput, FileOutput
+# from picamera2.previews import DrmPreview, NullPreview, QtGlPreview, QtPreview
+# from PIL import Image
 #
-#from .configuration import CameraConfiguration
-#from .controls import Controls
-#from .job import Job
-#from .request import CompletedRequest, Helpers
-#from .sensor_format import SensorFormat
+# from .configuration import CameraConfiguration
+# from .controls import Controls
+# from .job import Job
+# from .request import CompletedRequest, Helpers
+# from .sensor_format import SensorFormat
 #
-#STILL = libcamera.StreamRole.StillCapture
-#RAW = libcamera.StreamRole.Raw
-#VIDEO = libcamera.StreamRole.VideoRecording
-#VIEWFINDER = libcamera.StreamRole.Viewfinder
+# STILL = libcamera.StreamRole.StillCapture
+# RAW = libcamera.StreamRole.Raw
+# VIDEO = libcamera.StreamRole.VideoRecording
+# VIEWFINDER = libcamera.StreamRole.Viewfinder
 #
-#_log = logging.getLogger(__name__)
+# _log = logging.getLogger(__name__)
 #
 #
-#class Preview(Enum):
+# class Preview(Enum):
 #    """Enum that applications can pass to the start_preview method."""
 #
 #    NULL = 0
@@ -54,7 +54,7 @@
 #    QTGL = 3
 #
 #
-#class CameraManager:
+# class CameraManager:
 #    def __init__(self):
 #        self.running = False
 #        self.cameras = {}
@@ -118,7 +118,7 @@
 #                os.write(self.cameras[c].notifyme_w, b"\x00")
 #
 #
-#class Picamera2:
+# class Picamera2:
 #    """Welcome to the PiCamera2 class."""
 #
 #    platform = Platform.get_platform()

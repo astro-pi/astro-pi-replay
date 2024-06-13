@@ -10,12 +10,12 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from . import formats
 import piexif
 from pidng.camdefs import Picamera2Camera
 from pidng.core import PICAM2DNG
 from PIL import Image
 
+from . import formats
 from .controls import Controls
 from .sensor_format import SensorFormat
 from .utils import convert_from_libcamera_type
