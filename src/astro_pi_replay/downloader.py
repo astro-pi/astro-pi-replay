@@ -25,7 +25,10 @@ from astro_pi_replay.resources import (
 logger = logging.getLogger(__name__)
 
 GPG_EMAIL = "enquiries@astro-pi.org"
-URL_BASE: str = "https://static.raspberrypi.org/files/astro-pi"
+URL_BASE: str = os.environ.get(
+    f"__{PROGRAM_NAME.upper()}_URL_BASE",
+    "https://static.raspberrypi.org/files/astro-pi",
+)
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
 asset_prefix: str = f"{url_prefix}/assets"
@@ -203,6 +206,10 @@ class Downloader:
     def search_for_sequence(
         self, resolution: tuple[int, int], photography_type: str
     ) -> str:
+        """
+        Returns the id of the most appropriate photo sequence given the requested
+        resolution and photography type.
+        """
         sequence: str
 
         # save it if not already open
