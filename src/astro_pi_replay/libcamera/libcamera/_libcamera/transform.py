@@ -30,10 +30,12 @@ class Transform:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Transform):
             return False
-        return self.rotation == other.rotation and \
-                self.vflip == other.vflip and \
-                self.hflip == other.hflip and \
-                self.transpose == other.transpose
+        return (
+            self.rotation == other.rotation
+            and self.vflip == other.vflip
+            and self.hflip == other.hflip
+            and self.transpose == other.transpose
+        )
 
     def __repr__(self):
         if not self.vflip and not self.hflip:

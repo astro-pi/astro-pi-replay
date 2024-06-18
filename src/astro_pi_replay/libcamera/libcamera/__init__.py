@@ -5,7 +5,6 @@ from ._libcamera import (
     CameraManager,
     ColorSpace,
     ControlId,
-    controls,
     ControlInfo,
     ControlType,
     ControlValue,
@@ -14,10 +13,11 @@ from ._libcamera import (
     Rectangle,
     SensorConfiguration,
     Size,
-    Stream, 
-    StreamRole,
+    Stream,
     StreamConfiguration,
-    Transform
+    StreamRole,
+    Transform,
+    controls,
 )
 
 __all__ = [

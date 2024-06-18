@@ -12,4 +12,3 @@ class NoiseReductionModeEnum(enum.Enum):
     HighQuality = 2
     Minimal = 3
     ZSL = 4
-

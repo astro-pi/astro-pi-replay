@@ -1,7 +1,9 @@
 from .allocator import Allocator
 
+
 class DmaAllocator(Allocator):
     pass
+
 
 # class DmaAllocator(Allocator):
 #     """DmaHeap Allocator"""
@@ -117,4 +119,3 @@ class DmaAllocator(Allocator):
 #             ret = fcntl.ioctl(self.__fb.planes[0].fd, DMA_BUF_IOCTL_SYNC, dma_sync)
 #             if ret:
 #                 logging.error("failed to unlock-sync-write dma buf")
-

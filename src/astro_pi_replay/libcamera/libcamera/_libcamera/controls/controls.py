@@ -2,7 +2,7 @@
 Derived from include/libcamera/controls.h
 """
 import enum
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 
 class ControlType(enum.Enum):
@@ -46,6 +46,7 @@ class ControlInfo:
 
     def __str__(self) -> str:
         return f"[{self.min.value_}..{self.max.value_}]"
+
 
 ControlInfoMap = Dict[ControlId, ControlInfo]
 ControlList = List[ControlValue]

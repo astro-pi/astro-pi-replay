@@ -2,6 +2,7 @@
 Taken from picamera2/allocators/allocator.py
 """
 
+
 class Allocator:
     """Base class for allocators"""
 
@@ -23,6 +24,7 @@ class Allocator:
     def close(self):
         pass
 
+
 class Sync:
     """Base class for allocator syncronisations"""
 
@@ -41,12 +43,13 @@ class Sync:
             # the compressed image size for MJPEG cameras.
             buflen = buflen + p_metadata.bytes_used
             if fd != p.fd:
-                raise RuntimeError('_MappedBuffer: Cannot map non-contiguous buffer!')
+                raise RuntimeError("_MappedBuffer: Cannot map non-contiguous buffer!")
 
-        self.__mm = mmap.mmap(fd, buflen, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
+        self.__mm = mmap.mmap(
+            fd, buflen, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE
+        )
         return self.__mm
 
     def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
         if self.__mm is not None:
             self.__mm.close()
-
