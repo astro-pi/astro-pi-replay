@@ -31,6 +31,7 @@ RUN_CMD: str = "run"
 DOWNLOAD_CMD: str = "download"
 UPDATE_CMD: str = "update"
 VERSION_CMD: str = "version"
+INSTALL_CMD: str = "install"
 
 
 def get_argument_parser() -> ArgumentParser:
@@ -167,6 +168,11 @@ def get_argument_parser() -> ArgumentParser:
     )
     version_parser.set_defaults(cmd=VERSION_CMD)
 
+    install_parser = subparsers.add_parser(
+        INSTALL_CMD, help="Installs the internal libraries globally"
+    )
+    install_parser.set_defaults(cmd=INSTALL_CMD)
+
     return arg_parser
 
 
@@ -243,6 +249,8 @@ def _main(args: Namespace) -> None:
         elif args.cmd == VERSION_CMD:
             print(f"{PROGRAM_CMD_NAME}: {__version__}")
             sys.exit(0)
+        elif args.cmd == INSTALL_CMD:
+            AstroPiExecutor.install_global()
         else:
             get_argument_parser().print_usage()
             sys.exit(1)
