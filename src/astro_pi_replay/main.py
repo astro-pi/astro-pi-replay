@@ -1,3 +1,4 @@
+import asyncio
 import cProfile
 import datetime
 import logging
@@ -176,7 +177,7 @@ def get_argument_parser() -> ArgumentParser:
     return arg_parser
 
 
-def _main(args: Namespace) -> None:
+async def _main(args: Namespace) -> None:
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO, format=LOGGING_FORMAT
     )
@@ -192,7 +193,7 @@ def _main(args: Namespace) -> None:
             is_offline: bool = False
             if args.sequence is None:
                 try:
-                    downloader.check_for_sequences_override()
+                    await downloader.check_for_sequences_override()
                 except (Timeout, ConnectionError) as e:
                     is_offline = True
                     logger.debug(
@@ -207,11 +208,14 @@ def _main(args: Namespace) -> None:
                 )
                 logger.debug(f"Selected {args.sequence}")
 
-            if not downloader.has_installed(
-                args.resolution, args.photography_type, args.sequence
+            if (
+                not downloader.has_installed(
+                    args.resolution, args.photography_type, args.sequence
+                )
+                and not args.streaming_mode
             ):
                 try:
-                    downloader.install(
+                    await downloader.install(
                         args.resolution, args.photography_type, args.sequence
                     )
                 except (Timeout, ConnectionError, HTTPError) as e:
@@ -235,8 +239,8 @@ def _main(args: Namespace) -> None:
             Configuration.from_args(args).save()
             AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
         elif args.cmd == "download":
-            downloader.check_for_sequences_override()
-            downloader.install(
+            await downloader.check_for_sequences_override()
+            await downloader.install(
                 args.resolution,
                 args.photography_type,
                 args.sequence,
@@ -277,4 +281,5 @@ def main() -> None:
         else:
             cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
     else:
-        _main(args)
+        asyncio.get_event_loop().run_until_complete(_main(args))
+        print("completed")
