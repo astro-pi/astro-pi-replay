@@ -54,7 +54,8 @@ def test_main_cli_when_run_given_supplies_default_args(
         assert namespace.sense_hat_snapshot_dir == Path(os.getcwd())
 
 
-def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
+@pytest.mark.asyncio
+async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
     # remove the default test profile set up in conftest
     os.environ.pop(CONFIG_FILE_ENV_VAR)
     os.remove(mock_config_filepath)
@@ -80,7 +81,7 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
 
     # When
     with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
-        _main(namespace)
+        await _main(namespace)
     assert mock_config_filepath.exists()
 
 

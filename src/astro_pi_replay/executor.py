@@ -5,6 +5,7 @@ import logging
 import os
 import platform
 import shutil
+import site
 import subprocess
 import sys
 import tempfile
@@ -519,6 +520,19 @@ class AstroPiExecutor:
         venv_resolver.copy_stubs(AstroPiExecutor.MODULES_TO_STUB, executor_install_path)
 
         return venv_resolver
+
+    @staticmethod
+    def install_global():
+        logger.debug("Installing stubbed modules in the venv...")
+        destination: str = site.getsitepackages()[0]
+
+        for module in AstroPiExecutor.MODULES_TO_STUB:
+            logger.debug(f"Installing {module}")
+            shutil.copytree(
+                Path(__file__).parent / module,
+                Path(destination) / module,
+            )
+        logger.debug("Done")
 
     @staticmethod
     def run(

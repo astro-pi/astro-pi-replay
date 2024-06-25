@@ -3,6 +3,7 @@ from test.test_utils import get_test_resource
 from typing import Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from requests.models import Response
 
 from astro_pi_replay.downloader import (
@@ -78,7 +79,8 @@ def fake_get(substituter: Optional[Callable[[str], str]]):
 # tests
 
 
-def test_when_sequence_update_available_should_update(tmp_path: Path):
+@pytest.mark.asyncio
+async def test_when_sequence_update_available_should_update(tmp_path: Path):
     downloader: Downloader = Downloader()
     downloaded_sequences_file: Path = tmp_path / "sequences.csv"
 
@@ -88,7 +90,7 @@ def test_when_sequence_update_available_should_update(tmp_path: Path):
         with patch("astro_pi_replay.downloader.requests") as mock_requests:
             mocked_response: MagicMock = response_200_for(SEQUENCES_FILENAME)
             mock_requests.get.return_value = mocked_response
-            downloader.check_for_sequences_override()
+            await downloader.check_for_sequences_override()
             assert (
                 mock_requests.method_calls[0].args[0]
                 == f"{version_url_prefix}/{SEQUENCES_FILENAME}"
@@ -98,7 +100,8 @@ def test_when_sequence_update_available_should_update(tmp_path: Path):
     assert downloaded_sequences_file.read_text() == SEQUENCES_FILE.read_text()
 
 
-def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
+@pytest.mark.asyncio
+async def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
     downloader: Downloader = Downloader()
     sequences_file: Path = tmp_path / "sequences.csv"
     assert sequences_file.exists() is False
@@ -109,7 +112,7 @@ def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
         # Mock the sequences.csv check response
         with patch("astro_pi_replay.downloader.requests") as mock_requests:
             mock_requests.get.return_value = response_404()
-            downloader.check_for_sequences_override()
+            await downloader.check_for_sequences_override()
             assert (
                 mock_requests.method_calls[0].args[0]
                 == f"{version_url_prefix}/{SEQUENCES_FILENAME}"
@@ -118,7 +121,8 @@ def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
     assert sequences_file.exists() is False
 
 
-def test_downloader_should_download():
+@pytest.mark.asyncio
+async def test_downloader_should_download():
     downloader = Downloader()
     name = "replay"
     with patch("astro_pi_replay.downloader.requests") as mock_requests:
@@ -126,7 +130,7 @@ def test_downloader_should_download():
             # replace the sequence id with TestDownload
             lambda x: x.replace(name, "TestDownload")
         )
-        downloader.download(name)
+        await downloader.download(name)
         assert (downloader.tempdir / f"{name}.zip").exists()
         urls = set((call.args[0] for call in mock_requests.method_calls))
         assert f"{asset_prefix}/replay.zip.sha256" in urls
@@ -134,8 +138,9 @@ def test_downloader_should_download():
         assert f"{asset_prefix}/replay.zip" in urls
 
 
+@pytest.mark.asyncio
 @patch("astro_pi_replay.main.Downloader.has_installed", return_value=False)
-def test_downloader_should_download_and_install_data(_, tmp_path: Path):
+async def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     name = "replay"
     downloader: Downloader = Downloader()
     downloader.checked_for_sequences_override = True
@@ -146,7 +151,7 @@ def test_downloader_should_download_and_install_data(_, tmp_path: Path):
             lambda x: x.replace(name, "TestDownload")
         )
         with patch("astro_pi_replay.downloader.get_replay_dir", return_value=tmp_path):
-            downloader.install((1280, 720), "VIS", name)
+            await downloader.install((1280, 720), "VIS", name)
 
     vis_dir: Path = tmp_path / "VIS"
     assert vis_dir.exists() and vis_dir.is_dir()
@@ -154,10 +159,12 @@ def test_downloader_should_download_and_install_data(_, tmp_path: Path):
 
 
 # TODO this is an integration test
-def test_downloader_when_no_sha256_installed_skips():
+@pytest.mark.asyncio
+async def test_downloader_when_no_sha256_installed_skips():
     pass
 
 
 # TODO this is an integration test
-def test_downloader_when_no_gpg_installed_skips():
+@pytest.mark.asyncio
+async def test_downloader_when_no_gpg_installed_skips():
     pass
