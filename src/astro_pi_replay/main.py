@@ -208,11 +208,8 @@ async def _main(args: Namespace) -> None:
                 )
                 logger.debug(f"Selected {args.sequence}")
 
-            if (
-                not downloader.has_installed(
-                    args.resolution, args.photography_type, args.sequence
-                )
-                and not args.streaming_mode
+            if not downloader.has_installed(
+                args.resolution, args.photography_type, args.sequence
             ):
                 try:
                     await downloader.install(
