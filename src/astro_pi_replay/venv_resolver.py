@@ -297,14 +297,6 @@ class VenvResolver:
                 + "However, running in replay mode will use a "
                 + "separate copied (modified) venv."
             )
-            logger.info("Preparing environment (this may take a few moments)...")
-            shutil.copytree(sys.prefix, venv_dir, symlinks=True)
-        else:
-            import venv
-
-            venv.create(
-                venv_dir, symlinks=True, system_site_packages=True, with_pip=True
-            )
 
             # Incorporate dependencies from the current venv into the
             # Astro-Pi-Replay venv
