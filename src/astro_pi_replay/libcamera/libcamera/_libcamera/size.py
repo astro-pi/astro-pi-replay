@@ -10,6 +10,9 @@ class Size:
         self.width = width
         self.height = height
 
+    def __repr__(self):
+        return f"{self.width}, {self.height}"
+
     def __lt__(self, other: "Size"):
         if self.width < other.width and self.height < other.height:
             return True
@@ -26,6 +29,9 @@ class Size:
 
         return self.width < other.width
 
+    def __le__(self, other):
+        return self.__lt__(other) or self.__eq__(other)
+
     def __eq__(self, other: object):
         if not isinstance(other, Size):
             return False
@@ -33,6 +39,9 @@ class Size:
 
     def __gt__(self, other: "Size"):
         return not self.__lt__(other) and not self.__eq__(other)
+
+    def __ge__(self, other):
+        return self.__gt__(other) or self.__eq__(other)
 
 
 class SizeRange:
@@ -53,11 +62,22 @@ class SizeRange:
             self.max = size
         if size and max_size:
             self.min = size
-            self.max = size
+            self.max = max_size
         self.hStep = hstep
         self.vStep = vstep
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, SizeRange):
+            return False
+        return self.min == other.min and \
+                self.max == other.max
+
+    def __repr__(self):
+        return f"libcamera.SizeRange(({self.min}), ({self.max}), " + \
+            f"{self.hStep}, {self.vStep})"
+
     def contains(self, size: Size):
+        print(f"Checking if {self} contains {size}")
         if (
             size.width < self.min.width
             or size.width > self.max.width

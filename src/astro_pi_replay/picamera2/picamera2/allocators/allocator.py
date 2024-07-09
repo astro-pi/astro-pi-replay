@@ -1,6 +1,10 @@
 """
 Taken from picamera2/allocators/allocator.py
 """
+from libcamera import Stream, FrameBuffer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Allocator:
@@ -12,13 +16,13 @@ class Allocator:
     def allocate(self, libcamera_config, use_case):
         pass
 
-    def buffers(self, stream):
+    def buffers(self, stream: Stream) -> list[FrameBuffer]:
         pass
 
-    def acquire(self, bufs):
+    def acquire(self, buffers):
         pass
 
-    def release(self, bufs):
+    def release(self, buffers):
         pass
 
     def close(self):
@@ -45,9 +49,12 @@ class Sync:
             if fd != p.fd:
                 raise RuntimeError("_MappedBuffer: Cannot map non-contiguous buffer!")
 
+        logger.info(f"allocator: {fd}")
+
         self.__mm = mmap.mmap(
             fd, buflen, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE
         )
+        logger.info(self.__mm)
         return self.__mm
 
     def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):

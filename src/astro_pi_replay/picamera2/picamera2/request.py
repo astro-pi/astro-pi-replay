@@ -2,13 +2,16 @@
 Copied from picamera2 commit e6c6d9232eaee5a1d4ec9178d9694a5554c1b0db
 under a BSD 2-Clause License.
 """
+from __future__ import annotations
 
 import io
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from astro_pi_replay.libcamera.libcamera import Request
 import numpy as np
 import piexif
 from pidng.camdefs import Picamera2Camera
@@ -21,10 +24,13 @@ from .sensor_format import SensorFormat
 from .utils import convert_from_libcamera_type
 
 _log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from astro_pi_replay.picamera2.picamera2.picamera2 import Picamera2
 
 class _MappedBuffer:
-    def __init__(self, request, stream, write=True):
+    def __init__(self, request: Request, stream, write=True):
         if isinstance(stream, str):
             stream = request.stream_map[stream]
         self.__fb = request.request.buffers[stream]
@@ -41,7 +47,7 @@ class _MappedBuffer:
 
 
 class MappedArray:
-    def __init__(self, request, stream, reshape=True, write=True):
+    def __init__(self, request: Request, stream, reshape=True, write=True):
         self.__request = request
         self.__stream = stream
         self.__buffer = _MappedBuffer(request, stream, write=write)
@@ -104,7 +110,7 @@ class MappedArray:
 
 
 class CompletedRequest:
-    def __init__(self, request, picam2):
+    def __init__(self, request: Request, picam2: Picamera2):
         self.request = request
         self.ref_count = 1
         self.lock = picam2.request_lock
@@ -113,7 +119,9 @@ class CompletedRequest:
         self.configure_count = picam2.configure_count
         self.config = self.picam2.camera_config.copy()
         self.stream_map = self.picam2.stream_map.copy()
+        logger.info("Inside CompletedRequest __init__")
         with self.lock:
+            logger.info(f"buffers: {self.request.buffers}")
             self.syncs = [
                 picam2.allocator.sync(self.picam2.allocator, buffer, False)
                 for buffer in self.request.buffers.values()
@@ -158,6 +166,7 @@ class CompletedRequest:
         """Make a 1d numpy array from the named stream's buffer."""
         if self.stream_map.get(name, None) is None:
             raise RuntimeError(f"Stream {name!r} is not defined")
+        logger.info(f"make_buffer: {self.stream_map.get(name)}")
         with _MappedBuffer(self, name, write=False) as b:
             return np.array(b, dtype=np.uint8)
 

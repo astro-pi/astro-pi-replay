@@ -29,8 +29,8 @@ class StreamFormats:
         self.formats: dict[PixelFormat, list[SizeRange]] = formats
 
     @property
-    def pixel_formats(self) -> Iterable[PixelFormat]:
-        return self.formats.keys()
+    def pixel_formats(self) -> list[PixelFormat]:
+        return list(self.formats.keys())
 
         #        pixel_formats=[libcamera.PixelFormat('SRGGB10_CSI2P'), libcamera.PixelFormat('SRGGB12_CSI2P')]
 
@@ -50,7 +50,8 @@ class StreamFormats:
 
     # [(libcamera.PixelFormat('SRGGB10_CSI2P'), [libcamera.Size(1332, 990)]),
     # (libcamera.PixelFormat('SRGGB12_CSI2P'), [libcamera.Size(2028, 1080), libcamera.Size(2028, 1520), libcamera.Size(4056, 3040)])]
-    def sizes(self, pixel_format: PixelFormat):
+
+    def sizes(self, pixel_format: PixelFormat) -> list[Size] | None:
         sizes: list[Size] = []
 
         rangeDiscreteSizes: list[Size] = [
@@ -115,20 +116,27 @@ class StreamFormats:
         # Try creating a list of discrete sizes
         ranges: list[SizeRange] = self.formats[pixel_format]
         discrete: bool = True
-        for range in ranges:
-            if range.min != range.max:
+        for _range in ranges:
+            print(f"range: {_range}")
+            print(f"min: {_range.min}")
+            print(f"max: {_range.max}")
+
+            if _range.min != _range.max:
                 discrete = False
                 break
-            sizes.append(range.min)
+            sizes.append(_range.min)
 
         # If discrete not possible generate from range.
         if not discrete:
+            print("Not discrete")
             if len(ranges) != 1:
                 log.error("Range format is ambiguous")
                 return []
             limit: SizeRange = ranges[0]
+            print(f"limit: {limit}")
             for size in rangeDiscreteSizes:
                 if limit.contains(size):
+                    print(f"adding {size}")
                     sizes.append(size)
 
         return sorted(sizes)

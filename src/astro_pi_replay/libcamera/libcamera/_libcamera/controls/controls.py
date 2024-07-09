@@ -22,12 +22,14 @@ class ControlId:
         self.id: int = id
         self.name: str = name
         # suffixed with underscore since type is a reserved word
-        self.type_: ControlType = type_
+        self.type: ControlType = type_
 
 
 class ControlValue:
-    def __init__(self, t: object) -> None:
-        self.type_: ControlType = ControlType.Null
+    def __init__(self, 
+                 t: object, 
+                 type_: ControlType = ControlType.Null) -> None:
+        self.type_: ControlType = type_
         self.numElements_: int = 0
         self.value_: object = t
 
@@ -49,4 +51,4 @@ class ControlInfo:
 
 
 ControlInfoMap = Dict[ControlId, ControlInfo]
-ControlList = List[ControlValue]
+ControlList = Dict[int, ControlValue]

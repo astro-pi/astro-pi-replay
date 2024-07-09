@@ -1,18 +1,29 @@
+from __future__ import annotations
+import atexit
 import os
 from typing import Any, Optional
+from pathlib import Path
+from queue import Queue
+
+
+
+from astro_pi_replay.utils import nonblocking_pipe
+from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.resources import get_replay_sequence_dir
 
 from .camera import Camera, HQCameraAdapter
 from .controls.controls import (
     ControlId,
     ControlInfo,
     ControlInfoMap,
-    ControlList,
     ControlType,
     ControlValue,
 )
 from .rectangle import Rectangle
+from .request import Request
 from .size import Size
-from .stream import Stream, StreamRole
+from .stream import Stream
+from .pipeline_handler import PipelineHandler
 
 _RPI4_HQ_CAM_PROPERTIES: dict[ControlId, Any] = {
     ControlId(3, "Model", ControlType.String): "imx477",
@@ -104,8 +115,11 @@ _RPI4_HQ_CAM_CONTROLS: ControlInfoMap = {
 # TODO - stub this method
 
 
-def _build_camera() -> Camera:
-    cam = HQCameraAdapter("/base/soc/i2c0mux/i2c@1/imx477@1a")
+def _build_camera(executor: AstroPiExecutor, 
+                  pipeline_handler: PipelineHandler) -> Camera:
+    cam = HQCameraAdapter(executor, 
+                          pipeline_handler,
+                          "/base/soc/i2c0mux/i2c@1/imx477@1a")
     cam.properties = _RPI4_HQ_CAM_PROPERTIES
     cam.controls = _RPI4_HQ_CAM_CONTROLS
     return cam
@@ -121,18 +135,76 @@ class CameraManager:
     #     self.id = id
     #     self.streams = streams
 
-    cameras: list[Camera] = [_build_camera()]
 
-    def __init__(self) -> None:
-        _, w = os.pipe()
-        self.event_fd: int = w
+    def __init__(self, executor: AstroPiExecutor) -> None:
+        r, w = nonblocking_pipe()
+        self._w = os.fdopen(w, 'wb')
+        atexit.register(self._close)
+        self.event_fd: int = r
+        self._completed_requests: Queue[Request] = Queue()
+        self.cameras: list[Camera] = [_build_camera(executor, PipelineHandler(self))]
+        self._executor: AstroPiExecutor = executor
+
+    def _close(self):
+        if self._w.closed:
+            self._w.close()
 
     @staticmethod
-    def singleton() -> "CameraManager":
+    def singleton(executor: Optional[AstroPiExecutor] = None) -> "CameraManager":
         instance: "CameraManager"
         if CameraManager._instance is None:
-            _instance = CameraManager()
+            if executor is None:
+                executor = AstroPiExecutor()
+            _instance = CameraManager(executor)
             instance = _instance
         else:
             instance = CameraManager._instance
         return instance
+
+    # def _read(fd, dest, max_size) -> int:
+    #     """
+    #     mimics the read sys command
+    #     """
+    #     try:
+    #         buf = os.read(self.event_fd, 8)
+    #         if not buf:
+    #             print("EOF")
+    #         else:
+    #             pass
+    #     finally:
+    #         pass
+
+    def _process_requests(self):
+        """Approximation of what might be running in the background... """
+
+        for camera in self.cameras:
+            while len(camera._queued_requests) > 0:
+                request: Request = camera._queued_requests.popleft()
+
+                _name: str = str(
+                    self._executor._replay_next(
+                        str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
+                        "datetime",
+                        ["name"],
+                        allow_interpolation=False,
+                    )
+                )
+
+                image_path: Path = get_replay_sequence_dir() / "photos" / _name
+                # im: Image.Image = Image.open(image_path)
+                # TODO put the image into the relevant bit of the request
+                
+                request.status = Request.Status.Complete
+                self._completed_requests.put(request)
+
+    def get_ready_requests(self) -> list[Request]:
+        # this has to be a side-effect in Pyodide since
+        # there is no threading and multi-processing.
+
+        to_return: list[Request] = []
+        try:
+            while True:
+                to_return.append(self._completed_requests.get_nowait())
+        finally:
+            return to_return
+

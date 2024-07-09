@@ -12,12 +12,17 @@ from functools import partial
 from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, List, Literal, Optional, TypedDict, Union, cast
+import logging
 
 # . import picamera2.formats as formats
 # from . import formats
 import astro_pi_replay.picamera2.picamera2.formats as formats
 import astro_pi_replay.picamera2.picamera2.utils as utils
+# import astro_pi_replay.libcamera.libcamera as libcamera
 import libcamera
+# import astro_pi_replay.libcamera.libcamera as libcamera
+from astro_pi_replay.utils import nonblocking_pipe
+from astro_pi_replay.libcamera.libcamera._libcamera.cameramanager import _build_camera
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from PIL import Image
@@ -26,9 +31,12 @@ from .allocators import Allocator, DmaAllocator
 from .configuration import CameraConfiguration
 from .controls import Controls
 from .job import Job
+from .previews import DrmPreview, NullPreview, QtGlPreview, QtPreview
 from .request import CompletedRequest, Helpers
 from .sensor_format import SensorFormat
 
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 _log = logging.getLogger(__name__)
 Config = dict
 
@@ -74,18 +82,20 @@ class _ConfigurationDict(TypedDict):
 
 
 class CameraManager:
+
     def __init__(self):
         self.running: bool = False
         self.cameras = {}
         self._lock: Lock = threading.Lock()
 
     def setup(self):
-        self.cms: libcamera.Camera = libcamera.CameraManager.singleton()
+        self.cms: libcamera.CameraManager = libcamera.CameraManager.singleton()
         self.thread: threading.Thread = threading.Thread(
             target=self.listen, daemon=True
         )
         self.running = True
         self.thread.start()
+        logger.info("Started picamera2.CameraManager thread")
 
     def add(self, index, camera):
         with self._lock:
@@ -108,26 +118,38 @@ class CameraManager:
         sel = selectors.DefaultSelector()
         # geraint: this listens for events dispatched by the separate libcamera process
         # and passes on the CompletedRequests to the camera's _requests attribute.
+        logger.info("Running from picamera2.CameraManager.listen")
         sel.register(self.cms.event_fd, selectors.EVENT_READ, self.handle_request)
 
+        reader = None
         while self.running:
             events = sel.select(0.2)
             for key, _ in events:
+                logger.info(f"key: {key.fd}")
+                if reader is None:
+                    reader = os.fdopen(key.fd, 'rb')
+                logger.info(reader.read() is None)
                 callback = key.data
                 callback()
 
         sel.unregister(self.cms.event_fd)
         self.cms = None
 
-    def handle_request(self, flushid=None):
+    def handle_request(self, *args, flushid=None, **kwargs):
         """Handle requests
+
 
         :param cameras: Dictionary of Picamera2
         :type cameras: dict
         """
+        logger.info("Handling request in picamera2.CameraManager")
+        logger.info(args)
+        logger.info(kwargs)
+        self.cms
         with self._lock:
             cams = set()
             for req in self.cms.get_ready_requests():
+                logger.info(f"ready request: {req}")
                 if (
                     req.status == libcamera.Request.Status.Complete
                     and req.cookie != flushid
@@ -278,8 +300,7 @@ class Picamera2(abc.ABC):
                 os.environ["LIBCAMERA_RPI_TUNING_FILE"] = tuning_file.name
         else:
             os.environ.pop("LIBCAMERA_RPI_TUNING_FILE", None)  # Use default tuning
-        # self.notifyme_r, self.notifyme_w = os.pipe2(os.O_NONBLOCK)
-        self.notifyme_r, self.notifyme_w = os.pipe()
+        self.notifyme_r, self.notifyme_w = nonblocking_pipe()
         self.notifymeread = os.fdopen(self.notifyme_r, "rb")
         # Get the real libcamera internal number.
         camera_num = self.global_camera_info()[camera_num]["Num"]
@@ -671,8 +692,11 @@ class Picamera2(abc.ABC):
         # Stride is sometimes set to None in the stream_config, so need to guard against that case
         if stream_config.get("stride") is not None:
             libcamera_stream_config.stride = stream_config["stride"]
-        else:
-            libcamera_stream_config.stride = 0
+        # in the real implementation this is fetched 
+        # back later in the _update_camera_config method... but 
+        # we haven't yet done this in the stream_config.validate() method
+        # else:
+        #     libcamera_stream_config.stride = 0
 
     @staticmethod
     def _add_display_and_encode(config, display, encode) -> None:
@@ -791,6 +815,55 @@ class Picamera2(abc.ABC):
                 best_mode = mode
         return best_mode
 
+    def attach_preview(self, preview) -> None:
+        if self._preview:
+            raise RuntimeError("Preview is already running")
+        self._preview = preview
+        self._event_loop_running = True
+
+    def start_preview(self, preview=False, **kwargs) -> None:
+        """
+        Start the given preview which drives the camera processing.
+
+        The preview may be either:
+          None or False - in which case a NullPreview is made,
+          True - which we hope in future to use to autodetect
+          a Preview enum value - in which case a preview of that type is made,
+          or an actual preview object.
+
+        When using the enum form, extra keyword arguments can be supplied that
+        will be forwarded to the preview class constructor.
+        """
+        if self._event_loop_running:
+            raise RuntimeError("An event loop is already running")
+
+        if preview is True:
+            # Crude attempt at "autodetection" but which will mostly (?) work. We will
+            # probably find situations that need fixing, VNC perhaps.
+            display = os.getenv('DISPLAY')
+            if display is None:
+                preview = Preview.DRM
+            elif display.startswith(':'):
+                preview = Preview.QTGL
+            else:
+                preview = Preview.QT
+        if not preview:  # i.e. None or False
+            preview = NullPreview()
+        elif isinstance(preview, Preview):
+            preview_table = {Preview.NULL: NullPreview,
+                             Preview.DRM: DrmPreview,
+                             Preview.QT: QtPreview,
+                             Preview.QTGL: QtGlPreview}
+            preview = preview_table[preview](**kwargs)
+        else:
+            # Assume it's already a preview object.
+            pass
+
+        # The preview windows call the attach_preview method.
+        self._preview_stopped.clear()
+        preview.start(self)
+
+
     def _make_libcamera_config(self, camera_config):
         # Make a libcamera configuration object from our Python configuration.
 
@@ -822,11 +895,14 @@ class Picamera2(abc.ABC):
         self._update_libcamera_stream_config(
             libcamera_config.at(self.main_index), camera_config["main"], buffer_count
         )
+
+
         libcamera_config.at(
             self.main_index
         ).color_space = utils.colour_space_to_libcamera(
             camera_config["colour_space"], camera_config["main"]["format"]
         )
+
         if self.lores_index >= 0:
             self._update_libcamera_stream_config(
                 libcamera_config.at(self.lores_index),
@@ -923,8 +999,33 @@ class Picamera2(abc.ABC):
         size = stream_config["size"]
         stream_config["size"] = (size[0] - size[0] % align, size[1] - size[1] % 2)
 
+    def _make_requests(self) -> List[libcamera.Request]:
+        """Make libcamera request objects.
+
+        Makes as many as the number of buffers in the stream with the smallest number of buffers.
+
+        :raises RuntimeError: Failure
+        :return: requests
+        :rtype: List[libcamera.Request]
+        """
+        num_requests = min([len(self.allocator.buffers(stream)) for stream in self.streams])
+        requests = []
+        for i in range(num_requests):
+            request = self.camera.create_request(self.camera_idx)
+            if request is None:
+                raise RuntimeError("Could not create request")
+
+            for stream in self.streams:
+                # This now throws an error if it fails.
+                request.add_buffer(stream, self.allocator.buffers(stream)[i])
+            requests.append(request)
+        return requests
+
     def _run_process_requests(self):
-        pass
+        """Cause the process_requests method to run in the preview 
+        event loop again."""
+        os.write(self.notifyme_w, b"\x00")
+        logger.info("Written null byte to notifyme_w")
 
     @abc.abstractmethod
     def create_preview_configuration(
@@ -1046,6 +1147,9 @@ class Picamera2(abc.ABC):
                 # stop commands, for which no requests are needed).
                 if only_job and (self.completed_requests or immediate):
                     self._run_process_requests()
+                else:
+                    logger.info(f"only_job: {only_job}")
+                    logger.info(f"completed requests: {self.completed_requests}")
             return job.get_result() if wait else job
 
     @property
@@ -1071,6 +1175,51 @@ class Picamera2(abc.ABC):
     @video_configuration.setter
     def video_configuration(self, value):
         self.video_configuration_ = CameraConfiguration(value, self)
+
+    def start_(self) -> None:
+        """Start the camera system running."""
+        if self.camera_config is None:
+            raise RuntimeError("Camera has not been configured")
+        if self.started:
+            return
+        controls = self.controls.get_libcamera_controls()
+        self.controls = Controls(self)
+        # camera.start() now throws an error if it fails.
+        self.camera.start(controls)
+        for request in self._make_requests():
+            logger.info(f"Queuing requests...{request}")
+            self.camera.queue_request(request)
+        _log.info("Camera started")
+        self.started = True
+
+
+    def start(self, config=None, show_preview=False) -> None:
+        """
+        Start the camera system running.
+
+        Camera controls may be sent to the camera before it starts running.
+
+        The following parameters may be supplied:
+
+        config - if not None this is used to configure the camera. This is just a
+            convenience so that you don't have to call configure explicitly.
+
+        show_preview - whether to show a preview window. You can pass in the preview
+            type or True to attempt to autodetect. If left as False you'll get no
+            visible preview window but the "NULL preview" will still be run. The
+            value None would mean no event loop runs at all and you would have to
+            implement your own.
+        """
+        if self.camera_config is None and config is None:
+            config = "preview"
+        if config is not None:
+            self.configure(config)
+        if self.camera_config is None:
+            raise RuntimeError("Camera has not been configured")
+        # By default we will create an event loop is there isn't one running already.
+        if show_preview is not None and not self._event_loop_running:
+            self.start_preview(show_preview)
+        self.start_()
 
     def stop_(self, request=None) -> tuple[bool, None]:
         """Stop the camera.
@@ -1112,6 +1261,7 @@ class Picamera2(abc.ABC):
             self.stop_()
 
     def process_requests(self, display) -> None:
+        logger.info("Inside process_requests")
         # This is the function that the event loop, which runs externally to us, must
         # call.
         requests = []
@@ -1231,13 +1381,27 @@ class Picamera2(abc.ABC):
 def Picamera2Adapter(
     maybe_executor: Optional[AstroPiExecutor], *args, **kwargs
 ) -> Picamera2:
-    executor: AstroPiExecutor
+    _executor: AstroPiExecutor
     if maybe_executor is None:
-        executor = AstroPiExecutor()
+        _executor = AstroPiExecutor()
     else:
-        executor = maybe_executor
+        _executor = maybe_executor
 
     class _Picamera2Adapter(Picamera2):
+
+        # pass the executor instance to the libcamera stubs
+        # by holding a reference to the original singleton
+        # method and then overriding it
+        original = libcamera.CameraManager.singleton
+        @staticmethod
+        def custom_singleton(
+                executor: Optional[AstroPiExecutor] = None) -> \
+                        libcamera.CameraManager:
+            if executor is None:
+                executor = _executor
+            return _Picamera2Adapter.original(executor)
+        libcamera.CameraManager.singleton = staticmethod(custom_singleton)
+
         title_fields: list[
             str
         ]  # picam2.title_fields = ["ExposureTime", "AnalogueGain"]
@@ -1257,11 +1421,9 @@ def Picamera2Adapter(
         def capture_file_(
             self, file_output, name: str, format=None, exif_data=None
         ) -> tuple[bool, Optional[dict]]:
-            # TODO  get the next image...
-            # I suppose if it
-
             if not self.completed_requests:
                 return (False, None)
+            logger.info(f"capture_file completed reqs: {self.completed_requests}")
             request = self.completed_requests.pop(0)
 
             if (
@@ -1503,11 +1665,11 @@ def Picamera2Adapter(
             self._add_display_and_encode(config, display, encode)
             return config
 
-        def set_controls(self, controls: dict):
-            pass
+        # def set_controls(self, controls: dict):
+        #     pass
 
-        def start(self):
-            pass
+        # def start(self):
+        #     pass
 
         def start_and_capture_file(
             self,
@@ -1519,7 +1681,7 @@ def Picamera2Adapter(
             exif_data=None,
         ):
             _name: str = str(
-                executor._replay_next(
+                _executor._replay_next(
                     str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
                     "datetime",
                     ["name"],
@@ -1551,12 +1713,6 @@ def Picamera2Adapter(
                 )
 
         def start_and_record_video(self, output, duration=5):
-            pass
-
-        def start_preview(self):
-            pass
-
-        def stop_preview(self):
             pass
 
         def switch_mode_and_capture_file(

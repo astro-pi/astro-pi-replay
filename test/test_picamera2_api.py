@@ -141,6 +141,13 @@ def test_configure_with_default_preview_configuration(executor: AstroPiExecutor)
     assert picam2.configure_count == 1
 
 
+def test_start(executor: AstroPiExecutor):
+    cam = Picamera2Adapter(executor)
+    cam.start()
+    import time
+    time.sleep(5)
+    cam
+
 ##############
 # Test methods
 ##############
