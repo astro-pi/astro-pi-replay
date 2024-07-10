@@ -9,9 +9,10 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from astro_pi_replay.libcamera.libcamera import Request
+from libcamera import Request
+from libcamera import Stream
 import numpy as np
 import piexif
 from pidng.camdefs import Picamera2Camera
@@ -30,10 +31,12 @@ if TYPE_CHECKING:
     from astro_pi_replay.picamera2.picamera2.picamera2 import Picamera2
 
 class _MappedBuffer:
-    def __init__(self, request: Request, stream, write=True):
+    def __init__(self, request: CompletedRequest, stream, write=True):
         if isinstance(stream, str):
             stream = request.stream_map[stream]
         self.__fb = request.request.buffers[stream]
+        print(f"__fb: {self.__fb}")
+        print(request.picam2.allocator)
         self.__sync = request.picam2.allocator.sync(
             request.picam2.allocator, self.__fb, write
         )
@@ -47,7 +50,9 @@ class _MappedBuffer:
 
 
 class MappedArray:
-    def __init__(self, request: Request, stream, reshape=True, write=True):
+    def __init__(self, request: CompletedRequest, 
+                 stream, reshape: bool=True, 
+                 write: bool=True):
         self.__request = request
         self.__stream = stream
         self.__buffer = _MappedBuffer(request, stream, write=write)
@@ -117,8 +122,8 @@ class CompletedRequest:
         self.picam2 = picam2
         self.stop_count = picam2.stop_count
         self.configure_count = picam2.configure_count
-        self.config = self.picam2.camera_config.copy()
-        self.stream_map = self.picam2.stream_map.copy()
+        self.config: dict = self.picam2.camera_config.copy()
+        self.stream_map: dict[str, Optional[Stream]] = self.picam2.stream_map.copy()
         logger.info("Inside CompletedRequest __init__")
         with self.lock:
             logger.info(f"buffers: {self.request.buffers}")
@@ -166,7 +171,7 @@ class CompletedRequest:
         """Make a 1d numpy array from the named stream's buffer."""
         if self.stream_map.get(name, None) is None:
             raise RuntimeError(f"Stream {name!r} is not defined")
-        logger.info(f"make_buffer: {self.stream_map.get(name)}")
+        print(f"make_buffer for stream {name}: {self.stream_map.get(name).configuration.pixel_format}")
         with _MappedBuffer(self, name, write=False) as b:
             return np.array(b, dtype=np.uint8)
 
@@ -216,6 +221,7 @@ class Helpers:
     def make_array(self, buffer, config):
         """Make a 2d numpy array from the named stream's buffer."""
         array = buffer
+        print(f"config: {config}")
         fmt = config["format"]
         w, h = config["size"]
         stride = config["stride"]
@@ -226,6 +232,7 @@ class Helpers:
         # Working around this requires another expensive copy of all the data.
         if fmt in ("BGR888", "RGB888"):
             if stride != w * 3:
+                print(array.shape)
                 array = array.reshape((h, stride))
                 array = np.asarray(array[:, : w * 3], order="C")
             image = array.reshape((h, w, 3))

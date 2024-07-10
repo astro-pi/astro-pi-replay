@@ -18,11 +18,10 @@ import logging
 # from . import formats
 import astro_pi_replay.picamera2.picamera2.formats as formats
 import astro_pi_replay.picamera2.picamera2.utils as utils
-# import astro_pi_replay.libcamera.libcamera as libcamera
 import libcamera
-# import astro_pi_replay.libcamera.libcamera as libcamera
 from astro_pi_replay.utils import nonblocking_pipe
-from astro_pi_replay.libcamera.libcamera._libcamera.cameramanager import _build_camera
+from libcamera._libcamera.cameramanager import _build_camera
+
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from PIL import Image
@@ -692,11 +691,8 @@ class Picamera2(abc.ABC):
         # Stride is sometimes set to None in the stream_config, so need to guard against that case
         if stream_config.get("stride") is not None:
             libcamera_stream_config.stride = stream_config["stride"]
-        # in the real implementation this is fetched 
-        # back later in the _update_camera_config method... but 
-        # we haven't yet done this in the stream_config.validate() method
-        # else:
-        #     libcamera_stream_config.stride = 0
+        else:
+            libcamera_stream_config.stride = 0
 
     @staticmethod
     def _add_display_and_encode(config, display, encode) -> None:

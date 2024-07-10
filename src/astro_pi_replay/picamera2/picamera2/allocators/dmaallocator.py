@@ -34,6 +34,7 @@ class DmaAllocator(Allocator):
         self.open_fds = []
 
         for c, stream_config in enumerate(libcamera_config):
+            print(c, stream_config)
             stream = stream_config.stream
             fb = []
             for i in range(stream_config.buffer_count):
@@ -59,6 +60,7 @@ class DmaAllocator(Allocator):
             self.frame_buffers[stream] = fb
             msg = f"Allocated {len(fb)} buffers for stream {c} with fds {[f.planes[0].fd for f in self.frame_buffers[stream]]}"
             _log.debug(msg)
+            print(msg)
 
     def buffers(self, stream):
         return self.frame_buffers[stream]

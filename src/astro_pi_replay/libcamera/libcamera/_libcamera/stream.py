@@ -1,6 +1,7 @@
+from __future__ import annotations
 import enum
 import logging
-from typing import Iterable, Optional
+from typing import Optional
 
 from .colorspace import ColorSpace
 from .pixel_format import PixelFormat
@@ -10,7 +11,9 @@ log = logging.getLogger(__name__)
 
 
 class Stream:
-    pass
+
+    def __init__(self, configuration: StreamConfiguration):
+        self.configuration: StreamConfiguration = configuration
 
 
 class StreamRole(enum.Enum):

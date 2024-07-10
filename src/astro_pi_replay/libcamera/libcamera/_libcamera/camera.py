@@ -65,15 +65,25 @@ class CameraConfiguration:
     def validate(self) -> Status:
         # TODO copy implementation from libcamera?
         # src/libcamera/pipeline/rpi/common/pipeline_base.cpp
-        
-        # for stream_config in self._stream_configurations:
-        #     if stream_config.stride == 0 and \
-        #             stream_config.pixel_format == pf.BGR888:
-        #                 stream_config.stride = 12192
-        # if stride == 0:
+        status = Status.Valid
 
+        # TODO this only works as expected if user
+        # has already configured the camera with cam.create_still_configuration()
+        # - should probably set this to happen only when that is called.
 
-        return Status.Valid
+        # In the real RP implementation the stride is set
+        # and the return status is set to Adjusted 
+
+        for stream_config in self._stream_configurations:
+            if stream_config.stride == 0 and \
+                    stream_config.pixel_format == pf.BGR888:
+                        stream_config.stride = 12192
+                        status = Status.Adjusted
+            elif stream_config.stride == 0 and \
+                    stream_config.pixel_format == pf.SRGGB12_CSI2P:
+                        stream_config.stride = 6112
+                        status = Status.Adjusted
+        return status
 
 
 class State(enum.Enum):
@@ -160,7 +170,7 @@ class Camera:
             return
         req = Request(cookie)
 
-        # the real implementation associate it with a PipelineHandler
+        # the real implementation associates it with a PipelineHandler
         # for more info see libcamera's src/py/examples/simple_cam.py
         return req
 
@@ -242,7 +252,7 @@ class HQCameraAdapter(Camera):
                 stream_configuration.frame_size = 37063680
                 stream_configuration.size = Size(4056, 3040)
                 stream_configuration.stride = 12192
-                stream_configuration.stream = Stream()
+                stream_configuration.stream = Stream(stream_configuration)
                 stream_configuration.color_space = ColorSpace.Srgb()
                 stream_configuration.pixel_format = pf.BGR888
                 stream_configuration.formats = StreamFormats(
@@ -292,7 +302,7 @@ class HQCameraAdapter(Camera):
                 stream_configuration.buffer_count = 2
                 stream_configuration.size = Size(4056, 3040)
                 stream_configuration.stride = 6112
-                stream_configuration.stream = Stream()
+                stream_configuration.stream = Stream(stream_configuration)
                 stream_configuration.color_space = ColorSpace.Raw()
                 # pf.SRGGB12_CSI2P if not configured
                 stream_configuration.pixel_format = pf.SBGGR12

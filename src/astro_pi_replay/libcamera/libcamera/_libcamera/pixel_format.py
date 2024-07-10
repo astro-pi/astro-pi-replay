@@ -9,7 +9,7 @@ Based on:
 
 import dataclasses
 import enum
-from typing import Any, overload
+from typing import Any
 
 
 def __fourcc(a, b, c, d):

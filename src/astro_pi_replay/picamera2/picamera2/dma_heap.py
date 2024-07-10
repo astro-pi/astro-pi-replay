@@ -37,6 +37,7 @@ class DmaHeap:
     def alloc(self, name, size) -> UniqueFD:
         if (name,size) not in DmaHeap._fds:
             fd = tempfile.TemporaryFile()
+            print(f"Created temporary file: {fd}")
             os.ftruncate(fd.fileno(), size)
             DmaHeap._fds[(name,size)] = fd
         fd = DmaHeap._fds.get((name,size))

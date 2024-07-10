@@ -48,6 +48,7 @@ class Request:
         if stream in self.bufferMap_:
             return -errno.EEXIST
         buffer.set_request(self)
+        print(f"Added buffer for {stream}")
         self._pending.add(buffer)
         self.bufferMap_[stream] = buffer
 

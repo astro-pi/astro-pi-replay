@@ -142,7 +142,9 @@ class CameraManager:
         atexit.register(self._close)
         self.event_fd: int = r
         self._completed_requests: Queue[Request] = Queue()
-        self.cameras: list[Camera] = [_build_camera(executor, PipelineHandler(self))]
+        self.cameras: list[Camera] = [_build_camera(
+            executor, 
+            PipelineHandler(self, executor))]
         self._executor: AstroPiExecutor = executor
 
     def _close(self):
