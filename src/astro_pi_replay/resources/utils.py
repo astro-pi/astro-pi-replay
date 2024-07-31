@@ -56,6 +56,12 @@ def get_replay_sequence_dir() -> Path:
     raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
 
 
+def get_video() -> Path:
+    videos: dict = get_metadata("videos")
+    name: str = f"{videos['prefix']}.{videos['suffix']}"
+    return get_replay_sequence_dir() / "videos" / name
+
+
 def get_metadata(key: str) -> Any:
     """
     Loads the photo album metadata

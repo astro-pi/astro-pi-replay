@@ -359,6 +359,41 @@ class AstroPiExecutor:
         original_start_time: datetime = get_start_time()
         return original_start_time + delta
 
+    @property
+    def _has_ffmpeg(self) -> bool:
+        try:
+            subprocess.run(  # nosec B603, B607
+                ["ffmpeg", "-version"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+
+    @property
+    def _has_ffprobe(self) -> bool:
+        try:
+            subprocess.run(  # nosec B603, B607
+                ["ffprobe", "-version"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+
+    @property
+    def _has_tkinter(self) -> bool:
+        try:
+            import tkinter  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
     @staticmethod
     def _detect_execution_mode() -> ExecutionMode:
         return (

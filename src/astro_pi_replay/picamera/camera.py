@@ -31,7 +31,7 @@ from astro_pi_replay.picamera.preview import CameraPreview
 from astro_pi_replay.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_replay.preview.preview import ProcStdoutConsumer
 from astro_pi_replay.preview.teardown_protocol import SupportsBackgroundTaskTeardown
-from astro_pi_replay.resources import get_replay_sequence_dir, get_resource
+from astro_pi_replay.resources import get_replay_sequence_dir, get_resource, get_video
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +377,9 @@ def PiCameraAdapter(
 
         def _start_preview(self, **_) -> PiRenderer:
             if self._preview_proc is None:
-                if all([self._has_ffmpeg, self._has_ffprobe, self._has_tkinter]):
+                if all(
+                    [executor._has_ffmpeg, executor._has_ffprobe, executor._has_tkinter]
+                ):
                     preview: CameraPreview = CameraPreview(
                         str(get_replay_sequence_dir() / "videos" / "video.mp4")
                     )
@@ -414,10 +416,10 @@ def PiCameraAdapter(
                 output, format, allowed_formats=video_formats
             )
 
-            if not self._has_ffmpeg:
+            if not executor._has_ffmpeg:
                 raise AstroPiReplayException("Please install ffmpeg")
 
-            video: Path = get_replay_sequence_dir() / "videos" / "OrbitAz.mp4"
+            video: Path = get_video()
 
             # TODO add annotations
             # TODO resize
@@ -529,41 +531,6 @@ def PiCameraAdapter(
                 self._encoders[splitter_port].close()
                 with self._encoders_lock:
                     del self._encoders[splitter_port]
-
-        @property
-        def _has_ffmpeg(self) -> bool:
-            try:
-                subprocess.run(  # nosec B603, B607
-                    ["ffmpeg", "-version"],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return True
-            except FileNotFoundError:
-                return False
-
-        @property
-        def _has_ffprobe(self) -> bool:
-            try:
-                subprocess.run(  # nosec B603, B607
-                    ["ffprobe", "-version"],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return True
-            except FileNotFoundError:
-                return False
-
-        @property
-        def _has_tkinter(self) -> bool:
-            try:
-                import tkinter  # noqa: F401
-
-                return True
-            except ImportError:
-                return False
 
         def _get_ports(
             self, from_video_port: bool, splitter_port: int
