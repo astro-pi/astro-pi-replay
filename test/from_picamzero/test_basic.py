@@ -8,6 +8,7 @@ commit 68f1300493c485fea97b80d201ab627fae4b82f5
 
 from datetime import datetime
 from os.path import exists
+import os
 
 import logging
 import numpy as np
@@ -23,6 +24,9 @@ from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 from astro_pi_replay.picamzero.Camera import CameraAdapter
+
+if os.environ.get("PYTEST_PROFILE", None) != "PICAMZERO_TESTS":
+    pytest.skip("Skipping picamzero tests", allow_module_level=True)
 
 logger = logging.getLogger(__name__)
 
@@ -507,9 +511,9 @@ def test_unnamed_sequence(cam):
 
 # Test a sequence capture with a filename but no extension
 def test_named_sequence_no_extension(cam):
-    cam.capture_sequence("test")
-    assert exists("test-0.jpg")
-    assert exists("test-9.jpg")
+    cam.capture_sequence("test", num_images=3)
+    assert exists("test-1.jpg")
+    assert exists("test-3.jpg")
     cam.take_sequence("alias", num_images=3)
     assert exists("alias-1.jpg")
     assert exists("alias-3.jpg")
@@ -517,9 +521,9 @@ def test_named_sequence_no_extension(cam):
 
 # Test a named sequence capture with extension
 def test_named_sequence(cam):
-    cam.capture_sequence("testing.jpg")
-    assert exists("testing-0.jpg")
-    assert exists("testing-9.jpg")
+    cam.capture_sequence("testing.jpg", num_images=3)
+    assert exists("testing-1.jpg")
+    assert exists("testing-3.jpg")
 
 
 # Test whether you can change the number of pics

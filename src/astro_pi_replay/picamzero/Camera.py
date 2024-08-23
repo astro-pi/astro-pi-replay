@@ -552,9 +552,11 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                 raise RuntimeError("Can only specify basename")
 
             self.start_recording(filename)
+            max_i: int = round(duration / still_interval)
             i: int = 1
             while (
                 self._recording_start is not None
+                and i <= max_i
                 and (datetime.now() - self._recording_start).total_seconds() < duration
             ):
                 before_photo: datetime = datetime.now()
@@ -684,8 +686,11 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                     sleep(remainder)
 
             if make_video:
+                # TODO handle this once
                 if not executor._has_ffmpeg:
                     raise AstroPiReplayException("Please install ffmpeg to make videos")
+                video_name = utils.format_filename(filename, ext="-timelapse.mp4")
+
                 cmd: list[str] = [
                     "ffmpeg",
                     "-framerate",
@@ -696,9 +701,10 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                     "libx264",
                     "-pix_fmt",
                     "yuv420p",
-                    f"{final_filename}.mp4",
+                    video_name
                 ]
                 cmd_as_string: str = " ".join(cmd)
+                print(cmd_as_string)
                 logger.debug(f"Running {cmd_as_string}")
                 run(cmd)
 
