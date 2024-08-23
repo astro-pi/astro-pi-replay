@@ -1,22 +1,36 @@
-import functools
 import logging
 import os
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-from typing import Optional
+from typing import Optional, cast
+from fractions import Fraction
+import math
+
 
 from PIL import Image
 import numpy as np
 
+from . import utilities as utils
+
+from astro_pi_replay.libcamera import controls
+from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 from astro_pi_replay.exception import AstroPiReplayException, AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.resources.utils import get_video
 
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.WARN)
+
+# Different camera and processor combinations
+# support a different range of resolutions.
+# This is the minimum 'maximum' for all combinations
+MAX_VIDEO_SIZE: tuple[int, int] = (1920, 1080)
+HQC_SENSOR_RESOLUTION: tuple[int, int] = (4056, 3040)
+GPS_IFD_CODE: int = 0x8825
 
 def run(cmd: list[str], **kwargs):
     cmd_string: str = " ".join(cmd)
@@ -28,6 +42,31 @@ def run(cmd: list[str], **kwargs):
             os.linesep.join(["Encountered error:", proc.stderr])
         )
 
+# Taken from camera_controls from a Raspberry Pi 4
+# with HQC: print(pc2.camera_controls)
+CONTROLS = {
+ 'Sharpness': (0.0, 16.0, 1.0), 
+ 'ExposureValue': (-8.0, 8.0, 0.0), 
+ 'AeConstraintMode': (0, 3, 0), 
+ 'ScalerCrop': ((0, 0, 128, 128), (0, 0) + HQC_SENSOR_RESOLUTION, (2, 0, 4052, 3040)), 
+ 'AnalogueGain': (1.0, 22.2608699798584, None), 
+ 'NoiseReductionMode': (0, 4, 0), 
+ 'AeMeteringMode': (0, 3, 0), 
+ 'ExposureTime': (60, 674181621, None), 
+ 'HdrMode': (0, 4, 0), 
+ 'AwbEnable': (False, True, None), 
+ 'Saturation': (0.0, 32.0, 1.0), 
+ 'Contrast': (0.0, 32.0, 1.0), 
+ 'ColourGains': (0.0, 32.0, None), 
+ 'Brightness': (-1.0, 1.0, 0.0), 
+ 'FrameDurationLimits': (24994, 674193371, None), 
+ 'AeFlickerPeriod': (100, 1000000, None), 
+ 'AwbMode': (0, 7, 0), 
+ 'AeFlickerMode': (0, 1, 0), 
+ 'AeExposureMode': (0, 3, 0), 
+ 'StatsOutputEnable': (False, True, False), 
+ 'AeEnable': (False, True, None)
+}
 
 def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwargs):
     executor: AstroPiExecutor
@@ -35,6 +74,13 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
         executor = AstroPiExecutor()
     else:
         executor = maybe_executor
+
+    executor._state._picamera_instances_count += 1
+    if executor._state._picamera_instances_count > 1:
+        raise PicameraZeroException(
+            "Only one Camera instance is allowed.",
+            "Ensure you are not trying to create multiple Camera objects.",
+        )
 
     class _CameraAdapter:
         _SUPPORTED_VIDEO_FORMATS: list[str] = ["mp4"]
@@ -51,6 +97,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             """
             self._recording: Optional[str] = None
             self._recording_start: Optional[datetime] = None
+
             # try:
             #     self.pc2 = Picamera2()
             # except RuntimeError:
@@ -75,16 +122,21 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             #}
 
             #self.pc2.start()
-            self._preview_size: tuple[int, int] = (4056,3040)
-            self._still_size: tuple[int, int] = (4056,3040)
-            self._video_size: tuple[int, int] = (4056,3040)
+            self._preview_size: tuple[int, int] = HQC_SENSOR_RESOLUTION
+            self._still_size: tuple[int, int] = HQC_SENSOR_RESOLUTION
+            self._video_size: tuple[int, int] = MAX_VIDEO_SIZE
             self._brightness: float = 0.
             self._contrast: float = 1.
             self._exposure: Optional[int] = None
             self._gain: Optional[float] = None
-            self._white_balance: int = 0
+            self._white_balance: Optional[controls.AwbModeEnum] = None
             self._greyscale: bool = False
 
+        def __del__(self):
+            """
+            Cleanup the Camera instance when it is deleted
+            """
+            executor._state._picamera_instances_count -= 1
 
         # PRIVATE METHODS
         # ----------------------------------
@@ -137,21 +189,50 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
 
 
         def log_warning(self):
-            logger.warning(
-                "Setting this attribute has no effect when running " +
-                "using the replay tool, since the data has been collected " + 
-                "already and is just being replayed. It will have the desired " + 
-                "effect when run on the ISS")
+            if not executor.configuration.is_transparent_to_user:
+                # TODO make the text make sense based on the context...
+                logger.warning(
+                    "Setting this attribute has no effect when running " +
+                    "using the replay tool, since the data has been collected " + 
+                    "already and is just being replayed. It will have the desired " + 
+                    "effect when run on the ISS")
 
         # ----------------------------------
         # PROPERTIES
         # ----------------------------------
+
+        # Check that the value given for a control is allowed
+        def _check_control_in_range(self, name: str, value: float | int) -> bool:
+            try:
+                minvalue, maxvalue, _ = CONTROLS[name]
+            except Exception as e:
+                raise PicameraZeroException(
+                    f"The control {e} doesn't exist", "Check for spelling errors?"
+                )
+    
+            if value > maxvalue or value < minvalue:
+                raise PicameraZeroException(
+                    f"Invalid {name.lower()} value",
+                    f"{name} must be between {minvalue} and {maxvalue}",
+                )
+            return True
+
+        @property
+        def pc2(self):
+            raise AstroPiReplayException(
+                "Direct access of pc2 is not supported in Astro-Pi-Replay")
+
         @property
         def preview_size(self) -> tuple[int,int]:
             return self._preview_size
     
         @preview_size.setter
         def preview_size(self, size: tuple[int, int]):
+            size = utils.check_camera_size(
+                HQC_SENSOR_RESOLUTION,
+                size,
+                error_msg_type="preview",
+            )
             self.log_warning()
             self._preview_size = size
     
@@ -161,6 +242,11 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
     
         @still_size.setter
         def still_size(self, size: tuple[int,int]):
+            size = utils.check_camera_size(
+                HQC_SENSOR_RESOLUTION,
+                size,
+                error_msg_type="image",
+            )
             self.log_warning()
             self._still_size = size
     
@@ -170,6 +256,11 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
     
         @video_size.setter
         def video_size(self, size: tuple[int, int]):
+            size = utils.check_camera_size(
+                HQC_SENSOR_RESOLUTION,
+                size,
+                error_msg_type="video",
+            )
             self.log_warning()
             self._video_size = size
     
@@ -183,7 +274,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             Brightness value between -1.0 and 1.0
             """
             return self._brightness
-    
+
         @brightness.setter
         def brightness(self, bvalue: float):
             """
@@ -192,8 +283,9 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             :param float bvalue:
                 Floating point number between -1.0 and 1.0
             """
-            self.log_warning()
-            self._brightness = bvalue
+            if self._check_control_in_range("Brightness", bvalue):
+                self.log_warning()
+                self._brightness = bvalue
     
         # Contrast
         @property
@@ -215,8 +307,9 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                 Floating point number between 0.0 and 32.0
                 Normal value is 1.0
             """
-            self.log_warning()
-            self._contrast = cvalue
+            if self._check_control_in_range("Contrast", cvalue):
+                self.log_warning()
+                self._contrast = cvalue
     
         @property
         def exposure(self) -> Optional[int]:
@@ -236,8 +329,9 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             :param int etime:
                 The exposure time (max and min depend on mode)
             """
-            self.log_warning()
-            self._exposure = etime
+            if self._check_control_in_range("ExposureTime", etime):
+                self.log_warning()
+                self._exposure = etime
     
         @property
         def gain(self) -> Optional[float]:
@@ -257,18 +351,25 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             :param float gvalue:
                 The analogue gain (max and min depend on mode)
             """
-            self.log_warning()
-            self._gain = gvalue
+            if self._check_control_in_range("AnalogueGain", gvalue):
+                self.log_warning()
+                self._gain = gvalue
     
         @property
-        def white_balance(self) -> str:
+        def white_balance(self) -> Optional[str]:
             """
             Get the white balance mode
     
             :return str:
                 The selected white balance mode as a string
             """
-            return self._white_balance
+
+            if self._white_balance is None:
+                return
+            print(self._white_balance)
+            rev_possible_controls = cast(dict[controls.AwbModeEnum, str], 
+                 utils.possible_controls(reverse_kv=True))
+            return rev_possible_controls[self._white_balance]
     
         @white_balance.setter
         def white_balance(self, wbmode: str):
@@ -279,8 +380,23 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                 A white balance mode from the allowed list
                 (at present, Custom is not allowed)
             """
+            possible_controls = cast(dict[str, controls.AwbModeEnum], 
+              utils.possible_controls())
+            if wbmode.lower() not in utils.possible_controls():
+                if wbmode.lower() == "custom":
+                    raise PicameraZeroException(
+                        "Custom white balance is not supported yet",
+                        "White balance can be "
+                        + ", ".join(possible_controls.keys()),
+                    )
+                else:
+                    raise PicameraZeroException(
+                        "Invalid white balance mode",
+                        "White balance can be "
+                        + ", ".join(possible_controls.keys()),
+                    )
             self.log_warning()
-            self._white_balance = wbmode
+            self._white_balance = possible_controls[wbmode.lower()]
     
         @property
         def greyscale(self) -> bool:
@@ -501,11 +617,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             can be generated from the skyfield library's signed_dms
             function.
             """
-            final_filename = self._detect_format(
-                filename,
-                self._SUPPORTED_PHOTO_FORMATS,
-                self._SUPPORTED_PHOTO_FORMATS[0],
-            )
+            final_filename: str = utils.format_filename(filename, ".jpg")
 
             name: str = str(
                 executor._replay_next(
@@ -515,52 +627,44 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                     allow_interpolation=False,
                 )
             )
-            #    # Capture the image
-            #    kwargs: dict = {}
-            #    if gps_coordinates is not None:
-            #        kwargs["exif_data"] = utils.signed_dms_coordinates_to_exif_dict(
-            #            gps_coordinates
-            #        )
             image_path: Path = get_replay_sequence_dir() / "photos" / name
             im = Image.open(image_path)
-            im.save(final_filename)
+
+            exif = im.getexif()
+            if gps_coordinates:
+                exif: Image.Exif = im.getexif()
+                gps = utils.signed_dms_coordinates_to_exif_dict(gps_coordinates)
+                # Convert to Fractional, like Pillow needs
+                for k, dms in gps["GPS"].items():
+                    if isinstance(dms, tuple):
+                        gps["GPS"][k] = tuple(
+                            [Fraction(v[0],v[1]) for v in dms])
+                exif[GPS_IFD_CODE] = gps["GPS"]
+            im.save(final_filename, exif=exif)
+
             return final_filename
-    
-        def capture_image(self, filename: Optional[str]=None):
-            return self.take_photo(filename)
+
+        capture_image = take_photo
     
         def capture_sequence(
             self, 
-            filename: Optional[str] = None,
+            filename: Optional[str | Path] = None,
             num_images: int = 10,
-            interval: float = 0.01,
+            interval: float = 1,
             make_video: bool = False,
         ):
             """
             Take a series of <num_images> and save them as
             <filename> with auto-number, also set the interval between
             """
-            if filename is None:
-                raise RuntimeError("Please specify a filename")
-            split_filename = filename.split(".")
-            last = split_filename[-1]
-            if len(split_filename) == 1:
-                final_format = "jpg"
-                final_filename = filename
-            elif last in self._SUPPORTED_PHOTO_FORMATS:
-                final_format = last
-                final_filename = "".join(split_filename[:-1])
-            else:
-                raise RuntimeError(
-                    f"Unknown format '{last}'. "
-                    + "Valid formats are '"
-                    + ", ".join(self._SUPPORTED_PHOTO_FORMATS)
-                    + "'"
-                )
+            # Format the filename using appropriate zero-padded sequence
+            padding_amount: str = str(math.ceil(math.log10(num_images)))
+            ext: str = "-{:0" + padding_amount + "d}.jpg"
+            final_filename: str = utils.format_filename(filename, ext=ext)
 
             start_time: datetime = datetime.now()
             for i in range(num_images):
-                name = f"{final_filename}-{i+1}.{final_format}"
+                name = final_filename.format(i+1)
                 # the take_photo method sleeps until the next
                 # frame is available
                 self.take_photo(name)
@@ -587,7 +691,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                     "-framerate",
                     "1",
                     "-i",
-                    f"{final_filename}-%d.{final_format}",
+                    utils.format_filename(filename, ext="-%d.jpg"),
                     "-c:v",
                     "libx264",
                     "-pix_fmt",
@@ -597,23 +701,23 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                 cmd_as_string: str = " ".join(cmd)
                 logger.debug(f"Running {cmd_as_string}")
                 run(cmd)
+
+        # Synonym method for capture_sequence
+        take_sequence = capture_sequence
     
         def record_video(self, 
-                         filename: Optional[str] = None, 
+                         filename: Optional[str | Path] = None, 
                          duration: int = 5):
             """
             Record a video
             """
+
             start_time: datetime = datetime.now()
-            final_filename: str = self._detect_format(
-                filename,
-                self._SUPPORTED_VIDEO_FORMATS,
-                self._SUPPORTED_VIDEO_FORMATS[0],
-            )
+            final_filename: str = utils.format_filename(filename, ".mp4")
 
             if not executor._has_ffmpeg:
                 raise AstroPiReplayException(
-                    "Please install ffmpeg to capture videos " + "using the replay tool"
+                    "Please install ffmpeg to capture videos using the replay tool"
                 )
 
             video: Path = get_video()
@@ -640,20 +744,21 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             if remainder > 0:
                 sleep(remainder)
 
+        # Synonym method for record_video
+        take_video = record_video
     
         def start_recording(self, 
-                            filename: Optional[str]=None, 
-                            preview: bool =False):
+                            filename: Optional[str | Path]=None, 
+                            preview: bool =False) -> None:
             """
             Record a video of undefined length
             """
             if self._recording or self._recording_start:
-                raise RuntimeError("Already recording")
-            self._recording = self._detect_format(
-                filename,
-                self._SUPPORTED_VIDEO_FORMATS,
-                self._SUPPORTED_VIDEO_FORMATS[0],
-            )
+                logger.warning("You have already started a recording!")
+                logger.warning("Skipping this request")
+                return
+            self._recording = utils.format_filename(filename, ".mp4")
+            # Log the time the recording was started
             self._recording_start = datetime.now()
 
         def stop_recording(self):

@@ -8,6 +8,7 @@ from time import sleep
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
+import exif
 import pandas as pd
 import pytest
 
@@ -80,6 +81,22 @@ def test_image_capture(executor: AstroPiExecutor):
     cam.take_photo(filename)
     assert Path(filename).exists()
 
+def test_image_capture_sets_exif_metadata(executor: AstroPiExecutor):
+    latitude = (1.0, 29.1, 29.0, 48.78250810956524)
+    longitude = (-1.0, 79.0, 17.0, 53.33060722541995)
+
+    image_name = "picture_with_gps.jpg"
+    cam = CameraAdapter(executor)
+    cam.take_photo(image_name,
+                   gps_coordinates=(latitude, longitude))
+
+    with open(image_name, 'rb') as f:
+        img = exif.Image(f)
+    print(dir(img))
+    assert img.gps_latitude == (29.0, 29.0, 48.8)
+    assert img.gps_latitude_ref == "N"
+    assert img.gps_longitude == (79.0, 17.0, 53.3)
+    assert img.gps_longitude_ref == "W"
 
 def test_capture_sequence(executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
@@ -89,15 +106,12 @@ def test_capture_sequence(executor: AstroPiExecutor):
         assert Path(f"{filename}-{i+1}.jpg").exists()
 
 
-@pytest.mark.skip(reason="not yet implemented in picamzero")
-def test_capture_array():
-    pass
+def test_capture_array(executor: AstroPiExecutor):
+    cam = CameraAdapter(executor)
+    arr = cam.capture_array()
+    assert arr.shape == (720, 1280, 3)
 
 
-@pytest.mark.skip(reason="TODO")
-def test_sets_exif_metadata():
-    # TODO set the gps tags
-    pass
 
 
 @skip_if_no_ffmpeg
