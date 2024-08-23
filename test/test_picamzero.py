@@ -119,7 +119,7 @@ def test_capture_sequence_creates_video(executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
     filename: str = "frame"
     cam.capture_sequence(filename, make_video=True)
-    expected_filename: str = filename + ".mp4"
+    expected_filename: str = filename + "-timelapse.mp4"
     assert Path(expected_filename).exists()
 
     # The video should be 10 seconds in duration
