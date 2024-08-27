@@ -1,15 +1,17 @@
 import logging
 import os
-import cv2
-from typing import cast, Union, Any
 from pathlib import Path
+from typing import Any, Optional, Union, cast
 
+import cv2
+import piexif
+from PIL import Image, UnidentifiedImageError
 
 from astro_pi_replay.libcamera import controls
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
-import piexif
 
 logger = logging.getLogger(__name__)
+
 
 def format_filename(filepath: Union[str, Path, None], ext: str) -> str:
     """
@@ -42,7 +44,10 @@ def format_filename(filepath: Union[str, Path, None], ext: str) -> str:
 
     return formatted_name
 
-def possible_controls(reverse_kv=False) -> dict[str, controls.AwbModeEnum] | dict[controls.AwbModeEnum,str]:
+
+def possible_controls(
+    reverse_kv=False,
+) -> Union[dict[str, controls.AwbModeEnum], dict[controls.AwbModeEnum, str]]:
     poss_controls = {
         "auto": controls.AwbModeEnum.Auto,
         "tungsten": controls.AwbModeEnum.Tungsten,
@@ -59,7 +64,7 @@ def possible_controls(reverse_kv=False) -> dict[str, controls.AwbModeEnum] | dic
 
 def check_camera_size(
     max_resolution: tuple[int, int],
-    size: tuple[int, int] | Any,
+    size: Union[tuple[int, int], Any],
     error_msg_type: str,
 ):
     """
@@ -116,7 +121,7 @@ def check_camera_size(
     return final_w, final_h
 
 
-def font_dict(reverse_kv=False) -> dict[str, int] | dict[int,str]:
+def font_dict(reverse_kv=False) -> Union[dict[str, int], dict[int, str]]:
     fonts = {
         "plain1": cv2.FONT_HERSHEY_SIMPLEX,
         "plain2": cv2.FONT_HERSHEY_DUPLEX,
@@ -133,8 +138,8 @@ def font_dict(reverse_kv=False) -> dict[str, int] | dict[int,str]:
         return fonts
 
 
-def check_font_in_dict(font) -> int | None:
-    fonts = cast(dict[str,int], font_dict())
+def check_font_in_dict(font) -> Optional[int]:
+    fonts = cast(dict[str, int], font_dict())
     if isinstance(font, str):
         if font not in fonts:
             # Font not found: return the list of available fonts with descriptions
@@ -148,6 +153,8 @@ def check_font_in_dict(font) -> int | None:
         else:
             font = fonts[font]
         return font
+    return None
+
 
 def convert_color(color):
     """
@@ -175,7 +182,6 @@ def convert_color(color):
     }
 
     if color is not None:
-
         if isinstance(color, str):
             color = color.strip().lower()
 
@@ -183,7 +189,6 @@ def convert_color(color):
                 return color_names[color]
 
             if color.startswith("#"):
-
                 # Check length for RGB (#RRGGBB) or RGBA (#RRGGBBAA)
                 if len(color) == 7:
                     color += "ff"  # Add alpha value if not provided
@@ -267,7 +272,9 @@ def convert_color(color):
     return None
 
 
-def check_image_overlay(image_path, position, transparency):
+def check_image_overlay(
+    image_path: Union[str, Path], position: tuple[int, int], transparency: float
+) -> tuple[Image.Image, tuple[int, int], float]:
     if not os.path.exists(image_path):
         raise PicameraZeroException(f"The file does not exist: {image_path}")
 
@@ -275,15 +282,21 @@ def check_image_overlay(image_path, position, transparency):
         raise PicameraZeroException(f"The path is not a file: {image_path}")
 
     valid_extensions = (".png", ".jpg", ".jpeg", ".bmp")
-    if not image_path.lower().endswith(valid_extensions):
+    if (
+        isinstance(image_path, Path)
+        and not image_path.suffix.lower().endswith(valid_extensions)
+    ) or (
+        isinstance(image_path, str) and image_path.lower().endswith(valid_extensions)
+    ):
         raise PicameraZeroException(
             f"Invalid file extension: {image_path}",
             hint=f"Supported extensions are: {valid_extensions}",
         )
 
     # Attempt to read the image
-    overlay_img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
-    if overlay_img is None:
+    try:
+        overlay_img = Image.open(image_path)
+    except UnidentifiedImageError:
         raise PicameraZeroException(
             f"Could not load the overlay image from {image_path}"
         )

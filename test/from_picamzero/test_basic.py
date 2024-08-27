@@ -6,24 +6,24 @@ picamera-zero:
 commit 68f1300493c485fea97b80d201ab627fae4b82f5
 """
 
+import itertools
+import logging
+import os
 from datetime import datetime
 from os.path import exists
-import os
-
-import logging
-import numpy as np
-import piexif
-import pytest
+from test import test_utils
 from typing import Optional
-import itertools
-import pandas as pd
 from unittest.mock import patch
 
-from test import test_utils
+import numpy as np
+import pandas as pd
+import piexif
+import pytest
+
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 from astro_pi_replay.picamzero.Camera import CameraAdapter
+from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 
 if os.environ.get("PYTEST_PROFILE", None) != "PICAMZERO_TESTS":
     pytest.skip("Skipping picamzero tests", allow_module_level=True)
@@ -36,6 +36,7 @@ TEST_FIXTURES_MAX_RESOLUTION = (1280, 720)
 # -------- #
 # FIXTURES #
 # -------- #
+
 
 @pytest.fixture(scope="module")
 def configuration() -> Configuration:
@@ -72,8 +73,14 @@ def cwd(tmpdir, monkeypatch):
 @pytest.fixture
 def cam(executor: AstroPiExecutor):
     # Downsize these while the test pictures are 1280x720
-    with patch("astro_pi_replay.picamzero.Camera.HQC_SENSOR_RESOLUTION", TEST_FIXTURES_MAX_RESOLUTION):
-        with patch("astro_pi_replay.picamzero.Camera.MAX_VIDEO_SIZE", TEST_FIXTURES_MAX_RESOLUTION):
+    with patch(
+        "astro_pi_replay.picamzero.Camera.HQC_SENSOR_RESOLUTION",
+        TEST_FIXTURES_MAX_RESOLUTION,
+    ):
+        with patch(
+            "astro_pi_replay.picamzero.Camera.MAX_VIDEO_SIZE",
+            TEST_FIXTURES_MAX_RESOLUTION,
+        ):
             camera = CameraAdapter(executor)
             yield camera
 
@@ -207,6 +214,7 @@ def test_property_invalid_size(cam, size):
     cam.still_size = size
     cam.video_size = size
     from astro_pi_replay.picamzero.Camera import HQC_SENSOR_RESOLUTION, MAX_VIDEO_SIZE
+
     assert cam.preview_size == HQC_SENSOR_RESOLUTION
     assert cam.still_size == HQC_SENSOR_RESOLUTION
     assert cam.video_size == MAX_VIDEO_SIZE
@@ -216,10 +224,7 @@ def test_property_invalid_size(cam, size):
     "size,expected",
     [((801, 601), (800, 600)), ((1279, 719), (1278, 718))],
 )
-def test_property_size_odd(cam, 
-    size: tuple[int,int],
-    expected: tuple[int,int]
-):
+def test_property_size_odd(cam, size: tuple[int, int], expected: tuple[int, int]):
     cam.preview_size = size
     cam.still_size = size
     cam.video_size = size
@@ -275,10 +280,7 @@ def test_property_exists_at_startup(cam, name: str):
         ("video_size", (800, 600)),
     ],
 )
-def test_controls_retained(
-    cam_with_controls, method_to_call: str, prop: str, expected
-):
-
+def test_controls_retained(cam_with_controls, method_to_call: str, prop: str, expected):
     cam = cam_with_controls
 
     # Get the method to call
@@ -302,7 +304,6 @@ def test_controls_retained(
     "mode", ["preview_configuration", "still_configuration", "video_configuration"]
 )
 def test_transforms_retained(cam_with_controls, method_to_call: str, mode: str):
-
     cam = cam_with_controls
 
     # Get the method to call
@@ -321,12 +322,13 @@ def test_transforms_retained(cam_with_controls, method_to_call: str, mode: str):
     assert cam.exposure == 600
     assert cam.gain == 2
     assert cam.white_balance == "indoor"
-    assert cam.greyscale == True
+    assert cam.greyscale is True
     assert cam.preview_size == (800, 600)
     assert cam.still_size == (800, 600)
     assert cam.video_size == (800, 600)
     assert cam.hflip
     assert cam.vflip
+
 
 # ----------------------------------
 # Preview
@@ -344,13 +346,16 @@ def test_transforms_retained(cam_with_controls, method_to_call: str, mode: str):
 # Camera orientation (hflip/vflip)
 # ----------------------------------
 
+
 def test_cam_flip_h(cam):
     cam.flip_camera(hflip=True)
     assert cam.hflip is True
 
+
 def test_cam_flip_v(cam):
     cam.flip_camera(vflip=True)
     assert cam.vflip is True
+
 
 def test_cam_flip_v_and_h(cam):
     cam.flip_camera(hflip=True, vflip=True)
@@ -362,6 +367,7 @@ def test_cam_flip_none(cam):
     cam.flip_camera(hflip=False, vflip=False)
     assert cam.vflip is False
     assert cam.hflip is False
+
 
 # ----------------------------------
 # Annotation
@@ -434,6 +440,7 @@ def test_unnamed_video(cam):
 def test_video_unspecified_length(cam):
     cam.start_recording("testvideo.mp4")
     cam.stop_recording()
+
 
 # ----------------------------------
 # Image

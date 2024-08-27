@@ -557,7 +557,7 @@ class AstroPiExecutor:
         return venv_resolver
 
     @staticmethod
-    def install_global():
+    def install_global() -> None:
         logger.debug("Installing stubbed modules in the venv...")
         destination: str = site.getsitepackages()[0]
 

@@ -1,5 +1,6 @@
 import enum
 
+
 # Derived from src/libcamera/control_ids_core.yaml
 class AwbModeEnum(enum.Enum):
     Auto = 0

@@ -1,4 +1,5 @@
-from typing import Literal
+from typing import Literal, Union
+
 
 def maybe_error():
     # Only throw error if configured to
@@ -17,8 +18,8 @@ class Transform:
     def __init__(
         self,
         rotation: int = 0,
-        vflip: bool | Literal[1] | Literal[0] = False,
-        hflip: bool | Literal[1] | Literal[0] = False,
+        vflip: Union[bool, Literal[1], Literal[0]] = False,
+        hflip: Union[bool, Literal[1], Literal[0]] = False,
         transpose: bool = False,
     ):
         self.rotation: int = rotation
@@ -39,7 +40,7 @@ class Transform:
             and self.transpose == other.transpose
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if not self.vflip and not self.hflip:
             sub = "identity"
         elif self.vflip and self.hflip:
