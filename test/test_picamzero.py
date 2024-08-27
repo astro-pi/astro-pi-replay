@@ -2,19 +2,22 @@ import itertools
 import logging
 import shutil
 import subprocess
-import test.test_utils as test_utils
 from pathlib import Path
+from test import test_utils
 from time import sleep
 from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import exif
+import numpy as np
 import pandas as pd
 import pytest
+from PIL import Image
 
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamzero.camera_adapter import CameraAdapter
+from astro_pi_replay.resources import get_replay_sequence_dir
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,6 @@ def _get_duration(filename: str) -> float:
     return duration
 
 
-# TODO also skip if video assets are not downloaded...
 skip_if_no_ffmpeg = pytest.mark.skipif(
     _has_ffmpeg_and_ffprobe(), reason="ffmpeg/ffprobe required"
 )
@@ -70,6 +72,14 @@ def cwd(monkeypatch, tmpdir):
     return tmpdir
 
 
+##################
+# Helper methods #
+##################
+
+# MSE of image0.jpg and image1.jpg is ~100
+# so, a tolerance of 10% of that is probably fine
+TOLERANCE = 10
+
 #########
 # Tests #
 #########
@@ -80,6 +90,9 @@ def test_image_capture(executor: AstroPiExecutor):
     filename: str = "photo1.jpg"
     cam.take_photo(filename)
     assert Path(filename).exists()
+    test_utils.assert_images_equal(
+        filename, get_replay_sequence_dir() / "photos" / "image0.jpg", TOLERANCE
+    )
 
 
 def test_image_capture_sets_exif_metadata(executor: AstroPiExecutor):
@@ -113,13 +126,22 @@ def test_capture_sequence(executor: AstroPiExecutor):
     cam.capture_sequence(filename)
     for i in range(10):
         format_string = f"{filename}-" + "{:02d}.jpg"
-        assert Path(format_string.format(i + 1)).exists()
+        actual = Path(format_string.format(i + 1))
+        assert actual.exists()
+        test_utils.assert_images_equal(
+            actual, get_replay_sequence_dir() / "photos" / f"image{i}.jpg", TOLERANCE
+        )
 
 
 def test_capture_array(executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
     arr = cam.capture_array()
     assert arr.shape == (720, 1280, 3)
+    expected = np.asarray(
+        Image.open(get_replay_sequence_dir() / "photos" / "image0.jpg")
+    )
+
+    test_utils.assert_arrays_equal(arr, expected, TOLERANCE)
 
 
 @skip_if_no_ffmpeg

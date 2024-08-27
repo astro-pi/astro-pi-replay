@@ -4,7 +4,9 @@ import importlib
 import inspect
 import logging
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Iterable, Optional, Union
 from unittest.mock import MagicMock, _patch, patch
@@ -296,7 +298,7 @@ def assume(predicate: Union[bool, Iterable[bool]], reason: Optional[str] = None)
 
 def assert_images_equal(
     actual: Union[str, Path], expected: Union[str, Path], tolerance: float = 0.0
-):
+) -> float:
     """
     Calculates the mean squared error between the actual and
     expected images and asserts that it is below or equal to the
@@ -305,7 +307,46 @@ def assert_images_equal(
     actual_img: np.ndarray = np.array(Image.open(actual))
     expected_img: np.ndarray = np.array(Image.open(expected))
 
+    if actual_img.shape != expected_img.shape:
+        logger.warning("Images have different resolutions")
+        logger.warning(f"actual: {actual_img.shape}")
+        logger.warning(f"expected: {expected_img.shape}")
+
     mean_squared_error: float = float(
         np.square(np.subtract(actual_img, expected_img)).mean()
     )
+    try:
+        assert mean_squared_error <= tolerance
+        return mean_squared_error
+    except AssertionError as e:
+        temp_file = Path(tempfile.mkdtemp())
+        actual_as_path = Path(actual)
+        expected_as_path = Path(expected)
+        shutil.copy(actual, temp_file)
+        # rename
+        shutil.move(
+            temp_file / actual_as_path.name,
+            temp_file / f"actual{actual_as_path.suffix}",
+        )
+        shutil.copy(expected, temp_file)
+        # rename
+        shutil.move(
+            temp_file / expected_as_path.name,
+            temp_file / f"expected{expected_as_path.suffix}",
+        )
+        raise AssertionError(
+            "You can compare the two images " f"by going to {temp_file}", e
+        )
+
+
+def assert_arrays_equal(
+    actual: np.ndarray, expected: np.ndarray, tolerance: float = 0.0
+) -> float:
+    """
+    Calculates the mean squared error between the actual and
+    expected arrays and asserts that it is below or equal to the
+
+    """
+    mean_squared_error: float = float(np.square(np.subtract(actual, expected)).mean())
     assert mean_squared_error <= tolerance
+    return mean_squared_error
