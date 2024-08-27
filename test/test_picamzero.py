@@ -14,7 +14,7 @@ import pytest
 
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.picamzero.Camera import CameraAdapter
+from astro_pi_replay.picamzero.camera_adapter import CameraAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,8 @@ def test_capture_sequence(executor: AstroPiExecutor):
     filename: str = "sequence"
     cam.capture_sequence(filename)
     for i in range(10):
-        assert Path(f"{filename}-{i+1}.jpg").exists()
+        format_string = f"{filename}-" + "{:02d}.jpg"
+        assert Path(format_string.format(i + 1)).exists()
 
 
 def test_capture_array(executor: AstroPiExecutor):
@@ -135,7 +136,7 @@ def test_capture_sequence_creates_video(executor: AstroPiExecutor):
 
 
 @skip_if_no_ffmpeg
-@patch("astro_pi_replay.picamzero.Camera.sleep", spec=True)
+@patch("astro_pi_replay.picamzero.camera_adapter.sleep", spec=True)
 def test_record_video(mock_sleep: MagicMock, executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
     filename: str = "video.mp4"
@@ -143,7 +144,7 @@ def test_record_video(mock_sleep: MagicMock, executor: AstroPiExecutor):
 
     assert Path(filename).exists()
 
-    # Duration shuold be 5 seconds by default
+    # Duration should be 5 seconds by default
     duration: float = _get_duration(filename)
     assert round(duration) == 5
 
@@ -171,7 +172,7 @@ def test_nonblocking_video_recording(executor: AstroPiExecutor):
 
 
 @skip_if_no_ffmpeg
-@patch("astro_pi_replay.picamzero.Camera.sleep", spec=True)
+@patch("astro_pi_replay.picamzero.camera_adapter.sleep", spec=True)
 def test_take_video_and_still(mock_sleep: MagicMock, executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
     basename: str = "video_and_still"

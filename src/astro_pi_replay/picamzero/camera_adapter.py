@@ -24,11 +24,6 @@ from . import utilities as utils
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.WARN)
 
-# Different camera and processor combinations
-# support a different range of resolutions.
-# This is the minimum 'maximum' for all combinations
-MAX_VIDEO_SIZE: tuple[int, int] = (1920, 1080)
-HQC_SENSOR_RESOLUTION: tuple[int, int] = (4056, 3040)
 GPS_IFD_CODE: int = 0x8825
 
 
@@ -43,38 +38,16 @@ def run(cmd: list[str], **kwargs):
         )
 
 
-# Taken from camera_controls from a Raspberry Pi 4
-# with HQC: print(pc2.camera_controls)
-CONTROLS = {
-    "Sharpness": (0.0, 16.0, 1.0),
-    "ExposureValue": (-8.0, 8.0, 0.0),
-    "AeConstraintMode": (0, 3, 0),
-    "ScalerCrop": (
-        (0, 0, 128, 128),
-        (0, 0) + HQC_SENSOR_RESOLUTION,
-        (2, 0, 4052, 3040),
-    ),
-    "AnalogueGain": (1.0, 22.2608699798584, None),
-    "NoiseReductionMode": (0, 4, 0),
-    "AeMeteringMode": (0, 3, 0),
-    "ExposureTime": (60, 674181621, None),
-    "HdrMode": (0, 4, 0),
-    "AwbEnable": (False, True, None),
-    "Saturation": (0.0, 32.0, 1.0),
-    "Contrast": (0.0, 32.0, 1.0),
-    "ColourGains": (0.0, 32.0, None),
-    "Brightness": (-1.0, 1.0, 0.0),
-    "FrameDurationLimits": (24994, 674193371, None),
-    "AeFlickerPeriod": (100, 1000000, None),
-    "AwbMode": (0, 7, 0),
-    "AeFlickerMode": (0, 1, 0),
-    "AeExposureMode": (0, 3, 0),
-    "StatsOutputEnable": (False, True, False),
-    "AeEnable": (False, True, None),
-}
-
-
-def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwargs):
+def CameraAdapter(
+    maybe_executor: Optional[AstroPiExecutor] = None,
+    # Different camera and processor combinations
+    # support a different range of resolutions.
+    # This is the minimum 'maximum' for all combinations
+    MAX_VIDEO_SIZE: tuple[int, int] = (1920, 1080),
+    HQC_SENSOR_RESOLUTION: tuple[int, int] = (4056, 3040),
+    *args,
+    **kwargs,
+):
     executor: AstroPiExecutor
     if maybe_executor is None:
         executor = AstroPiExecutor()
@@ -91,6 +64,36 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
     class _CameraAdapter:
         _SUPPORTED_VIDEO_FORMATS: list[str] = ["mp4"]
         _SUPPORTED_PHOTO_FORMATS: list[str] = ["jpg", "jpeg", "png"]
+
+        # Taken from camera_controls from a Raspberry Pi 4
+        # with HQC: print(pc2.camera_controls)
+        CONTROLS = {
+            "Sharpness": (0.0, 16.0, 1.0),
+            "ExposureValue": (-8.0, 8.0, 0.0),
+            "AeConstraintMode": (0, 3, 0),
+            "ScalerCrop": (
+                (0, 0, 128, 128),
+                (0, 0) + HQC_SENSOR_RESOLUTION,
+                (2, 0, 4052, 3040),
+            ),
+            "AnalogueGain": (1.0, 22.2608699798584, None),
+            "NoiseReductionMode": (0, 4, 0),
+            "AeMeteringMode": (0, 3, 0),
+            "ExposureTime": (60, 674181621, None),
+            "HdrMode": (0, 4, 0),
+            "AwbEnable": (False, True, None),
+            "Saturation": (0.0, 32.0, 1.0),
+            "Contrast": (0.0, 32.0, 1.0),
+            "ColourGains": (0.0, 32.0, None),
+            "Brightness": (-1.0, 1.0, 0.0),
+            "FrameDurationLimits": (24994, 674193371, None),
+            "AeFlickerPeriod": (100, 1000000, None),
+            "AwbMode": (0, 7, 0),
+            "AeFlickerMode": (0, 1, 0),
+            "AeExposureMode": (0, 3, 0),
+            "StatsOutputEnable": (False, True, False),
+            "AeEnable": (False, True, None),
+        }
 
         def __init__(self) -> None:
             """
@@ -204,7 +207,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
         # Check that the value given for a control is allowed
         def _check_control_in_range(self, name: str, value: Any) -> bool:
             try:
-                minvalue, maxvalue, _ = CONTROLS[name]
+                minvalue, maxvalue, _ = self.CONTROLS[name]
             except Exception as e:
                 raise PicameraZeroException(
                     f"The control {e} doesn't exist", "Check for spelling errors?"

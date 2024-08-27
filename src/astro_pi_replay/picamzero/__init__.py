@@ -1,4 +1,4 @@
-from .Camera import CameraAdapter as Camera
+from .camera_adapter import CameraAdapter as Camera
 from .PicameraZeroException import PicameraZeroException
 
 __version__ = "1.0.0"

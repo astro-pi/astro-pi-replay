@@ -22,8 +22,7 @@ import pytest
 
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.picamzero.Camera import CameraAdapter
-from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
+from astro_pi_replay.picamzero import Camera, PicameraZeroException
 
 if os.environ.get("PYTEST_PROFILE", None) != "PICAMZERO_TESTS":
     pytest.skip("Skipping picamzero tests", allow_module_level=True)
@@ -73,16 +72,13 @@ def cwd(tmpdir, monkeypatch):
 @pytest.fixture
 def cam(executor: AstroPiExecutor):
     # Downsize these while the test pictures are 1280x720
-    with patch(
-        "astro_pi_replay.picamzero.Camera.HQC_SENSOR_RESOLUTION",
-        TEST_FIXTURES_MAX_RESOLUTION,
-    ):
-        with patch(
-            "astro_pi_replay.picamzero.Camera.MAX_VIDEO_SIZE",
-            TEST_FIXTURES_MAX_RESOLUTION,
-        ):
-            camera = CameraAdapter(executor)
-            yield camera
+
+    camera = Camera(
+        executor,
+        HQC_SENSOR_RESOLUTION=TEST_FIXTURES_MAX_RESOLUTION,
+        MAX_VIDEO_SIZE=TEST_FIXTURES_MAX_RESOLUTION,
+    )
+    yield camera
 
 
 @pytest.fixture
@@ -114,7 +110,7 @@ def cam_with_controls(cam):
 def test_single_instance_creation(cam, executor):
     # Try to create another Camera instance while one already exists
     with pytest.raises(PicameraZeroException):
-        another_cam = CameraAdapter(executor)
+        another_cam = Camera(executor)
         another_cam.take_photo()
 
 
@@ -213,11 +209,11 @@ def test_property_invalid_size(cam, size):
     cam.preview_size = size
     cam.still_size = size
     cam.video_size = size
-    from astro_pi_replay.picamzero.Camera import HQC_SENSOR_RESOLUTION, MAX_VIDEO_SIZE
+    # from astro_pi_replay.picamzero.Camera import HQC_SENSOR_RESOLUTION, MAX_VIDEO_SIZE
 
-    assert cam.preview_size == HQC_SENSOR_RESOLUTION
-    assert cam.still_size == HQC_SENSOR_RESOLUTION
-    assert cam.video_size == MAX_VIDEO_SIZE
+    assert cam.preview_size == TEST_FIXTURES_MAX_RESOLUTION
+    assert cam.still_size == TEST_FIXTURES_MAX_RESOLUTION
+    assert cam.video_size == TEST_FIXTURES_MAX_RESOLUTION
 
 
 @pytest.mark.parametrize(
