@@ -565,7 +565,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                 overlay_w, overlay_h = overlay_img.size
                 if overlay_w > remaining_w or overlay_h > remaining_h:
                     overlay_img = overlay_img.resize((remaining_w, remaining_h))
-                im.paste(overlay_img, (pos_w, pos_h))
+                im.paste(overlay_img, (pos_w, pos_h), mask=overlay_img)
 
             if self._text:
                 text_prop: dict = self._text_properties
@@ -658,7 +658,7 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
             <filename> with auto-number, also set the interval between
             """
             # Format the filename using appropriate zero-padded sequence
-            padding_amount: str = str(math.ceil(math.log10(num_images)))
+            padding_amount: str = str(math.ceil(math.log10(num_images + 1)))
             ext: str = "-{:0" + padding_amount + "d}.jpg"
             final_filename: str = utils.format_filename(filename, ext=ext)
 
@@ -694,7 +694,9 @@ def CameraAdapter(maybe_executor: Optional[AstroPiExecutor] = None, *args, **kwa
                     "-framerate",
                     "1",
                     "-i",
-                    utils.format_filename(filename, ext="-%d.jpg"),
+                    utils.format_filename(filename, ext=f"-%{padding_amount}d.jpg"),
+                    "-r",
+                    "30",
                     "-c:v",
                     "libx264",
                     "-pix_fmt",
