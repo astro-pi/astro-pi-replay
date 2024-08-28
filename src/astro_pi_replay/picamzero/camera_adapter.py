@@ -236,11 +236,10 @@ def CameraAdapter(
 
             return final_filename
 
-        def log_warning(self):
+        def log_warning(self, action: str):
             if not executor.configuration.is_transparent_to_user:
-                # TODO make the text make sense based on the context...
                 logger.warning(
-                    "Setting this attribute has no effect when running "
+                    f"{action.capitalize()} has no effect when running "
                     + "using the replay tool, since the data has been collected "
                     + "already and is just being replayed. It will have the desired "
                     + "effect when run on the ISS"
@@ -283,7 +282,7 @@ def CameraAdapter(
                 size,
                 error_msg_type="preview",
             )
-            self.log_warning()
+            self.log_warning("Setting preview_size")
             self._preview_size = size
 
         @property
@@ -297,7 +296,7 @@ def CameraAdapter(
                 size,
                 error_msg_type="image",
             )
-            self.log_warning()
+            self.log_warning("Setting still_size")
             self._still_size = size
 
         @property
@@ -311,7 +310,7 @@ def CameraAdapter(
                 size,
                 error_msg_type="video",
             )
-            self.log_warning()
+            self.log_warning("Setting video_size")
             self._video_size = size
 
         # Brightness
@@ -334,7 +333,7 @@ def CameraAdapter(
                 Floating point number between -1.0 and 1.0
             """
             if self._check_control_in_range("Brightness", bvalue):
-                self.log_warning()
+                self.log_warning("Setting brightness")
                 self._brightness = bvalue
 
         # Contrast
@@ -358,7 +357,7 @@ def CameraAdapter(
                 Normal value is 1.0
             """
             if self._check_control_in_range("Contrast", cvalue):
-                self.log_warning()
+                self.log_warning("Setting contrast")
                 self._contrast = cvalue
 
         @property
@@ -380,7 +379,7 @@ def CameraAdapter(
                 The exposure time (max and min depend on mode)
             """
             if self._check_control_in_range("ExposureTime", etime):
-                self.log_warning()
+                self.log_warning("Setting exposure")
                 self._exposure = etime
 
         @property
@@ -402,7 +401,7 @@ def CameraAdapter(
                 The analogue gain (max and min depend on mode)
             """
             if self._check_control_in_range("AnalogueGain", gvalue):
-                self.log_warning()
+                self.log_warning("Setting gain")
                 self._gain = gvalue
 
         @property
@@ -446,7 +445,7 @@ def CameraAdapter(
                         "Invalid white balance mode",
                         "White balance can be " + ", ".join(possible_controls.keys()),
                     )
-            self.log_warning()
+            self.log_warning("Setting white_balance")
             self._white_balance = possible_controls[wbmode.lower()]
 
         @property
@@ -463,7 +462,7 @@ def CameraAdapter(
             :param bool on:
                 Whether greyscale should be on
             """
-            self.log_warning()
+            self.log_warning("Setting greyscale")
             self._greyscale = on
 
         # ----------------------------------
@@ -474,7 +473,7 @@ def CameraAdapter(
             """
             Flip the image horizontally or vertically
             """
-            self.log_warning()
+            self.log_warning("Setting flip_camera")
             self.vflip = vflip
             self.hflip = hflip
 
@@ -482,7 +481,7 @@ def CameraAdapter(
             """
             Show a preview of the camera
             """
-            self.log_warning()
+            self.log_warning("Starting preview")
 
         def stop_preview(self):
             """
