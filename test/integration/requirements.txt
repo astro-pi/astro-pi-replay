@@ -1,2 +1,6 @@
 pytest==7.4.2
 jsonschema==4.23.0
+types-boto3==1.0.2
+boto3==1.35.7
+jsonschema==4.23.0
+exif==1.6.0

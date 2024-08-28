@@ -26,13 +26,16 @@ from astro_pi_replay.resources import (
 logger = logging.getLogger(__name__)
 
 GPG_EMAIL = "enquiries@astro-pi.org"
+BUCKET_NAME: str = "static.raspberrypi.org"
+BUCKET_URL: str = f"https://{BUCKET_NAME}"
 URL_BASE: str = os.environ.get(
     f"__{PROGRAM_NAME.upper()}_URL_BASE",
-    "https://static.raspberrypi.org/files/astro-pi",
+    f"{BUCKET_URL}/files/astro-pi",
 )
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
-asset_prefix: str = f"{url_prefix}/assets"
+asset_url: str = f"{url_prefix}/assets"
+asset_prefix: str = str(Path(asset_url).relative_to(Path(BUCKET_URL)))
 version_url_prefix: str = f"{url_prefix}/{__version__}"
 SEQUENCES_FILENAME: str = "sequences.csv"
 SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
@@ -153,7 +156,7 @@ class Downloader:
         asset_name += ".zip"
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
-            url = f"{asset_prefix}/{file}"
+            url = f"{asset_url}/{file}"
             downloaded.append(await self.download_file(url, self.tempdir))
 
         logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")

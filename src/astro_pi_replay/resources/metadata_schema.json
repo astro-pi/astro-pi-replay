@@ -32,7 +32,13 @@
 	  "description": "The sensor resolution (in pixels) in the y direction e.g. 3040",
 	  "type": "integer"
 	}
-      }
+      },
+      "required": [
+	"sensor_size_x",
+	"sensor_size_y",
+	"sensor_resolution_x",
+	"sensor_resolution_y"
+      ]
     },
     "lens": {
       "type": "object",
@@ -45,7 +51,8 @@
 	  "description": "The focal length of the lens e.g. 5mm",
 	  "type": "string"
 	}
-      }
+      },
+      "required": ["focal_length"]
     },
     "ground_sampling_distance_cm": {
       "description": "The ground sampling distance (GSD) of the images in centimetres",
@@ -70,7 +77,11 @@
       "format": "date-time"
     },
     "team_credits": {
-      "description": "The name of the team whose code was used to capture the photo",
+      "description": "The name of the team whose code was used to capture the data",
+      "type": "string"
+    },
+    "credits": {
+      "description": "The person or organisation credited with capturing the data",
       "type": "string"
     },
     "photography_type": {
@@ -87,21 +98,32 @@
 	"suffix": {
 	  "description": "The suffix of each image file e.g 'jpg'",
 	  "type": "string"
-	}
-      }
-    },
-    "videos": {
-      "type": "object",
-      "properties": {
-	"prefix": {
-	  "description": "The prefix of each video file e.g 'video'",
-	  "type": "string"
 	},
-	"suffix": {
-	  "description": "The suffix of each video file e.g 'mp4'",
-	  "type": "string"
+	"isZeroIndexed": {
+	  "description": "Whether the images are zero-indexed",
+	  "type": "boolean"
 	}
-      }
+      },
+      "required": ["prefix", "suffix", "isZeroIndexed"]
+    },
+    "video": {
+      "description": "The filename of the video e.g. 'video.mp4'",
+      "type": "string"
     }
-  }
+  },
+  "oneOf": [
+    { "required": ["team_credits"] },
+    { "required": ["credits"] }
+  ],
+  "required": [
+    "camera",
+    "ground_sampling_distance_cm",
+    "resolution_x",
+    "resolution_y",
+    "start",
+    "end",
+    "photography_type",
+    "photos",
+    "video"
+  ]
 }
