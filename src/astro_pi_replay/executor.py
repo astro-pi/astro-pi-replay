@@ -106,6 +106,8 @@ class AstroPiExecutor:
             cls.configuration = (
                 configuration if configuration is not None else Configuration.load()
             )
+            # Set in (astro-pi-replay-online) to alter some error messages
+            cls.is_running_in_browser: bool = False
         else:
             logger.debug("Executor already instantiated")
 

@@ -12,7 +12,12 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from astro_pi_replay.exception import AstroPiReplayException, AstroPiReplayRuntimeError
+from astro_pi_replay.exception import (
+    AstroPiReplayException,
+    AstroPiReplayRuntimeError,
+    DependencyNotInstalledException,
+    FfmpegNotInstalledException,
+)
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.libcamera import controls
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
@@ -25,6 +30,21 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.WARN)
 
 GPS_IFD_CODE: int = 0x8825
+
+
+def decorate_all_non_magic_methods(decorator):
+    """
+    Class decorator that decorates every non-magic method
+    in the class with the given decorator.
+    """
+
+    def class_decorator(clz):
+        for name, method in clz.__dict__.items():
+            if callable(method) and not (name.startswith("__") and name.endswith("__")):
+                setattr(clz, name, decorator(method))
+        return clz
+
+    return class_decorator
 
 
 def run(cmd: list[str], **kwargs):
@@ -61,6 +81,26 @@ def CameraAdapter(
             "Ensure you are not trying to create multiple Camera objects.",
         )
 
+    def swallow_dependency_not_installed_exceptions(func):
+        """
+        Decorator to swallow DependencyNotInstalledExceptions
+        if the executor has been told it is running in a browser.
+
+        This is indicated by setting executor.is_running_in_browser = True
+        """
+
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except DependencyNotInstalledException as e:
+                if executor.is_running_in_browser:
+                    e.log_warning()
+                else:
+                    raise e
+
+        return wrapper
+
+    @decorate_all_non_magic_methods(swallow_dependency_not_installed_exceptions)
     class _CameraAdapter:
         _SUPPORTED_VIDEO_FORMATS: list[str] = ["mp4"]
         _SUPPORTED_PHOTO_FORMATS: list[str] = ["jpg", "jpeg", "png"]
@@ -150,6 +190,12 @@ def CameraAdapter(
             # calculate the time since the replay started
             delta: timedelta = start - executor._state._start_time
             video: Path = get_video()
+
+            if not executor._has_ffmpeg:
+                raise FfmpegNotInstalledException(
+                    action="Creating videos", desired_result="create a video"
+                )
+
             cmd: list[str] = [
                 "ffmpeg",
                 "-ss",
@@ -687,9 +733,10 @@ def CameraAdapter(
                     sleep(remainder)
 
             if make_video:
-                # TODO handle this once
                 if not executor._has_ffmpeg:
-                    raise AstroPiReplayException("Please install ffmpeg to make videos")
+                    raise FfmpegNotInstalledException(
+                        action="Making videos", desired_result="make a video"
+                    )
                 video_name = utils.format_filename(filename, ext="-timelapse.mp4")
 
                 cmd: list[str] = [
@@ -725,8 +772,8 @@ def CameraAdapter(
             final_filename: str = utils.format_filename(filename, ".mp4")
 
             if not executor._has_ffmpeg:
-                raise AstroPiReplayException(
-                    "Please install ffmpeg to capture videos using the replay tool"
+                raise FfmpegNotInstalledException(
+                    action="Recording a video", desired_result="record a video"
                 )
 
             video: Path = get_video()

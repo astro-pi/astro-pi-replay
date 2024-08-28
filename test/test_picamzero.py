@@ -1,5 +1,6 @@
 import itertools
 import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 from PIL import Image
 
 from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.exception import FfmpegNotInstalledException
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamzero.camera_adapter import CameraAdapter
 from astro_pi_replay.resources import get_replay_sequence_dir
@@ -209,3 +211,51 @@ def test_take_video_and_still(mock_sleep: MagicMock, executor: AstroPiExecutor):
     mock_sleep.assert_called()
     actual_interval: float = mock_sleep.call_args.args[0]
     assert round(actual_interval) == still_interval
+
+
+def test_record_video_logs_helpful_message_when_ffmpeg_in_browser(
+    monkeypatch, caplog, executor: AstroPiExecutor
+):
+    # Given
+    monkeypatch.setenv("PATH", "")
+    assert shutil.which("ffmpeg") is None
+    executor.is_running_in_browser = True
+    cam = CameraAdapter(executor)
+
+    # When
+    cam.record_video("failed_video_in_browser.mp4")
+
+    assert (
+        "Recording a video is not currently supported by "
+        + "astro-pi-replay-online, sorry"
+    ) in caplog.text
+    assert (
+        "On an Astro Pi this would record a video as you " + "requested"
+    ) in caplog.text
+
+
+def test_record_video_raises_helpful_exception_when_ffmpeg_not_installed(
+    monkeypatch, executor: AstroPiExecutor
+):
+    # Given
+    monkeypatch.setenv("PATH", "")
+    assert shutil.which("ffmpeg") is None
+    executor.is_running_in_browser = False
+    cam = CameraAdapter(executor)
+
+    # When
+    with pytest.raises(FfmpegNotInstalledException) as e:
+        cam.record_video("failed_video.mp4")
+    assert os.linesep.join(
+        [
+            "Please install ffmpeg to record a video",
+            "On Raspberry Pi OS, this can be done using the command below:",
+            "",
+            "  sudo apt-get install ffmpeg",
+            "",
+            "For download instructions on other operating systems, "
+            + "check the ffmpeg website:",
+            "",
+            "  https://www.ffmpeg.org/download.html",
+        ]
+    ) in str(e.value)
