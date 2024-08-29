@@ -27,11 +27,10 @@ logger = logging.getLogger(__name__)
 
 GPG_EMAIL = "enquiries@astro-pi.org"
 BUCKET_NAME: str = "static.raspberrypi.org"
-BUCKET_URL: str = f"https://{BUCKET_NAME}"
-URL_BASE: str = os.environ.get(
-    f"__{PROGRAM_NAME.upper()}_URL_BASE",
-    f"{BUCKET_URL}/files/astro-pi",
-)
+BUCKET_URL: str = os.environ.get(
+    f"__{PROGRAM_NAME.upper()}_BUCKET_URL",
+    f"https://{BUCKET_NAME}")
+URL_BASE: str = f"{BUCKET_URL}/files/astro-pi"
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
 asset_url: str = f"{url_prefix}/assets"
