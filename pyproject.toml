@@ -9,6 +9,7 @@ dynamic = ["version"]
 authors = [
   { name="Geraint Ballinger", email="geraint.ballinger@raspberrypi.org" }
 ]
+license = { file = "LICENCE.txt" }
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
