@@ -1,6 +1,6 @@
 from pathlib import Path
 
-__version__ = "0.0.24"
+__version__ = "0.0.25"
 PROGRAM_CMD_NAME = "Astro-Pi-Replay"
 PROGRAM_NAME = "astro_pi_replay"
 PACKAGE_ROOT = Path(__file__).parent
