@@ -476,6 +476,8 @@ class AstroPiExecutor:
                         "replay_tool_logging.basicConfig("
                         + "level=replay_tool_logging.DEBUG,"
                         + f"format='{LOGGING_FORMAT}')",
+                        "replay_tool_logging.getLogger('PIL').setLevel("
+                        + "replay_tool_logging.INFO)",
                         "import datetime as replay_tool_datetime",
                         "replay_tool_logging.Formatter.formatTime = ("
                         + "lambda self, record, "
