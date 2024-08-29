@@ -107,11 +107,11 @@ mac_mavericks_universal: Platform = Platform(
 # Skips #
 #########
 skip_opencv_on_32bit_rpos = SkippedDependency(
-    name="opencv-python-headless", 
+    name="opencv-python", 
     reason=os.linesep.join([
         "Build failing on PiWheels: ",
         "",
-        "  https://piwheels.org/project/opencv-python-headless/",
+        "  https://piwheels.org/project/opencv-python/",
         "",
         "This is unfortunate and means that users will need to install ",
         "opencv using apt and then create a --system-site-packages scoped venv.",
@@ -120,12 +120,8 @@ skip_opencv_on_32bit_rpos = SkippedDependency(
     ])
 )
 skip_opencv_on_mavericks_x86= SkippedDependency(
-    name="opencv-python-headless", 
+    name="opencv-python", 
     reason=os.linesep.join([
-        "Build failing on PiWheels: ",
-        "",
-        "  https://piwheels.org/project/opencv-python-headless/",
-        "",
         "This is unfortunate and means that users will need to install ",
         "opencv using homebrew or some other means and then create a ",
         "--system-site-packages scoped venv.",
