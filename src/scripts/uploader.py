@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable, Iterator, Optional
 
 import exif
+import jsonschema
 import pandas as pd
 from exif import DATETIME_STR_FORMAT, Image
 
@@ -23,20 +24,23 @@ from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME
 from astro_pi_replay.downloader import url_prefix
+from astro_pi_replay.resources.utils import METADATA_FILE_NAME, get_metadata_schema
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 GDRIVE: str = "gdrive"
 
-GPS_TAGS: list[str] = [
-    "gps_latitude",
-    "gps_longitude",
-    "gps_latitude_ref",
-    "gps_longitude_ref",
-    "gps_altitude",
-    "gps_altitude_ref",
-]
+GPS_TAGS: set[str] = set(
+    [
+        "gps_latitude",
+        "gps_longitude",
+        "gps_latitude_ref",
+        "gps_longitude_ref",
+        "gps_altitude",
+        "gps_altitude_ref",
+    ]
+)
 
 
 class Uploader:
@@ -56,6 +60,7 @@ class Uploader:
 
     def _create_gpg_signature(self, file_to_sign: Path) -> Path:
         """ """
+        logger.info(f"Generating gpg signature for {file_to_sign}")
         output_file = str(file_to_sign) + ".sig"
         command_args: list[str] = [
             "gpg",
@@ -81,13 +86,48 @@ class Uploader:
             for file in files:
                 yield root + os.path.sep + file
 
+    def _validate_metadata_schema(self, base_file: Path):
+        """
+        Ensures the metadata.json file exists and
+        passes schema validation
+        """
+        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        with metadata_filepath.open() as f:
+            metadata = json.load(f)
+        schema = get_metadata_schema()
+        jsonschema.validate(metadata, schema)
+        logger.info(f"{metadata_filepath} passed schema check")
+
+    def _validate_no_gps_tags(self, base_file: Path):
+        """
+        Ensures the photo files do not have exif tags
+        """
+        photos_dir: Path = base_file / "photos"
+        for photo in photos_dir.iterdir():
+            im: Optional[exif.Image] = None
+            try:
+                im = exif.Image(str(photo))
+            except ValueError:
+                continue
+            if im:
+                tags = im.get_all()
+                logger.debug(f"Tags: {tags}")
+                for tag in GPS_TAGS:
+                    if tags.get(tag, None):
+                        raise RuntimeError(
+                            f"Image {photo.name} at path "
+                            + f"{photo} has GPS exif tag: {tag}"
+                        )
+
+        logger.info(f"{base_file} passed (no) exif gps checks")
+
     def _create_zip(
         self,
         directory_to_zip: Path,
         zip_name: Optional[str] = None,
         include_filter: Optional[Callable[[str], bool]] = None,
     ) -> Path:
-        logger.info("Creating zipfile")
+        logger.info(f"Creating zipfile for {directory_to_zip}")
 
         tempdir: Optional[Path] = None
         try:
@@ -167,6 +207,10 @@ class Uploader:
                   the base_file name
         include_filter: used to filter files under the base file in/out of the zip
         """
+        # validations
+        self._validate_metadata_schema(base_file)
+        self._validate_no_gps_tags(base_file)
+
         zip_file: Path = self._create_zip(
             base_file, zip_name=zip_name, include_filter=include_filter
         )
@@ -294,10 +338,6 @@ class AssetPreparer:
             downloaded = self.CACHE_LOCATION / actual_sha256sum
         return downloaded
 
-    def _verify_metadata(self, metadata: dict) -> None:
-        # TODO verify no required metadata is missing
-        raise NotImplementedError("TODO")
-
     def _verify_sense_hat_df(self, df: pd.DataFrame) -> None:
         # TODO check that all columns are accounted for
         # and are correctly named and described
@@ -375,7 +415,6 @@ class AssetPreparer:
         """
         for sequence_id, metadata in self.sequence_to_file_id_map.items():
             logger.debug(f"Processing {sequence_id}")
-            self._verify_metadata(metadata)
 
             downloaded: Path = self.download(
                 file_id=metadata["fileId"], sha256=metadata["sha256"]

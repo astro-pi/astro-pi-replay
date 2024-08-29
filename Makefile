@@ -112,6 +112,7 @@ all:
 	@echo "setup_developer   - Install pre-commit hooks and venv to"
 	@echo "                    the developer environment."
 	@echo "test              - Run all unit tests using pytest."
+	@echo "test_picamzero    - Run picamzero tests using pytest."
 	@echo "test_integration  - Run all integration tests using pytest."
 	@echo "test_smoke        - Run the smoke tests (using TestPyPi) with pytest."
 	@echo "uninstall         - Uninstall the Python package from the OS user environment"
@@ -163,6 +164,7 @@ clean:
 	@$(RM) -f .git/hooks/*
 	@$(RM) -rf $(VENV_NAME) $(DIST_DIR) $(SITE_DIR) $(PROFILE_DIR)
 	@$(RM) -rf test/smoke_tests/venv test/smoke_tests/smoke_venv
+	@$(RM) -rf test/integration/venv test/integration/.cache
 	@$(FIND) . -iname "__pycache__" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
 	@$(FIND) . -iname "*.pyc" | $(SORT) -r | $(XARGS) -I{} rm -f {}
 	@$(FIND) . -iname "*.egg-info" | $(SORT) -r | $(XARGS) -I{} rm -rf {}
@@ -241,6 +243,10 @@ setup_developer: $(VENV_NAME) pre_commit_install hooks_install
 
 test: $(VENV_NAME)
 	. $(VENV_NAME)/bin/activate; $(PYTEST) $(PYTEST_FLAGS)
+
+test_picamzero:
+	@echo "Running picamzero tests"
+	PYTEST_PROFILE=PICAMZERO_TESTS pytest test/from_picamzero/test_basic.py
 
 test_integration:
 	@echo "Running integration tests"

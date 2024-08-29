@@ -10,7 +10,7 @@ from astro_pi_replay.downloader import (
     SEQUENCES_FILE,
     SEQUENCES_FILENAME,
     Downloader,
-    asset_prefix,
+    asset_url,
     version_url_prefix,
 )
 
@@ -36,7 +36,7 @@ def response_200_for(resource_path: str):
 
 def fake_get(substituter: Optional[Callable[[str], str]]):
     def _fake_get(url: str, stream: bool, timeout: int) -> Response:
-        url = url.replace(asset_prefix, "")
+        url = url.replace(asset_url, "")
         if url.startswith("/") and len(url) > 1:
             # remove leading slash
             url = url[1:]
@@ -133,9 +133,9 @@ async def test_downloader_should_download():
         await downloader.download(name)
         assert (downloader.tempdir / f"{name}.zip").exists()
         urls = set((call.args[0] for call in mock_requests.method_calls))
-        assert f"{asset_prefix}/replay.zip.sha256" in urls
-        assert f"{asset_prefix}/replay.zip.sig" in urls
-        assert f"{asset_prefix}/replay.zip" in urls
+        assert f"{asset_url}/replay.zip.sha256" in urls
+        assert f"{asset_url}/replay.zip.sig" in urls
+        assert f"{asset_url}/replay.zip" in urls
 
 
 @pytest.mark.asyncio

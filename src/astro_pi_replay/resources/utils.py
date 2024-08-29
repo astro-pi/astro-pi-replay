@@ -11,6 +11,7 @@ RESOURCE_DIR: Path = Path(__file__).parent
 EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
 SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
+METADATA_FILE_NAME: str = "metadata.json"
 
 
 def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
@@ -56,14 +57,25 @@ def get_replay_sequence_dir() -> Path:
     raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
 
 
-def get_metadata(key: str) -> Any:
+def get_video() -> Path:
+    name: str = get_metadata("video")
+    return get_replay_sequence_dir() / "videos" / name
+
+
+def get_metadata(key: Optional[str] = None) -> Any:
     """
     Loads the photo album metadata
     """
     # TODO load the file once
-    with (get_replay_sequence_dir() / "metadata.json").open() as f:
+    with (get_replay_sequence_dir() / METADATA_FILE_NAME).open() as f:
         metadata: dict[str, Any] = json.loads(f.read())
-        return metadata[key]
+
+    return metadata[key] if key else metadata
+
+
+def get_metadata_schema() -> dict:
+    with get_resource("metadata_schema.json").open() as f:
+        return json.load(f)
 
 
 def get_start_time() -> datetime:
