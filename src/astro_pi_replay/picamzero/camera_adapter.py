@@ -415,7 +415,6 @@ def CameraAdapter(
 
             if self._white_balance is None:
                 return None
-            print(self._white_balance)
             rev_possible_controls = cast(
                 dict[controls.AwbModeEnum, str],
                 utils.possible_controls(reverse_kv=True),
@@ -753,7 +752,6 @@ def CameraAdapter(
                     video_name,
                 ]
                 cmd_as_string: str = " ".join(cmd)
-                print(cmd_as_string)
                 logger.debug(f"Running {cmd_as_string}")
                 run(cmd)
 
