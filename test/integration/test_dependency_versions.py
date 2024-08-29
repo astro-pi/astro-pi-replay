@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from collections import namedtuple
+import re
 
 import pytest
 from packaging import version
@@ -163,7 +164,7 @@ def test_dependency_wheels_available(
         if not dependency.startswith("#"):
             # Remove comments and leading/trailing whitespace
             dependency = dependency.split("#")[0].strip()
-            name = dependency.split("==")[0]
+            name = re.split("(==|~=|>=|<=|!=|<|>|===)", dependency)[0]
             if name in skipped_dependency_names:
                 continue # skip
             cmd: list[str] = [
