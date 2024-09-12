@@ -9,12 +9,12 @@ from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time
 from skyfield.toposlib import GeographicPosition
 
-from astro_pi_replay.resources import get_resource
+from astro_pi_replay.resources import get_resource, get_tle
 
 logger = logging.getLogger(__name__)
-_TLE_FILE: Path = get_resource("iss-20230421-111.tle")
 _BSP_FILE: Path = get_resource("de421.bsp")
 _timescale: Timescale = load.timescale()
+_tle_file = get_tle()
 
 
 def coordinates(satellite: skyfield.api.EarthSatellite) -> GeographicPosition:
@@ -35,11 +35,11 @@ def load_ephemeris() -> SpiceKernel:
 
 
 def load_iss() -> skyfield.api.EarthSatellite:
-    loader: Loader = Loader(_TLE_FILE.parent, verbose=False)
-    satellites: list[skyfield.api.EarthSatellite] = loader.tle_file(_TLE_FILE.name)
+    loader: Loader = Loader(_tle_file.parent, verbose=False)
+    satellites: list[skyfield.api.EarthSatellite] = loader.tle_file(_tle_file.name)
     iss = next((sat for sat in satellites if sat.name == "ISS (ZARYA)"), None)
     if iss is None:
-        raise RuntimeError(f"Unable to retrieve ISS TLE data from {str(_TLE_FILE)}")
+        raise RuntimeError(f"Unable to retrieve ISS TLE data from {str(_tle_file)}")
 
     # bind the `coordinates` function to the ISS object as a method
     setattr(iss, "coordinates", coordinates.__get__(iss, iss.__class__))

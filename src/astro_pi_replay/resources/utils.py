@@ -80,3 +80,11 @@ def get_metadata_schema() -> dict:
 
 def get_start_time() -> datetime:
     return datetime.strptime(get_metadata("start"), EXPECTED_DATETIME_FORMAT)
+
+
+def get_tle() -> Path:
+    """
+    Returns the path to the TLE specified in metadata.json
+    """
+    tle_dict: dict[str, str] = get_metadata("tle")
+    return get_replay_sequence_dir() / str(tle_dict["file"])

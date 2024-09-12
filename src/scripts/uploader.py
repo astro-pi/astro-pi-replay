@@ -98,6 +98,51 @@ class Uploader:
         jsonschema.validate(metadata, schema)
         logger.info(f"{metadata_filepath} passed schema check")
 
+    def _validate_video(self, base_file: Path):
+        """
+        Ensures the video referenced in the metadata file exists
+        """
+        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        with metadata_filepath.open() as f:
+            metadata = json.load(f)
+        video: str = metadata["video"]
+        if not (base_file / "videos" / video).exists():
+            raise RuntimeError(f"Video {video} does not exist")
+
+    def _validate_tle_file(self, base_file: Path):
+        """
+        Ensures the tle file given by the metadata file exists
+        and has the correct SHA256 hash"""
+        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        with metadata_filepath.open() as f:
+            metadata = json.load(f)
+        file: str = metadata["tle"]["file"]
+        expected_sha256: str = metadata["tle"]["sha256sum"]
+        tle_file: Path = base_file / file
+        if not tle_file.exists():
+            raise RuntimeError(f"TLE file {tle_file} does not exist")
+        with tle_file.open("rb") as f:
+            actual_sha256: str = hashlib.sha256(f.read()).hexdigest()
+
+        if expected_sha256 != actual_sha256:
+            raise RuntimeError(
+                os.linesep.join(
+                    [
+                        f"TLE file {tle_file} does not have the expected sha256 hash.",
+                        f"Expected '{expected_sha256}' but got '{actual_sha256}'.",
+                    ]
+                )
+            )
+
+        with tle_file.open() as f:
+            content = f.readlines()
+
+        expected_start = "ISS (ZARYA)"
+        if content[0] != expected_start:
+            raise RuntimeError(f"TLE file must start with '{expected_start}'")
+
+        logger.info(f"{base_file} passed TLE checks")
+
     def _validate_no_gps_tags(self, base_file: Path):
         """
         Ensures the photo files do not have exif tags
@@ -209,6 +254,8 @@ class Uploader:
         """
         # validations
         self._validate_metadata_schema(base_file)
+        self._validate_video(base_file)
+        self._validate_tle_file(base_file)
         self._validate_no_gps_tags(base_file)
 
         zip_file: Path = self._create_zip(

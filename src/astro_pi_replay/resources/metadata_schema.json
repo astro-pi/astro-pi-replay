@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v1.0.0.json",
+  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v1.1.0.json",
   "title": "Asset metadata schema",
   "description": "A product in the catalog",
   "type": "object",
@@ -66,6 +66,21 @@
       "description": "The image resolution in the y direction e.g. 3040",
       "type": "integer"
     },
+    "tle": {
+      "description": "The two-line-element (TLE) file to use to locate the ISS",
+      "type": "object",
+      "properties": {
+        "file": {
+	  "type": "string",
+	  "description": "The POSIX filepath to the TLE file relative to the kkkm directory"
+	},
+	"sha256sum": {
+	  "type": "string",
+	  "description": "The SHA256 checksum of the TLE file"
+	}
+      },
+      "required": ["file", "sha256sum"]
+    },
     "start": {
       "description": "The time the data capture run started e.g. 2023-04-25 08:14:42.873624",
       "type": "string",
@@ -120,6 +135,7 @@
     "ground_sampling_distance_cm",
     "resolution_x",
     "resolution_y",
+    "tle",
     "start",
     "end",
     "photography_type",
