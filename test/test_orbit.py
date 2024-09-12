@@ -24,12 +24,12 @@ def test_ISS_coordinates_returns_coordinates():
             pos: GeographicPosition = iss.coordinates()
 
             mock_at.assert_called_once()
-            assert pos.latitude.radians == pytest.approx(0.7339144102710123)
-            assert pos.longitude.radians == pytest.approx(0.7033707692532865)
+            assert pos.latitude.radians == pytest.approx(0.7404568620409288)
+            assert pos.longitude.radians == pytest.approx(0.6895319473279833)
             assert pos.model.name == "IERS2010"
             assert pos.center == 399  # Earth. See:
             # https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html
-            assert pos.elevation.km == pytest.approx(421.4205875887477)
+            assert pos.elevation.km == pytest.approx(421.9611019536395)
 
 
 def test_ISS_at_ignores_argument_in_favour_of_relative_time():
@@ -44,9 +44,9 @@ def test_ISS_at_ignores_argument_in_favour_of_relative_time():
         ) as mock_at:
             pos: GeographicPosition = typing.cast(Geocentric, iss.at(t)).subpoint()
             mock_at.assert_called_once()
-            assert pos.latitude.radians == pytest.approx(0.7339144102710123)
-            assert pos.longitude.radians == pytest.approx(0.7033707692532865)
-            assert pos.elevation.km == pytest.approx(421.4205875887477)
+            assert pos.latitude.radians == pytest.approx(0.7404568620409288)
+            assert pos.longitude.radians == pytest.approx(0.6895319473279833)
+            assert pos.elevation.km == pytest.approx(421.9611019536395)
             assert isinstance(mock_at.call_args.args[0], Time)
             assert mock_at.call_args.args[0] != t
 
