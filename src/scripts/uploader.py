@@ -138,8 +138,12 @@ class Uploader:
             content = f.readlines()
 
         expected_start = "ISS (ZARYA)"
-        if content[0] != expected_start:
-            raise RuntimeError(f"TLE file must start with '{expected_start}'")
+        if not content[0].startswith(expected_start):
+            raise RuntimeError(os.linesep.join([
+                f"TLE file should start with '{expected_start}' " + 
+                "but starts with:",
+                content[0]
+            ]))
 
         logger.info(f"{base_file} passed TLE checks")
 
