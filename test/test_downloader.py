@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from test.test_utils import get_test_resource
 from typing import Callable, Iterator, Optional
@@ -97,7 +98,15 @@ async def test_when_sequence_update_available_should_update(tmp_path: Path):
             )
     assert downloader.checked_for_sequences_override is True
     assert downloaded_sequences_file.exists() is True
-    assert downloaded_sequences_file.read_text() == SEQUENCES_FILE.read_text()
+    # Pretend kkkm was removed
+    filtered: str = os.linesep.join(
+        [
+            line
+            for line in SEQUENCES_FILE.read_text().splitlines()
+            if not line.startswith("kkkm")
+        ]
+    )
+    assert downloaded_sequences_file.read_text().strip() == filtered.strip()
 
 
 @pytest.mark.asyncio

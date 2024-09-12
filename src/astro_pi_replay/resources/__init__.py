@@ -7,6 +7,7 @@ from astro_pi_replay.resources.utils import (
     get_replay_sequence_dir,
     get_resource,
     get_start_time,
+    get_tle,
     get_video,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "get_replay_sequence_dir",
     "get_metadata",
     "get_start_time",
+    "get_tle",
     "get_video",
     "REPLAY_SEQUENCE_ENV_VAR",
     "RESOURCE_DIR",
