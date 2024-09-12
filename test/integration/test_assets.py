@@ -83,7 +83,7 @@ def assets(tmpdir, download_all_assets: list[Path]) -> list[Path]:
 def test_asset_metadata_matches_schema(assets: list[Path]):
     with get_resource("metadata_schema.json").open() as f:
         schema: dict = json.load(f)
-    assert len(assets) == 3
+    assert len(assets) == 4
 
     for asset_path in assets:
         asset_path = Path(asset_path)
@@ -100,7 +100,7 @@ def test_asset_metadata_matches_schema(assets: list[Path]):
 
 
 def test_asset_photos_do_not_have_gps_tags(assets: list[Path]):
-    assert len(assets) == 3
+    assert len(assets) == 4
     for asset in assets:
         asset = Path(asset)
         # unzip
