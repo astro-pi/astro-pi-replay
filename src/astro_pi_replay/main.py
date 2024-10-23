@@ -279,4 +279,3 @@ def main() -> None:
             cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
     else:
         asyncio.get_event_loop().run_until_complete(_main(args))
-        print("completed")
