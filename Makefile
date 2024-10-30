@@ -248,7 +248,7 @@ test_picamzero:
 	@echo "Running picamzero tests"
 	PYTEST_PROFILE=PICAMZERO_TESTS pytest test/from_picamzero/test_basic.py
 
-test_integration:
+test_integration:	dist
 	@echo "Running integration tests"
 	cd test/integration; ./execute_tests.sh "INTEGRATION_TESTS"
 
