@@ -1,0 +1,10 @@
+(function(o,t){typeof exports=="object"&&typeof module<"u"?t(exports):typeof define=="function"&&define.amd?define(["exports"],t):(o=typeof globalThis<"u"?globalThis:o||self,t(o["Internal lib used for integration testing"]={}))})(this,function(o){"use strict";var t=typeof document<"u"?document.currentScript:null;const i="kkkm";async function s(e){await e.loadPackage("micropip");const n=e.pyimport("micropip"),l=new URL("/wheels/sgp4-2.23-py3-none-any.whl",typeof document>"u"&&typeof location>"u"?require("url").pathToFileURL(__filename).href:typeof document>"u"?location.href:t&&t.src||new URL("worker-utils.umd.cjs",document.baseURI).href).href;console.log(`Installing ${l}`),await n.install(`${l}`),process.env.ASTRO_PI_REPLAY_INSTALL_URL?await n.install(process.env.ASTRO_PI_REPLAY_INSTALL_URL):await n.install("astro-pi-replay==1.0.0");const a="/home/pyodide/.astro_pi_replay";e.FS.mkdir(a),e.FS.writeFile(`${a}/config.json`,JSON.stringify({sense_hat_snapshot_dir:"",interpolate_sense_hat:!0,debug:!1,sequence:i,no_wait_images:!1,snapshot_sense_hat_display:!1,is_transparent_to_user:!1}),{encoding:"utf8"}),console.log("Downloading assets"),await e.runPython(`
+import asyncio
+from astro_pi_replay.downloader import Downloader
+downloader = Downloader()
+downloader.checked_for_sequences_override=True
+asyncio.get_event_loop().run_until_complete(downloader.install((4056,3040),"VIS", "${i}"))
+  `),console.log("Installing stubs globally..."),await e.runPython(`
+from astro_pi_replay.executor import AstroPiExecutor
+AstroPiExecutor.install_global()
+  `),console.log("Completed installing the replay tool")}async function r(e){await e.loadPackage("micropip");const n=e.pyimport("micropip");await n.install("exif==1.6.0"),await n.install("jinja2==3.1.2"),await n.install("logzero==1.7.0"),await n.install("opencv-python"),await n.install("sphinx==7.3.7")}const c=!0;o._keepFileIncluded=c,o.installAstroPiReplayTool=s,o.installFlightOSLibs=r,Object.defineProperty(o,Symbol.toStringTag,{value:"Module"})});
