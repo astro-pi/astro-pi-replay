@@ -114,12 +114,17 @@ def test_image_capture_sets_exif_metadata(executor: AstroPiExecutor):
     assert img.gps_longitude_ref == "W"
 
 
-def test_image_capture_with_overlay():
-    pass
+def test_image_capture_with_overlay(executor: AstroPiExecutor):
+    cam = CameraAdapter(executor)
+    rocket: Path = test_utils.get_test_resource("rocket.png")
+    cam.add_image_overlay(rocket)
+    cam.capture_image("with_overlay.jpg")
 
 
-def test_image_capture_with_annotation():
-    pass
+def test_image_capture_with_annotation(executor: AstroPiExecutor):
+    cam = CameraAdapter(executor)
+    cam.annotate("hello, world")
+    cam.capture_image("annotated.jpg")
 
 
 def test_capture_sequence(executor: AstroPiExecutor):
@@ -139,7 +144,7 @@ def test_capture_array(executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
     arr = cam.capture_array()
     assert arr.shape == (720, 1280, 3)
-    expected = np.asarray(
+    expected = np.array(
         Image.open(get_replay_sequence_dir() / "photos" / "image0.jpg")
     )
 

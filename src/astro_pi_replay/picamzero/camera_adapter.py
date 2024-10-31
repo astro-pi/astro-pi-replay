@@ -529,7 +529,7 @@ def CameraAdapter(
                 overlay_img = overlay_img.convert("RGBA")
 
                 # Modify the alpha channel to match the transparency
-                overlay_array = np.asarray(overlay_img)
+                overlay_array = np.array(overlay_img)
                 overlay_array[:, :, 3] = np.full(
                     overlay_array[:, :, 3].shape, round(transparency * 255)
                 )
@@ -626,7 +626,7 @@ def CameraAdapter(
                 )
                 text_w, text_h = text_size
 
-                im_array: np.ndarray = np.asarray(im)
+                im_array: np.ndarray = np.array(im)
                 if text_prop["bgcolor"] is not None:
                     cv2.rectangle(
                         im_array,
@@ -659,7 +659,7 @@ def CameraAdapter(
                 A full resolution image as a raw RGB numpy array
             """
             im = self._get_next_photo()
-            return np.asarray(im)
+            return np.array(im)
 
         def take_photo(self, filename=None, gps_coordinates=None) -> str:
             """
