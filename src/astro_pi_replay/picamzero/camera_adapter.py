@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import math
 import os
@@ -20,6 +21,7 @@ from astro_pi_replay.exception import (
 )
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.libcamera import controls
+from astro_pi_replay.picamzero.ImageWrapper import ImageWrapper
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.resources.utils import get_video
@@ -31,6 +33,11 @@ logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.WARN)
 
 GPS_IFD_CODE: int = 0x8825
 
+@dataclasses.dataclass
+class Overlay:
+    image: ImageWrapper
+    position: tuple[int,int]
+    transparency: float
 
 def decorate_all_non_magic_methods(decorator):
     """
@@ -173,7 +180,7 @@ def CameraAdapter(
             self._gain: Optional[float] = None
             self._white_balance: Optional[controls.AwbModeEnum] = None
             self._greyscale: bool = False
-            self._overlay: Optional[dict] = None
+            self._overlay: Optional[Overlay] = None
 
         def __del__(self):
             """
@@ -526,20 +533,20 @@ def CameraAdapter(
             )
 
             if not overlay_img.mode == "RGBA":
-                overlay_img = overlay_img.convert("RGBA")
+                overlay_img.convert("RGBA")
 
                 # Modify the alpha channel to match the transparency
-                overlay_array = np.asarray(overlay_img)
+                overlay_array: np.ndarray = overlay_img.toarray()
                 overlay_array[:, :, 3] = np.full(
                     overlay_array[:, :, 3].shape, round(transparency * 255)
                 )
-                overlay_img = Image.fromarray(overlay_array)
+                overlay_img = overlay_img.fromarray(overlay_array)
 
-            self._overlay = {
-                "image": overlay_img,
-                "position": position,
-                "transparency": transparency,
-            }
+            self._overlay = Overlay(
+                image=overlay_img,
+                position=position,
+                transparency=transparency
+            )
 
         def take_video_and_still(
             self,
@@ -585,7 +592,7 @@ def CameraAdapter(
 
             self.stop_recording()
 
-        def _get_next_photo(self) -> Image.Image:
+        def _get_next_photo(self) -> ImageWrapper:
             name: str = str(
                 executor._replay_next(
                     str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
@@ -596,12 +603,12 @@ def CameraAdapter(
             )
 
             image_path: Path = get_replay_sequence_dir() / "photos" / name
-            im = Image.open(image_path)
+            im: ImageWrapper = ImageWrapper(image_path)
 
             if self._overlay:
                 w, h = im.size
-                overlay_img = self._overlay["image"]
-                pos_w, pos_h = self._overlay["position"]
+                overlay_img = self._overlay.image
+                pos_w, pos_h = self._overlay.position
                 if pos_w > w or pos_h > h:
                     raise PicameraZeroException(
                         "Overlay position" + "is bigger than the image size",
@@ -611,7 +618,7 @@ def CameraAdapter(
                 remaining_w, remaining_h = (w - pos_w, h - pos_h)
                 overlay_w, overlay_h = overlay_img.size
                 if overlay_w > remaining_w or overlay_h > remaining_h:
-                    overlay_img = overlay_img.resize((remaining_w, remaining_h))
+                    overlay_img.resize((remaining_w, remaining_h))
                 im.paste(overlay_img, (pos_w, pos_h), mask=overlay_img)
 
             if self._text:
@@ -626,7 +633,7 @@ def CameraAdapter(
                 )
                 text_w, text_h = text_size
 
-                im_array: np.ndarray = np.asarray(im)
+                im_array: np.ndarray = im.toarray()
                 if text_prop["bgcolor"] is not None:
                     cv2.rectangle(
                         im_array,
@@ -644,7 +651,7 @@ def CameraAdapter(
                     text_prop["color"],
                     text_prop["thickness"],
                 )
-                im = Image.fromarray(im_array)
+                im = im.fromarray(im_array)
             return im
 
         def capture_array(self) -> np.ndarray:
@@ -659,7 +666,7 @@ def CameraAdapter(
                 A full resolution image as a raw RGB numpy array
             """
             im = self._get_next_photo()
-            return np.asarray(im)
+            return im.toarray()
 
         def take_photo(self, filename=None, gps_coordinates=None) -> str:
             """
@@ -677,8 +684,7 @@ def CameraAdapter(
             """
             final_filename: str = utils.format_filename(filename, ".jpg")
 
-            im = self._get_next_photo()
-
+            im: ImageWrapper = self._get_next_photo()
             exif: Image.Exif = im.getexif()
             if gps_coordinates:
                 gps = utils.signed_dms_coordinates_to_exif_dict(gps_coordinates)

@@ -8,6 +8,7 @@ import piexif
 from PIL import Image, UnidentifiedImageError
 
 from astro_pi_replay.libcamera import controls
+from astro_pi_replay.picamzero.ImageWrapper import ImageWrapper
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 
 logger = logging.getLogger(__name__)
@@ -274,7 +275,7 @@ def convert_color(color):
 
 def check_image_overlay(
     image_path: Union[str, Path], position: tuple[int, int], transparency: float
-) -> tuple[Image.Image, tuple[int, int], float]:
+) -> tuple[ImageWrapper, tuple[int, int], float]:
     if not os.path.exists(image_path):
         raise PicameraZeroException(f"The file does not exist: {image_path}")
 
@@ -295,7 +296,7 @@ def check_image_overlay(
 
     # Attempt to read the image
     try:
-        overlay_img = Image.open(image_path)
+        overlay_img = ImageWrapper.open(image_path)
     except UnidentifiedImageError:
         raise PicameraZeroException(
             f"Could not load the overlay image from {image_path}"
