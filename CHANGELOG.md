@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.0.1] - 2024-09-12
+
+### Fixed
+
+- Assets were missing the `datetime_original` tags.
+- Immutable arrays were being passed to opencv instead of mutable ones.
+
 ## [1.0.0] - 2024-09-12
 
 ### Added
