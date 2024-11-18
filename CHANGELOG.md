@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `astro-pi-orbit` stub
+
 ### Changed
 
 ### Removed
@@ -33,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The default image sequence is now from team `kkkm`, chosen by Richard Hayler.
 - TLE files are now stored in assets so that `orbit` gives a more accurate estimate of the location of the ISS.
 
-[unreleased]: https://github.com/olivierlacan/keep-a-changelog/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/astro-pi/Astro-Pi-Replay/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/astro-pi/Astro-Pi-Replay/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/astro-pi/Astro-Pi-Replay/releases/tag/v1.0.0

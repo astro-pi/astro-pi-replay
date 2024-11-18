@@ -140,6 +140,8 @@ def live_venv(tmp_path_factory) -> VenvResolver:
         "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
         "picamera": ["from unittest.mock import MagicMock", "PiCamera = MagicMock()"],
         "orbit": ["from unittest.mock import MagicMock", "ISS = MagicMock()"],
+        "astro_pi_orbit": ["from unittest.mock import MagicMock", 
+                           "ISS = MagicMock()"],
         "picamzero": ["from unittest.mock import MagicMock", "Camera = MagicMock()"],
     }
 
