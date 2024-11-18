@@ -218,6 +218,10 @@ def test_setup_venv_installs_stubs_into_venv_in_replay_mode(tmp_path: Path):
     orbit_path: Path = venv.venv_info.site_packages_dir / "orbit"
     assert "telemetry.py" in os.listdir(orbit_path)
 
+    assert "astro_pi_orbit" in os.listdir(venv.venv_info.site_packages_dir)
+    astro_pi_orbit_path: Path = venv.venv_info.site_packages_dir / "astro_pi_orbit"
+    assert "telemetry.py" in os.listdir(astro_pi_orbit_path)
+
 
 def test_teardowns_run_when_exception_thrown_by_program(
     standard_venv: VenvResolver, tmp_path: Path, exception_program: Path
