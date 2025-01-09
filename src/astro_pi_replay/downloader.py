@@ -4,12 +4,12 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import uuid
 import zipfile
 from pathlib import Path
 from typing import Optional, TypeVar
+
 
 import pandas as pd
 import requests
@@ -126,37 +126,32 @@ class Downloader:
         os.remove(zip_file)
         return self.tempdir
 
-    async def download_file(self, url: str, destination_dir: Path) -> Path:
+    def download_file(self, url: str, destination_dir: Path) -> Path:
         local_filename: str = url.split("/")[-1]
         destination: Path = destination_dir / local_filename
-        if sys.platform == "emscripten":
-            res = await self.get_(url)
-            view = await res.memoryview()
-            with (destination_dir / local_filename).open("wb") as f:
-                f.write(view)
-        else:
-            with requests.get(url, stream=True, timeout=ONE_HOUR) as r:
-                r.raise_for_status()
-                total_length = int(r.headers.get("content-length", 0))
-                chunk_size = 5 * 1024
-                prog_bar = tqdm(total=total_length, unit="iB", unit_scale=True)
-                with (self.tempdir / local_filename).open("wb") as f:
-                    for chunk in r.iter_content(chunk_size=chunk_size):
-                        prog_bar.update(len(chunk))
-                        f.write(chunk)
-                if self.tempdir != destination_dir:
-                    shutil.copy2(self.tempdir / local_filename, destination)
+
+        with requests.get(url, stream=True, timeout=ONE_HOUR) as r:
+            r.raise_for_status()
+            total_length = int(r.headers.get("content-length", 0))
+            chunk_size = 5 * 1024
+            prog_bar = tqdm(total=total_length, unit="iB", unit_scale=True)
+            with (self.tempdir / local_filename).open("wb") as f:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    prog_bar.update(len(chunk))
+                    f.write(chunk)
+            if self.tempdir != destination_dir:
+                shutil.copy2(self.tempdir / local_filename, destination)
 
         logger.debug(f"Download to {destination_dir / local_filename}")
         return destination
 
-    async def download(self, asset_name: str) -> None:
+    def download(self, asset_name: str) -> None:
         downloaded: list[Path] = []
         asset_name += ".zip"
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
             url = f"{asset_url}/{file}"
-            downloaded.append(await self.download_file(url, self.tempdir))
+            downloaded.append(self.download_file(url, self.tempdir))
 
         logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")
         logger.info("Checking the integrity of the downloaded data...")
@@ -195,40 +190,7 @@ class Downloader:
         except FileNotFoundError:
             return False
 
-    async def get_(self, url: str, timeout: int = 0):
-        if sys.platform == "emscripten":
-            from pyodide.http import pyfetch
-
-            # this will throw an `OSError: Failed to fetch`
-            # when not exists.
-            # TODO support timeout...
-
-            res = await pyfetch(url)
-
-            # TODO create Proxy object that support the same requests API...
-            """
-            ['__class__', '__delattr__', '__dict__', '__dir__',
-             '__doc__', '__eq__', '__format__', '__ge__',
-             '__getattribute__', '__getstate__', '__gt__', '__hash__',
-             '__init__', '__init_subclass__', '__le__', '__lt__',
-             '__module__', '__ne__', '__new__', '__reduce__',
-             '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__',
-             '__str__', '__subclasshook__', '__weakref__', '_create_file',
-             '_into_file', '_raise_if_failed', '_url', 'body_used',
-             'buffer', 'bytes', 'clone', 'headers', 'js_response',
-             'json', 'memoryview', 'ok', 'raise_for_status',
-             'redirected', 'status', 'status_text', 'string',
-             'text', 'type', 'unpack_archive', 'url']
-            """
-            res.status_code = res.status
-            # res.content
-            return res
-        else:
-            res = requests.get(url, timeout=timeout)
-
-        return res
-
-    async def check_for_sequences_override(self):
+    def check_for_sequences_override(self):
         """
         Consults the S3 bucket to see if there
         have been any dynamic overrides to sequences.csv
@@ -236,7 +198,7 @@ class Downloader:
         """
 
         try:
-            res = await self.get_(
+            res = requests.get(
                 f"{version_url_prefix}/{SEQUENCES_FILENAME}", timeout=5
             )
             if res.status_code == 200:
@@ -272,7 +234,7 @@ class Downloader:
             )
         return sequence
 
-    async def install(
+    def install(
         self,
         resolution: tuple[int, int],
         photography_type: str,
@@ -281,7 +243,7 @@ class Downloader:
         with_video: bool = False,
     ) -> None:
         if not self.checked_for_sequences_override:
-            await self.check_for_sequences_override()
+            self.check_for_sequences_override()
 
         sequence_id: str
         if test_assets_only:
@@ -302,7 +264,7 @@ class Downloader:
                 logger.debug(f"{seq} already installed")
                 continue
             if not self.has_downloaded(seq):
-                await self.download(seq)
+                self.download(seq)
 
             downloaded_file: Path = self.tempdir / (seq + ".zip")
             unzipped_dir: Path = self._unzip(downloaded_file)
