@@ -285,6 +285,7 @@ def TestConfiguration(
         sense_hat_snapshot_dir,
         __version__,
         True,
+        False,
     )
 
 

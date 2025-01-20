@@ -156,6 +156,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     "sense_hat_snapshot_dir": __file__,
                     f"{PROGRAM_NAME}_version": __version__,
                     "is_transparent_to_user": True,
+                    "streaming_mode": True,
                 }
             )
         )
@@ -168,6 +169,8 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
         assert executor.configuration.snapshot_sense_hat_display is True
         assert executor.configuration.sense_hat_snapshot_dir == Path(__file__)
         assert executor.configuration.astro_pi_replay_version == __version__
+        assert executor.configuration.is_transparent_to_user is True
+        assert executor.configuration.streaming_mode is True
 
 
 ###########################################

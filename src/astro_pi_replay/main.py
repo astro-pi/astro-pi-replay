@@ -153,6 +153,13 @@ def get_argument_parser() -> ArgumentParser:
         + "implemented by the replay tool. By default, the replay tool continues "
         + "silently (as if it were in transparent).",
     )
+    run_parser.add_argument(
+        "--streaming-mode",
+        action="store_true",
+        default=False,
+        help="Stream the image assets from storage instead "
+        + "of bulk downloading prior to running",
+    )
     run_parser.set_defaults(cmd="run")
     update_parser = subparsers.add_parser(
         UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
