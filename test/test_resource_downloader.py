@@ -224,15 +224,3 @@ async def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     vis_dir: Path = tmp_path / "VIS"
     assert vis_dir.exists() and vis_dir.is_dir()
     assert (vis_dir / "AstroPi_2021_colour.png").exists()
-
-
-# TODO this is an integration test
-@pytest.mark.asyncio
-async def test_downloader_when_no_sha256_installed_skips():
-    pass
-
-
-# TODO this is an integration test
-@pytest.mark.asyncio
-async def test_downloader_when_no_gpg_installed_skips():
-    pass

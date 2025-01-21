@@ -30,6 +30,7 @@ from astro_pi_replay.resources import (
     get_replay_sequence_dir,
     get_start_time,
 )
+from astro_pi_replay.resources.downloader import Downloader
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,12 @@ class AstroPiExecutor:
     """
 
     MODULES_TO_STUB: list[str] = [
-        "sense_hat", "picamera", "orbit", "picamzero", "astro_pi_orbit"]
+        "sense_hat",
+        "picamera",
+        "orbit",
+        "picamzero",
+        "astro_pi_orbit",
+    ]
     NOT_FOUND = f"{PROGRAM_CMD_NAME} not found"
 
     """
@@ -84,6 +90,7 @@ class AstroPiExecutor:
         replay_mode: bool = True,
         state: Optional[AstroPiExecutorState] = None,
         configuration: Optional[Configuration] = None,
+        downloader: Optional[Downloader] = None,
     ) -> "AstroPiExecutor":
         """
         datetime_format example: 2022-01-31 12:21:15.123456
@@ -109,16 +116,11 @@ class AstroPiExecutor:
             )
             # Set in (astro-pi-replay-online) to alter some error messages
             cls.is_running_in_browser: bool = False
+            cls.downloader = downloader
         else:
             logger.debug("Executor already instantiated")
 
         return cls._instance
-
-    def picamera_replay(self) -> Callable:
-        """
-        Decorator used to conditionally replay photos from file for the PiCamera
-        """
-        return lambda: 1
 
     def sense_hat_replay(self, *args, **kwargs) -> Callable:
         """
@@ -258,6 +260,11 @@ class AstroPiExecutor:
     def _get_first_time(self, df: pd.DataFrame):
         return df.iloc[0].name
 
+    def _get_downloader(self) -> Downloader:
+        if self.downloader is None:
+            self.downloader = Downloader()
+        return self.downloader
+
     def _interpolate(
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
@@ -301,13 +308,18 @@ class AstroPiExecutor:
         reducer: Callable[[pd.DataFrame], object] = lambda s: s.iloc[0],
         allow_interpolation: bool = True,
     ) -> object:
-        """Internal method that opens the given filename and
-        returns the given col names, using the reducer. In effect,
-        this replays the data.
+        """Internal method that opens the given filename,
+        downloading it if required, and returns the given col names,
+        using the reducer. In effect, this replays the data.
 
         allow_interpolation: Whether to respect the interpolate_sense_hat
         variable.
         """
+
+        file_path: Path = Path(filename)
+        if not file_path.exists() and self.configuration.streaming_mode:
+            # download the file
+            self._get_downloader().fetch_sequence_file(file_path)
 
         df = self._df_from_replay_file(filename, datetime_col)
 

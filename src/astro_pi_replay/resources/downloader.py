@@ -11,7 +11,7 @@ import tempfile
 import uuid
 import zipfile
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 
 import pandas as pd
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 RESOURCE_DIR: Path = Path(__file__).parent
 EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
+REPLAY_DIR_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_DIR"
 REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
 SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
 METADATA_FILE_NAME: str = "metadata.json"
@@ -61,10 +62,13 @@ def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
 
 
 def get_replay_dir() -> Path:
+    replay_dir: Optional[str] = os.environ.get(REPLAY_DIR_ENV_VAR)
+    if replay_dir is not None:
+        return Path(replay_dir)
     return get_resource("replay")
 
 
-def get_replay_sequence_dir() -> Path:
+def get_replay_sequence_dir(download: bool = False) -> Path:
     replay_dir: Path = get_replay_dir()
 
     try:
@@ -79,6 +83,23 @@ def get_replay_sequence_dir() -> Path:
                     if not f.startswith(".")
                 ):
                     return replay_dir / photography_type / config.sequence
+
+            # if here, the sequence wasn't found
+            if config.streaming_mode and download:
+                downloader = Downloader()
+                metadata_path: Path = asyncio.get_event_loop().run_until_complete(
+                    downloader.fetch_metadata(config.sequence)
+                )
+
+                with metadata_path.open() as f:
+                    metadata: dict[str, Any] = json.load(f)
+
+                photography_type = str(metadata["photography_type"])
+
+                sequence_dir: Path = replay_dir / photography_type / config.sequence
+                sequence_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(metadata_path, sequence_dir)
+                return sequence_dir
     except FileNotFoundError:
         pass
 
@@ -387,3 +408,37 @@ class Downloader:
 
             if unzipped_dir != destination_dir:
                 shutil.copytree(unzipped_dir, destination_dir, dirs_exist_ok=True)
+
+    async def fetch_metadata(
+        self, sequence_id: str, destination: Optional[Path] = None
+    ) -> Path:
+        """
+        Fetches the metadata.json file for the given sequence_id
+        to the given destination, defaulting to a temporary directory
+        if no destination is given.
+
+        Returns the destination Path.
+        """
+        url: str = f"{asset_url}/{sequence_id}/metadata.json"
+        if destination is None:
+            destination = self.tempdir
+        return await self.download_file(url, destination, False)
+
+    def fetch_sequence_file(self, file_path: Path) -> Path:
+        """
+        file_path: Absolute Path to an asset that is in the
+            get_replay_sequence_dir()
+        """
+
+        async def _fetch_sequence_file_coroutine() -> Path:
+            logger.debug(f"Fetching {file_path}")
+            sequence_dir: Path = get_replay_sequence_dir()
+            sequence_id: str = get_replay_sequence_dir().name
+            seq_dir_url: PurePosixPath = PurePosixPath(f"{asset_url}/{sequence_id}")
+            url = str(seq_dir_url / file_path.relative_to(sequence_dir))
+
+            return await self.download_file(url, file_path, False)
+
+        return asyncio.get_event_loop().run_until_complete(
+            _fetch_sequence_file_coroutine()
+        )

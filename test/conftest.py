@@ -152,7 +152,7 @@ def live_venv(tmp_path_factory) -> VenvResolver:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def set_replay_dir() -> Iterable:
+def set_replay_sequence() -> Iterable:
     """
     Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point
     to the test data dir.
