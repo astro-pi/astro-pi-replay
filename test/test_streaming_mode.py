@@ -15,6 +15,7 @@ import pytest
 
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamzero import Camera
+from astro_pi_replay.orbit import ISS
 from astro_pi_replay.resources.downloader import (
     REPLAY_DIR_ENV_VAR,
     get_replay_dir,
@@ -117,7 +118,7 @@ def test_sense_hat_data_is_fetched_in_streaming_mode(
     assert data_path.exists()
 
 
-def test_images_are_fetched_in_streaming_mode(set_replay_dir, test_configuration):
+def test_images_are_fetched_in_streaming_mode(set_replay_dir, test_configuration, tmp_path):
     # Given
     replay_dir: Path = get_replay_dir()
     test_metadata_path: Path = (
@@ -141,13 +142,48 @@ def test_images_are_fetched_in_streaming_mode(set_replay_dir, test_configuration
         cam = Camera(executor)
 
         # when
-        cam.take_photo("my_photo.jpg")
+        photo_path: Path = tmp_path / "my_photo.jpg"
+        cam.take_photo(photo_path)
 
     # Then
     # should download image
-    assert Path("my_photo.jpg").exists()
+    assert photo_path.exists()
     assert image_path.exists()
     assert (image_path / "image1.jpg").exists()
+
+
+def test_orbit_should_fetch_tle_file(
+    set_replay_dir, test_configuration
+):
+    # Given
+
+    replay_dir: Path = get_replay_dir()
+    test_metadata_path: Path = (
+        get_original_replay_dir().joinpath(get_test_asset_path()) / "metadata.json"
+    )
+    test_metadata = json.loads(test_metadata_path.read_text())
+
+    photography_type: str = test_metadata["photography_type"]
+    sequence_path: Path = replay_dir / photography_type / SEQUENCE_ID
+    sequence_path.mkdir(parents=True)
+    metadata_path: Path = sequence_path / "metadata.json"
+    shutil.copy2(test_metadata_path, metadata_path)
+
+    tle_path: Path = sequence_path / Path(test_metadata["tle"]["file"])
+
+    assert not tle_path.exists()
+
+    with patch(f"{DOWNLOADER_URL}.fetch_sequence_file") as mock_fetch_sequence_file:
+        mock_fetch_sequence_file.side_effect = get_mock_downloader(sequence_path)
+        executor = AstroPiExecutor(configuration=test_configuration)
+        iss = ISS(executor)
+
+        # when
+        coordinates = iss.coordinates()
+    
+    # Then
+    assert coordinates is not None
+    assert tle_path.exists()
 
 
 def test_should_not_redownload_files():
