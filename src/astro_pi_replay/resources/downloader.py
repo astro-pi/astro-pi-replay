@@ -1,4 +1,6 @@
+import asyncio
 import hashlib
+import json
 import logging
 import os
 import re
@@ -8,40 +10,160 @@ import sys
 import tempfile
 import uuid
 import zipfile
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, TypeVar
+from typing import Any, Optional, Union
 
 import pandas as pd
 import requests
-from tqdm import tqdm  # todo only if not in emscripten
+from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME, __version__
+from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.exception import AstroPiReplayException
-from astro_pi_replay.resources import (
-    REPLAY_SEQUENCE_ENV_VAR,
-    RESOURCE_DIR,
-    get_replay_dir,
-)
 
 logger = logging.getLogger(__name__)
+
+RESOURCE_DIR: Path = Path(__file__).parent
+EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
+REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
+SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
+METADATA_FILE_NAME: str = "metadata.json"
+SEQUENCES_FILENAME: str = "sequences.csv"
+SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
 
 GPG_EMAIL = "enquiries@astro-pi.org"
 BUCKET_NAME: str = "static.raspberrypi.org"
 BUCKET_URL: str = os.environ.get(
-    f"__{PROGRAM_NAME.upper()}_BUCKET_URL",
-    f"https://{BUCKET_NAME}")
+    f"__{PROGRAM_NAME.upper()}_BUCKET_URL", f"https://{BUCKET_NAME}"
+)
 URL_BASE: str = f"{BUCKET_URL}/files/astro-pi"
 GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
 url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
 asset_url: str = f"{url_prefix}/assets"
 asset_prefix: str = str(Path(asset_url).relative_to(Path(BUCKET_URL)))
 version_url_prefix: str = f"{url_prefix}/{__version__}"
-SEQUENCES_FILENAME: str = "sequences.csv"
-SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
-
-T = TypeVar("T")
 
 ONE_HOUR: int = 60 * 60
+
+
+def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
+    """
+    Finds the given resource in the resource dir.
+    """
+
+    path = RESOURCE_DIR / path_relative_to_resources_dir
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Could not find {path_relative_to_resources_dir}" + f" in '{RESOURCE_DIR}'"
+        )
+    return path
+
+
+def get_replay_dir() -> Path:
+    return get_resource("replay")
+
+
+def get_replay_sequence_dir() -> Path:
+    replay_dir: Path = get_replay_dir()
+
+    try:
+        config = Configuration.load()
+        if config.sequence is not None:
+            for photography_type in (
+                f for f in os.listdir(replay_dir) if not f.startswith(".")
+            ):
+                if config.sequence in (
+                    f
+                    for f in os.listdir(replay_dir / photography_type)
+                    if not f.startswith(".")
+                ):
+                    return replay_dir / photography_type / config.sequence
+    except FileNotFoundError:
+        pass
+
+    replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
+    if replay_sequence is not None:
+        return replay_dir / Path(replay_sequence)
+    raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
+
+
+def get_video() -> Path:
+    name: str = get_metadata("video")
+    return get_replay_sequence_dir() / "videos" / name
+
+
+def get_metadata(key: Optional[str] = None) -> Any:
+    """
+    Loads the photo album metadata
+    """
+    # TODO load the file once
+    with (get_replay_sequence_dir() / METADATA_FILE_NAME).open() as f:
+        metadata: dict[str, Any] = json.loads(f.read())
+
+    return metadata[key] if key else metadata
+
+
+def get_metadata_schema() -> dict:
+    with get_resource("metadata_schema.json").open() as f:
+        return json.load(f)
+
+
+def get_start_time() -> datetime:
+    return datetime.strptime(get_metadata("start"), EXPECTED_DATETIME_FORMAT)
+
+
+def get_tle() -> Path:
+    """
+    Returns the path to the TLE specified in metadata.json
+    """
+    tle_dict: dict[str, str] = get_metadata("tle")
+    return get_replay_sequence_dir() / str(tle_dict["file"])
+
+
+def search_for_sequence(resolution: tuple[int, int], photography_type: str) -> str:
+    """
+    Returns the id of the most appropriate photo sequence given the requested
+    resolution and photography type.
+    """
+    sequence: str
+
+    # save it if not already open
+    df = pd.read_csv(SEQUENCES_FILE)
+
+    filtered = df[
+        (df["photography_type"] == photography_type)
+        & (df["resolution"] == "x".join((str(res) for res in resolution)))
+    ]
+
+    if len(filtered) > 0:
+        sequence = filtered["sequence_id"][0]
+    else:
+        raise AstroPiReplayException(
+            f"No photos with resolution {resolution} "
+            + f"and photography type {photography_type} are available"
+        )
+    return sequence
+
+
+def has_installed(
+    resolution: tuple[int, int],
+    photography_type: str,
+    sequence_name: Optional[str] = None,
+) -> bool:
+    sequence: str
+    if sequence_name is None:
+        sequence = os.environ.get(
+            REPLAY_SEQUENCE_ENV_VAR,
+            search_for_sequence(resolution, photography_type),
+        )
+    else:
+        sequence = sequence_name
+
+    try:
+        return (get_replay_dir() / f"{photography_type}/{sequence}").exists()
+    except FileNotFoundError:
+        return False
 
 
 class Downloader:
@@ -126,7 +248,7 @@ class Downloader:
         os.remove(zip_file)
         return self.tempdir
 
-    async def download_file(self, url: str, destination_dir: Path) -> Path:
+    async def download_file(self, url: str, destination_dir: Path, stream=True) -> Path:
         local_filename: str = url.split("/")[-1]
         destination: Path = destination_dir / local_filename
         if sys.platform == "emscripten":
@@ -135,7 +257,7 @@ class Downloader:
             with (destination_dir / local_filename).open("wb") as f:
                 f.write(view)
         else:
-            with requests.get(url, stream=True, timeout=ONE_HOUR) as r:
+            with requests.get(url, stream=stream, timeout=ONE_HOUR) as r:
                 r.raise_for_status()
                 total_length = int(r.headers.get("content-length", 0))
                 chunk_size = 5 * 1024
@@ -150,7 +272,7 @@ class Downloader:
         logger.debug(f"Download to {destination_dir / local_filename}")
         return destination
 
-    async def download(self, asset_name: str) -> None:
+    async def bulk_download(self, asset_name: str) -> None:
         downloaded: list[Path] = []
         asset_name += ".zip"
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
@@ -175,27 +297,8 @@ class Downloader:
     def has_downloaded(self, asset_name: str) -> bool:
         return f"{asset_name}" in os.listdir(self.tempdir)
 
-    def has_installed(
-        self,
-        resolution: tuple[int, int],
-        photography_type: str,
-        sequence_name: Optional[str] = None,
-    ) -> bool:
-        sequence: str
-        if sequence_name is None:
-            sequence = os.environ.get(
-                REPLAY_SEQUENCE_ENV_VAR,
-                self.search_for_sequence(resolution, photography_type),
-            )
-        else:
-            sequence = sequence_name
-
-        try:
-            return (get_replay_dir() / f"{photography_type}/{sequence}").exists()
-        except FileNotFoundError:
-            return False
-
-    async def get_(self, url: str, timeout: int = 0):
+    @staticmethod
+    async def get_(url: str, timeout: int = 0):
         if sys.platform == "emscripten":
             from pyodide.http import pyfetch
 
@@ -246,32 +349,6 @@ class Downloader:
         finally:
             self.checked_for_sequences_override = True
 
-    def search_for_sequence(
-        self, resolution: tuple[int, int], photography_type: str
-    ) -> str:
-        """
-        Returns the id of the most appropriate photo sequence given the requested
-        resolution and photography type.
-        """
-        sequence: str
-
-        # save it if not already open
-        df = pd.read_csv(SEQUENCES_FILE)
-
-        filtered = df[
-            (df["photography_type"] == photography_type)
-            & (df["resolution"] == "x".join((str(res) for res in resolution)))
-        ]
-
-        if len(filtered) > 0:
-            sequence = filtered["sequence_id"][0]
-        else:
-            raise AstroPiReplayException(
-                f"No photos with resolution {resolution} "
-                + f"and photography type {photography_type} are available"
-            )
-        return sequence
-
     async def install(
         self,
         resolution: tuple[int, int],
@@ -289,7 +366,7 @@ class Downloader:
         elif sequence is not None:
             sequence_id = sequence
         else:
-            sequence_id = self.search_for_sequence(resolution, photography_type)
+            sequence_id = search_for_sequence(resolution, photography_type)
 
         sequences_to_install: list[str] = [sequence_id]
         if with_video:
@@ -298,11 +375,11 @@ class Downloader:
         for seq in sequences_to_install:
             logger.debug(f"Request to install {seq}")
 
-            if self.has_installed(resolution, photography_type, seq):
+            if has_installed(resolution, photography_type, seq):
                 logger.debug(f"{seq} already installed")
                 continue
             if not self.has_downloaded(seq):
-                await self.download(seq)
+                await self.bulk_download(seq)
 
             downloaded_file: Path = self.tempdir / (seq + ".zip")
             unzipped_dir: Path = self._unzip(downloaded_file)

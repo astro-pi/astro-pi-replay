@@ -12,8 +12,12 @@ import jsonschema
 import pytest
 from botocore.config import Config
 
-from astro_pi_replay.downloader import BUCKET_NAME, asset_prefix
-from astro_pi_replay.resources.utils import METADATA_FILE_NAME, get_resource
+from astro_pi_replay.resources.downloader import (
+    BUCKET_NAME,
+    METADATA_FILE_NAME,
+    asset_prefix,
+    get_resource,
+)
 from scripts.uploader import GPS_TAGS
 
 logger = logging.getLogger(__name__)
