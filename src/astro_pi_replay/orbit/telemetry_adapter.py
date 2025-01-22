@@ -63,7 +63,6 @@ def get_patched_iss(
     # downloaded
     if executor.configuration.streaming_mode:
         if not get_tle(download_metadata=True).exists():
-            print("FETCHING THE TLE")
             executor._get_downloader().fetch_sequence_file(get_tle())
 
     b = _ISS()
