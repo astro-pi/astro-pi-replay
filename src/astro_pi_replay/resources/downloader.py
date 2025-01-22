@@ -12,7 +12,6 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
-from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -87,8 +86,7 @@ def get_replay_sequence_dir(download_metadata: bool = False) -> Path:
             # if here, the sequence wasn't found
             if config.streaming_mode and download_metadata:
                 downloader = Downloader()
-                metadata_path: Path = downloader.fetch_metadata(
-                        config.sequence)
+                metadata_path: Path = downloader.fetch_metadata(config.sequence)
 
                 with metadata_path.open() as f:
                     metadata: dict[str, Any] = json.load(f)
@@ -113,8 +111,7 @@ def get_video() -> Path:
     return get_replay_sequence_dir() / "videos" / name
 
 
-def get_metadata(key: Optional[str] = None, 
-                 download_metadata: bool = False) -> Any:
+def get_metadata(key: Optional[str] = None, download_metadata: bool = False) -> Any:
     """
     Loads the photo album metadata
     """
@@ -269,18 +266,22 @@ class Downloader:
         os.remove(zip_file)
         return self.tempdir
 
-    def download_file(self, url: str, destination_dir: Path) -> Path:
+    def download_file(
+        self, url: str, destination_dir: Path, timeout: float = ONE_HOUR
+    ) -> Path:
         local_filename: str = url.split("/")[-1]
-        destination_dir.mkdir(parents=True,exist_ok=True)
+        destination_dir.mkdir(parents=True, exist_ok=True)
         destination: Path = destination_dir / local_filename
 
         logger.debug(f"Writing {local_filename} to {destination}")
-        with requests.get(url) as response:
+        with requests.get(url, timeout=timeout) as response:
             response.raise_for_status()
             destination.write_bytes(response.content)
         return destination
 
-    async def download_file_chunked(self, url: str, destination_dir: Path, stream=True) -> Path:
+    async def download_file_chunked(
+        self, url: str, destination_dir: Path, stream=True
+    ) -> Path:
         local_filename: str = url.split("/")[-1]
         destination: Path = destination_dir / local_filename
         if sys.platform == "emscripten":
@@ -445,6 +446,5 @@ class Downloader:
         sequence_dir: Path = get_replay_sequence_dir()
         sequence_id: str = get_replay_sequence_dir().name
         seq_dir_url: str = f"{asset_url}/{sequence_id}"
-        url: str = f"{seq_dir_url}/{file_path.relative_to(sequence_dir)}" 
+        url: str = f"{seq_dir_url}/{file_path.relative_to(sequence_dir)}"
         return self.download_file(url, file_path.parent)
-

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+from datetime import datetime, timedelta
 from pathlib import Path
 from test.test_utils import (
     TestConfiguration,
@@ -14,8 +15,8 @@ import numpy as np
 import pytest
 
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.picamzero import Camera
 from astro_pi_replay.orbit import ISS
+from astro_pi_replay.picamzero import Camera
 from astro_pi_replay.resources.downloader import (
     REPLAY_DIR_ENV_VAR,
     get_replay_dir,
@@ -24,7 +25,8 @@ from astro_pi_replay.resources.downloader import (
 from astro_pi_replay.sense_hat import SenseHat
 
 logger = logging.getLogger(__name__)
-DOWNLOADER_URL: str = "astro_pi_replay.resources.downloader.Downloader"
+DOWNLOADER_URL: str = "astro_pi_replay.resources.timed_downloader.Downloader"
+TIMED_DOWNLOADER_MODULE: str = "astro_pi_replay.resources.timed_downloader"
 SEQUENCE_ID: str = "streaming_mode_sequence"
 
 
@@ -37,7 +39,7 @@ def test_configuration():
     return conf
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def set_replay_dir(tmp_path_factory):
     """
     Sets the REPLAY_DIR_ENV_VAR environment variable to point to a
@@ -57,7 +59,7 @@ def set_replay_dir(tmp_path_factory):
 
 
 def test_get_replay_sequence_dir_downloads_metadata_file(
-    set_replay_dir, test_configuration, tmp_path_factory
+    test_configuration, tmp_path_factory
 ):
     # tests that the metadata.json file is downloaded
     # in streaming mode
@@ -88,9 +90,7 @@ def test_get_replay_sequence_dir_downloads_metadata_file(
     assert (sequence_dir / "metadata.json").exists()
 
 
-def test_sense_hat_data_is_fetched_in_streaming_mode(
-    set_replay_dir, test_configuration
-):
+def test_sense_hat_data_is_fetched_in_streaming_mode(test_configuration):
     # Given
     replay_dir: Path = get_replay_dir()
     photography_type: str = "IR"
@@ -118,7 +118,7 @@ def test_sense_hat_data_is_fetched_in_streaming_mode(
     assert data_path.exists()
 
 
-def test_images_are_fetched_in_streaming_mode(set_replay_dir, test_configuration, tmp_path):
+def test_images_are_fetched_in_streaming_mode(test_configuration, tmp_path):
     # Given
     replay_dir: Path = get_replay_dir()
     test_metadata_path: Path = (
@@ -152,9 +152,7 @@ def test_images_are_fetched_in_streaming_mode(set_replay_dir, test_configuration
     assert (image_path / "image1.jpg").exists()
 
 
-def test_orbit_should_fetch_tle_file(
-    set_replay_dir, test_configuration
-):
+def test_orbit_should_fetch_tle_file(test_configuration):
     # Given
 
     replay_dir: Path = get_replay_dir()
@@ -180,18 +178,56 @@ def test_orbit_should_fetch_tle_file(
 
         # when
         coordinates = iss.coordinates()
-    
+
     # Then
     assert coordinates is not None
     assert tle_path.exists()
 
 
-def test_should_not_redownload_files():
-    pass
+def test_should_ignore_download_time_in_elapsed_time(test_configuration):
+    replay_dir: Path = get_replay_dir()
+    test_metadata_path: Path = (
+        get_original_replay_dir().joinpath(get_test_asset_path()) / "metadata.json"
+    )
+    test_metadata = json.loads(test_metadata_path.read_text())
 
+    photography_type: str = test_metadata["photography_type"]
+    sequence_path: Path = replay_dir / photography_type / SEQUENCE_ID
+    sequence_path.mkdir(parents=True)
+    metadata_path: Path = sequence_path / "metadata.json"
+    shutil.copy2(test_metadata_path, metadata_path)
 
-def test_should_warn_when_download_takes_over_delta():
-    pass
+    executor = AstroPiExecutor(configuration=test_configuration)
+
+    # mock the download
+    SIMULATED_DOWNLOAD_TIME: float = 30
+
+    with patch(f"{DOWNLOADER_URL}.fetch_sequence_file") as mock_fetch_sequence_file:
+        mock_fetch_sequence_file.side_effect = get_mock_downloader(sequence_path)
+
+        # pretend it's a very slow download
+        with patch(f"{TIMED_DOWNLOADER_MODULE}.datetime") as mock_datetime:
+            now = datetime.now()
+            mock_datetime.now.side_effect = [
+                now,
+                now + timedelta(seconds=SIMULATED_DOWNLOAD_TIME),
+            ]
+
+            executor = AstroPiExecutor(configuration=test_configuration)
+            iss = ISS(executor)
+
+            # when
+            iss.coordinates()
+
+    # The network time should be tracked
+    assert executor._state._network_time == SIMULATED_DOWNLOAD_TIME
+    # and the start time should haved moved forward by
+    # the simulated_download_time
+    assert executor._state.get_start_time() != executor._state._start_time
+    difference = (
+        executor._state.get_start_time() - executor._state._start_time
+    ).total_seconds()
+    assert difference == SIMULATED_DOWNLOAD_TIME
 
 
 def get_mock_downloader(current_sequence_dir: Path):

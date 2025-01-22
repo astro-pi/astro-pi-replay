@@ -31,6 +31,7 @@ from astro_pi_replay.resources import (
     get_start_time,
 )
 from astro_pi_replay.resources.downloader import Downloader
+from astro_pi_replay.resources.timed_downloader import TimedDownloader
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -235,7 +236,9 @@ class AstroPiExecutor:
             logger.debug(f"Actual time: {actual_time}")
             actual_delta: int = (actual_time - first_time).total_seconds()
             logger.debug(f"Actual delta: {actual_delta}")
-            cutoff: datetime = self._state.get_start_time() + timedelta(seconds=actual_delta)
+            cutoff: datetime = self._state.get_start_time() + timedelta(
+                seconds=actual_delta
+            )
             logger.debug(f"Cutoff: {cutoff}")
             delta = (cutoff - datetime.now()).total_seconds()
             logger.debug(f"Replay delta: {delta}")
@@ -265,9 +268,12 @@ class AstroPiExecutor:
     def _get_first_time(self, df: pd.DataFrame):
         return df.iloc[0].name
 
+    def _add_network_time(self, network_time: float) -> None:
+        self._state._network_time += network_time
+
     def _get_downloader(self) -> Downloader:
         if self.downloader is None:
-            self.downloader = Downloader()
+            self.downloader = TimedDownloader(self._add_network_time)
         return self.downloader
 
     def _interpolate(
