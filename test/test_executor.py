@@ -69,7 +69,7 @@ def test_replayed_index_should_always_increase_when_no_wait_images(_):
     executor._state._start_time = first.to_pydatetime()
 
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+        mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(
             seconds=1
         )
         i = executor._find_next_datum(df)
@@ -87,7 +87,7 @@ def test_executor_is_singleton():
 def test_time_since_start():
     executor = AstroPiExecutor()
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time
+        mock_datetime.now.return_value = executor._state.get_start_time()
         assert executor.time_since_start() == get_start_time()
 
 
@@ -127,7 +127,7 @@ def test_executor_replay_mode_should_replay_data_without_interpolation(
 
     # make the test deterministic
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+        mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(
             seconds=2
         )
         executor.run(

@@ -196,7 +196,7 @@ def CameraAdapter(
             self, final_filename: str, start: datetime, duration: float
         ) -> None:
             # calculate the time since the replay started
-            delta: timedelta = start - executor._state._start_time
+            delta: timedelta = start - executor._state.get_start_time()
             video: Path = get_video()
             if not video.exists():
                 executor._get_downloader().fetch_sequence_file(video)
@@ -787,7 +787,7 @@ def CameraAdapter(
                 executor._get_downloader().fetch_sequence_file(video)
 
             # calculate the time since the replay started
-            delta: timedelta = datetime.now() - executor._state._start_time
+            delta: timedelta = datetime.now() - executor._state.get_start_time()
             cmd: list[str] = [
                 "ffmpeg",
                 "-ss",

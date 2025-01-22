@@ -38,7 +38,7 @@ def executor(configuration):
 def test_replayed_data_is_consistent(executor: AstroPiExecutor):
     # Makes the test deterministic
     with patch("astro_pi_replay.executor.datetime", wraps=datetime) as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(days=2)
+        mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(days=2)
         sh = SenseHatAdapter(executor)
 
         assert sh.color.rgb == sh.color.color[:3]
@@ -105,7 +105,7 @@ def test_replay_without_interpolation_should_replay_sequence_of_data(
         with patch(
             "astro_pi_replay.executor.datetime", wraps=datetime
         ) as mock_datetime:
-            mock_datetime.now.return_value = executor._state._start_time + timedelta(
+            mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(
                 days=2
             )
             executor.configuration.interpolate_sense_hat = False

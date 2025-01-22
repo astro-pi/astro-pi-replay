@@ -52,6 +52,11 @@ class AstroPiExecutorState:
         self._start_time: datetime = datetime.now()
         self._sense_hat_snapshot_index: int = 1
         self._picamera_instances_count: int = 0
+        # the time spent waiting for the network
+        self._network_time: float = 0
+
+    def get_start_time(self) -> datetime:
+        return timedelta(seconds=self._network_time) + self._start_time
 
 
 class AstroPiExecutor:
@@ -187,7 +192,7 @@ class AstroPiExecutor:
         the first_time given. The elapsed time is therefore relative to
         the input.
         """
-        start_time: datetime = self._state._start_time
+        start_time: datetime = self._state.get_start_time()
         logger.debug(f"Start_time: {start_time}")
         now: datetime = datetime.now()
         # TODO manually code the first call to return index 0 to not
@@ -230,7 +235,7 @@ class AstroPiExecutor:
             logger.debug(f"Actual time: {actual_time}")
             actual_delta: int = (actual_time - first_time).total_seconds()
             logger.debug(f"Actual delta: {actual_delta}")
-            cutoff: datetime = self._state._start_time + timedelta(seconds=actual_delta)
+            cutoff: datetime = self._state.get_start_time() + timedelta(seconds=actual_delta)
             logger.debug(f"Cutoff: {cutoff}")
             delta = (cutoff - datetime.now()).total_seconds()
             logger.debug(f"Replay delta: {delta}")
@@ -367,7 +372,7 @@ class AstroPiExecutor:
     def time_since_start(self) -> datetime:
         """Time relative to the original start time, as specified
         in the metadata.json file"""
-        execution_start_time: datetime = self._state._start_time
+        execution_start_time: datetime = self._state.get_start_time()
         now: datetime = datetime.now()
         delta: timedelta = now - execution_start_time
 
