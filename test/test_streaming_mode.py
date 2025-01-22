@@ -81,7 +81,7 @@ def test_get_replay_sequence_dir_downloads_metadata_file(
         mock_fetch_metadata.return_value = metadata
 
         # when
-        get_replay_sequence_dir(download=True)
+        get_replay_sequence_dir(download_metadata=True)
 
     # then
     assert sequence_dir.exists()

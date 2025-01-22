@@ -61,8 +61,12 @@ def get_patched_iss(
 
     # when in streaming mode, the TLE file may not yet have been
     # downloaded
-    if executor.configuration.streaming_mode and not get_tle().exists():
-        executor._get_downloader().fetch_sequence_file(get_tle())
+    if executor.configuration.streaming_mode:
+        try:
+            get_tle().exists()
+        except FileNotFoundError:
+            executor._get_downloader().fetch_sequence_file(
+                    get_tle(download_metadata=True))
 
     b = _ISS()
     b.__class__ = EarthSatellite

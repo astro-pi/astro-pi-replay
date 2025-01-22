@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import logging
@@ -11,8 +10,9 @@ import tempfile
 import uuid
 import zipfile
 from datetime import datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Optional, Union
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -68,7 +68,7 @@ def get_replay_dir() -> Path:
     return get_resource("replay")
 
 
-def get_replay_sequence_dir(download: bool = False) -> Path:
+def get_replay_sequence_dir(download_metadata: bool = False) -> Path:
     replay_dir: Path = get_replay_dir()
 
     try:
@@ -85,11 +85,10 @@ def get_replay_sequence_dir(download: bool = False) -> Path:
                     return replay_dir / photography_type / config.sequence
 
             # if here, the sequence wasn't found
-            if config.streaming_mode and download:
+            if config.streaming_mode and download_metadata:
                 downloader = Downloader()
-                metadata_path: Path = asyncio.get_event_loop().run_until_complete(
-                    downloader.fetch_metadata(config.sequence)
-                )
+                metadata_path: Path = downloader.fetch_metadata(
+                        config.sequence)
 
                 with metadata_path.open() as f:
                     metadata: dict[str, Any] = json.load(f)
@@ -114,12 +113,13 @@ def get_video() -> Path:
     return get_replay_sequence_dir() / "videos" / name
 
 
-def get_metadata(key: Optional[str] = None) -> Any:
+def get_metadata(key: Optional[str] = None, 
+                 download_metadata: bool = False) -> Any:
     """
     Loads the photo album metadata
     """
     # TODO load the file once
-    with (get_replay_sequence_dir() / METADATA_FILE_NAME).open() as f:
+    with (get_replay_sequence_dir(download_metadata) / METADATA_FILE_NAME).open() as f:
         metadata: dict[str, Any] = json.loads(f.read())
 
     return metadata[key] if key else metadata
@@ -134,11 +134,11 @@ def get_start_time() -> datetime:
     return datetime.strptime(get_metadata("start"), EXPECTED_DATETIME_FORMAT)
 
 
-def get_tle() -> Path:
+def get_tle(download_metadata: bool = False) -> Path:
     """
     Returns the path to the TLE specified in metadata.json
     """
-    tle_dict: dict[str, str] = get_metadata("tle")
+    tle_dict: dict[str, str] = get_metadata("tle", download_metadata)
     return get_replay_sequence_dir() / str(tle_dict["file"])
 
 
@@ -269,7 +269,18 @@ class Downloader:
         os.remove(zip_file)
         return self.tempdir
 
-    async def download_file(self, url: str, destination_dir: Path, stream=True) -> Path:
+    def download_file(self, url: str, destination_dir: Path) -> Path:
+        local_filename: str = url.split("/")[-1]
+        destination_dir.mkdir(parents=True,exist_ok=True)
+        destination: Path = destination_dir / local_filename
+
+        logger.debug(f"Writing {local_filename} to {destination}")
+        with requests.get(url) as response:
+            response.raise_for_status()
+            destination.write_bytes(response.content)
+        return destination
+
+    async def download_file_chunked(self, url: str, destination_dir: Path, stream=True) -> Path:
         local_filename: str = url.split("/")[-1]
         destination: Path = destination_dir / local_filename
         if sys.platform == "emscripten":
@@ -299,7 +310,7 @@ class Downloader:
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
             url = f"{asset_url}/{file}"
-            downloaded.append(await self.download_file(url, self.tempdir))
+            downloaded.append(await self.download_file_chunked(url, self.tempdir))
 
         logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")
         logger.info("Checking the integrity of the downloaded data...")
@@ -409,7 +420,7 @@ class Downloader:
             if unzipped_dir != destination_dir:
                 shutil.copytree(unzipped_dir, destination_dir, dirs_exist_ok=True)
 
-    async def fetch_metadata(
+    def fetch_metadata(
         self, sequence_id: str, destination: Optional[Path] = None
     ) -> Path:
         """
@@ -422,7 +433,7 @@ class Downloader:
         url: str = f"{asset_url}/{sequence_id}/metadata.json"
         if destination is None:
             destination = self.tempdir
-        return await self.download_file(url, destination, False)
+        return self.download_file(url, destination)
 
     def fetch_sequence_file(self, file_path: Path) -> Path:
         """
@@ -430,15 +441,10 @@ class Downloader:
             get_replay_sequence_dir()
         """
 
-        async def _fetch_sequence_file_coroutine() -> Path:
-            logger.debug(f"Fetching {file_path}")
-            sequence_dir: Path = get_replay_sequence_dir()
-            sequence_id: str = get_replay_sequence_dir().name
-            seq_dir_url: PurePosixPath = PurePosixPath(f"{asset_url}/{sequence_id}")
-            url = str(seq_dir_url / file_path.relative_to(sequence_dir))
+        logger.debug(f"Fetching {file_path}")
+        sequence_dir: Path = get_replay_sequence_dir()
+        sequence_id: str = get_replay_sequence_dir().name
+        seq_dir_url: str = f"{asset_url}/{sequence_id}"
+        url: str = f"{seq_dir_url}/{file_path.relative_to(sequence_dir)}" 
+        return self.download_file(url, file_path.parent)
 
-            return await self.download_file(url, file_path, False)
-
-        return asyncio.get_event_loop().run_until_complete(
-            _fetch_sequence_file_coroutine()
-        )
