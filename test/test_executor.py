@@ -69,7 +69,7 @@ def test_replayed_index_should_always_increase_when_no_wait_images(_):
     executor._state._start_time = first.to_pydatetime()
 
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+        mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(
             seconds=1
         )
         i = executor._find_next_datum(df)
@@ -87,7 +87,7 @@ def test_executor_is_singleton():
 def test_time_since_start():
     executor = AstroPiExecutor()
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time
+        mock_datetime.now.return_value = executor._state.get_start_time()
         assert executor.time_since_start() == get_start_time()
 
 
@@ -127,7 +127,7 @@ def test_executor_replay_mode_should_replay_data_without_interpolation(
 
     # make the test deterministic
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
-        mock_datetime.now.return_value = executor._state._start_time + timedelta(
+        mock_datetime.now.return_value = executor._state.get_start_time() + timedelta(
             seconds=2
         )
         executor.run(
@@ -156,6 +156,7 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     "sense_hat_snapshot_dir": __file__,
                     f"{PROGRAM_NAME}_version": __version__,
                     "is_transparent_to_user": True,
+                    "streaming_mode": True,
                 }
             )
         )
@@ -168,6 +169,8 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
         assert executor.configuration.snapshot_sense_hat_display is True
         assert executor.configuration.sense_hat_snapshot_dir == Path(__file__)
         assert executor.configuration.astro_pi_replay_version == __version__
+        assert executor.configuration.is_transparent_to_user is True
+        assert executor.configuration.streaming_mode is True
 
 
 ###########################################

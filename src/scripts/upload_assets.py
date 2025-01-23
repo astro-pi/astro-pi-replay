@@ -12,8 +12,7 @@ from typing import Union
 
 import exif
 
-from astro_pi_replay.downloader import asset_url
-from astro_pi_replay.resources.utils import get_replay_dir
+from astro_pi_replay.resources.downloader import asset_url, get_replay_dir
 
 from .uploader import GPS_TAGS, Uploader
 

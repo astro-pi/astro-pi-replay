@@ -140,8 +140,7 @@ def live_venv(tmp_path_factory) -> VenvResolver:
         "sense_hat": ["from unittest.mock import MagicMock", "SenseHat = MagicMock()"],
         "picamera": ["from unittest.mock import MagicMock", "PiCamera = MagicMock()"],
         "orbit": ["from unittest.mock import MagicMock", "ISS = MagicMock()"],
-        "astro_pi_orbit": ["from unittest.mock import MagicMock", 
-                           "ISS = MagicMock()"],
+        "astro_pi_orbit": ["from unittest.mock import MagicMock", "ISS = MagicMock()"],
         "picamzero": ["from unittest.mock import MagicMock", "Camera = MagicMock()"],
     }
 
@@ -153,16 +152,16 @@ def live_venv(tmp_path_factory) -> VenvResolver:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def set_replay_dir() -> Iterable:
+def set_replay_sequence() -> Iterable:
     """
-    Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point to the test data
-    dir.
+    Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point
+    to the test data dir.
     """
     value: str = get_test_asset_path()
     logger.debug(f"Setting {REPLAY_SEQUENCE_ENV_VAR} to {value}")
     os.environ[REPLAY_SEQUENCE_ENV_VAR] = value
 
-    with patch("astro_pi_replay.main.Downloader.has_installed") as f:
+    with patch("astro_pi_replay.resources.downloader.has_installed") as f:
         f.return_value = True
         yield
     logger.debug(f"Unsetting {REPLAY_SEQUENCE_ENV_VAR}")

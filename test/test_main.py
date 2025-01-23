@@ -76,6 +76,7 @@ async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Pa
         "snapshot_sense_hat_display": True,
         "sense_hat_snapshot_dir": __file__,
         "is_transparent_to_user": True,
+        "streaming_mode": True,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 

@@ -23,8 +23,11 @@ from exif import DATETIME_STR_FORMAT, Image
 from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME
-from astro_pi_replay.downloader import url_prefix
-from astro_pi_replay.resources.utils import METADATA_FILE_NAME, get_metadata_schema
+from astro_pi_replay.resources.downloader import (
+    METADATA_FILE_NAME,
+    get_metadata_schema,
+    url_prefix,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -139,11 +142,15 @@ class Uploader:
 
         expected_start = "ISS (ZARYA)"
         if not content[0].startswith(expected_start):
-            raise RuntimeError(os.linesep.join([
-                f"TLE file should start with '{expected_start}' " + 
-                "but starts with:",
-                content[0]
-            ]))
+            raise RuntimeError(
+                os.linesep.join(
+                    [
+                        f"TLE file should start with '{expected_start}' "
+                        + "but starts with:",
+                        content[0],
+                    ]
+                )
+            )
 
         logger.info(f"{base_file} passed TLE checks")
 

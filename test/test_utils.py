@@ -19,6 +19,7 @@ from PIL import Image
 from astro_pi_replay import __version__
 from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.resources.downloader import get_resource
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,10 @@ def patch_photo_indices(indices: list[int]) -> _patch:
     )
 
 
+def get_original_replay_dir() -> Path:
+    return get_resource("replay")
+
+
 def get_test_asset_path() -> str:
     return "VIS/test_data"
 
@@ -285,6 +290,7 @@ def TestConfiguration(
         sense_hat_snapshot_dir,
         __version__,
         True,
+        False,
     )
 
 
