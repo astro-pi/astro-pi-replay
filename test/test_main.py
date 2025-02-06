@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+from test.test_utils import ProgramFixture
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +9,6 @@ import pytest
 from astro_pi_replay import PROGRAM_NAME
 from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
 from astro_pi_replay.main import _main, main
-from test_utils import ProgramFixture
 
 
 @pytest.mark.skip(reason="TODO")
@@ -41,16 +41,21 @@ def test_main_cli_when_run_given_supplies_default_args(
         namespace = mock_main.call_args.args[0]
         assert namespace.main == sense_hat_program.main
         assert namespace.cmd == args[1]
-        assert namespace.debug is False
+        assert namespace.debug is (
+            os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None
+        )
         assert namespace.mode is None
         assert namespace.no_match_original_photo_intervals is False
         assert namespace.venv_dir is None
         assert namespace.interpolate_sense_hat is True
         assert namespace.resolution == (4056, 3040)
         assert namespace.photography_type == "VIS"
+        assert namespace.snapshot_sense_hat_display is False
+        assert namespace.sense_hat_snapshot_dir == Path(os.getcwd())
 
 
-def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
+@pytest.mark.asyncio
+async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
     # remove the default test profile set up in conftest
     os.environ.pop(CONFIG_FILE_ENV_VAR)
     os.remove(mock_config_filepath)
@@ -68,15 +73,22 @@ def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Path):
         "photography_type": "VIS",
         "sequence": None,
         "interpolate_sense_hat": True,
+        "snapshot_sense_hat_display": True,
+        "sense_hat_snapshot_dir": __file__,
+        "is_transparent_to_user": True,
+        "streaming_mode": True,
     }
     namespace: argparse.Namespace = argparse.Namespace(**args)
 
     # When
     with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
-        _main(namespace)
+        await _main(namespace)
     assert mock_config_filepath.exists()
 
 
 @pytest.mark.skip(reason="TODO")
 def test_calls_executor_run_with_correct_args():
     pass
+
+
+# TODO test when downloader throws Exception, should still run

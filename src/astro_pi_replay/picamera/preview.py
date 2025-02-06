@@ -18,7 +18,7 @@ try:
     import tkinter as tk
 
     from PIL import ImageTk
-except ModuleNotFoundError:
+except ImportError:
     logger.info("Tkinter not found - calling preview will not work")
 
 
