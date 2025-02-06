@@ -1,0 +1,8 @@
+from picamzero import Camera
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+
+cam = Camera()
+cam.annotate("hello, world")
+cam.take_photo("basic_photo_annotation.jpg")

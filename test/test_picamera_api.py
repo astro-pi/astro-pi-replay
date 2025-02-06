@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import test.test_utils as test_utils
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -15,10 +16,15 @@ import pytest
 from colorzero import Color
 from PIL import Image
 
-import test_utils
+from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamera.array import PiRGBArray
 from astro_pi_replay.picamera.camera import PiCameraAdapter
+from astro_pi_replay.picamera.exc import (
+    PiCameraClosed,
+    PiCameraMMALError,
+    PiCameraValueError,
+)
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
 from astro_pi_replay.resources import get_replay_sequence_dir
 
@@ -36,17 +42,16 @@ video_formats: list[str] = ["h264", "mjpeg", "yuv", "rgb", "rgba", "bgr", "bgra"
 
 
 @pytest.fixture(scope="module")
-def configuration():
+def configuration() -> Configuration:
     return test_utils.TestConfiguration(True, False, False)
 
 
 @pytest.fixture(scope="module")
-def executor(configuration):
-    executor = AstroPiExecutor(configuration)
+def executor(clear_caches_module, configuration: Configuration):
+    logger.debug("About to instantiate the picamera executor")
+    executor = AstroPiExecutor(configuration=configuration)
     return executor
 
-
-# TODO overwrite the sleeping deltas to be 0 seconds on as many tests as possible
 
 ########
 # TESTS
@@ -90,8 +95,8 @@ def test_replay_capture_should_replay_captured_photos_in_given_file(
     # TODO assert on content
 
 
-def test_replay_capture_to_numpy_array():
-    cam = PiCameraAdapter()
+def test_replay_capture_to_numpy_array(executor: AstroPiExecutor):
+    cam = PiCameraAdapter(executor)
     width, height = cam.resolution
     output = np.zeros((height, width, 3), dtype=np.uint8)
     zeros = output.copy()
@@ -100,7 +105,6 @@ def test_replay_capture_to_numpy_array():
     # TODO assert on content.
 
 
-# FIXME
 def test_replay_capture_to_PiRGBArray(executor: AstroPiExecutor):
     cam = PiCameraAdapter(executor)
     width, height = cam.resolution
@@ -219,8 +223,10 @@ def test_replay_capture_sequence_with_filenames(
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 @pytest.mark.parametrize("format", video_formats)
-def test_replay_start_recording_supports_all_video_formats(tmp_path: Path, format: str):
-    cam = PiCameraAdapter()
+def test_replay_start_recording_supports_all_video_formats(
+    tmp_path: Path, format: str, executor: AstroPiExecutor
+):
+    cam = PiCameraAdapter(executor)
     output = tmp_path / f"example.{format}"
     # TODO make deterministic
     cam.start_recording(str(output), format=format)
@@ -357,6 +363,27 @@ def test_picamera_adapter_has_all_expected_attrs():
         expected_picamera_interface["attrs"],
     ):
         assert hasattr(cam, attr), f"Expecting PiCameraAdapter to have {attr}"
+
+
+# TODO do not use the reset cache.
+def test_picamera_multiple_opens_causes_warning():
+    PiCameraAdapter()
+    with pytest.raises(PiCameraMMALError):
+        PiCameraAdapter()
+
+
+def test_picamera_invalid_resolution_throws_error():
+    cam = PiCameraAdapter()
+    with pytest.raises(PiCameraValueError) as e:
+        cam.resolution = (4096, 3040)
+        e.match("Invalid resolution")
+
+
+def test_picamera_closed_capture_throws_error():
+    cam = PiCameraAdapter()
+    cam.close()
+    with pytest.raises(PiCameraClosed):
+        cam.capture("foo.jpg")
 
 
 # TODO test custom objects e.g. renderers, streams, encoders?

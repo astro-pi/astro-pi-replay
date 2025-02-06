@@ -29,7 +29,7 @@ jobs:
       src: ${{ steps.filter.outputs.src }}
     steps:
     - uses: actions/checkout@v4
-    - uses: dorny/paths-filter@v2
+    - uses: dorny/paths-filter@v3
       id: filter
       with:
         filters: |
@@ -46,9 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python_version }}
+          python-version: ${{ inputs.python-version }}
           cache: 'pip'
       - name: Install ffmpeg
         run: |
@@ -64,7 +64,7 @@ jobs:
           DOWNLOAD_CMD_FLAGS: --test-assets-only
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
-        uses: rtCamp/action-slack-notify@v2.2.1
+        uses: rtCamp/action-slack-notify@v2.3.2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_COLOR: ${{ job.status }}
@@ -78,7 +78,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'

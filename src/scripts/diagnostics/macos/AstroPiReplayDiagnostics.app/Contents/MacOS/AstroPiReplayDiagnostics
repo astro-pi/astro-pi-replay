@@ -1,0 +1,34 @@
+#!/bin/bash
+# This script should be run on MacOS only.
+
+LOGFILE="$HOME/environment_log.txt"
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+
+echo "Checking your environment..."
+
+which python | tee -a "$LOGFILE"
+python --version 2>&1 | tee -a "$LOGFILE"
+python -c 'import pip'  2>&1 | tee -a "$LOGFILE"
+
+which pip | tee -a "$LOGFILE"
+pip --version 2>&1 | tee -a "$LOGFILE"
+if [ -e "/usr/bin/python" ]; then
+  /usr/bin/python -m pip freeze 2>&1 | tee -a "$LOGFILE"
+else
+  echo "/usr/bin/python does not exist" | tee -a "$LOGFILE"
+fi
+
+which python3 | tee -a "$LOGFILE"
+python3 --version 2>&1 | tee -a "$LOGFILE"
+python3 -c 'import pip'  2>&1 | tee -a "$LOGFILE"
+
+which pip3 | tee -a "$LOGFILE"
+pip3 --version 2>&1 | tee -a "$LOGFILE"
+if [ -e "/usr/bin/python3" ]; then
+  /usr/bin/python3 -m pip freeze 2>&1 | tee -a "$LOGFILE"
+else
+  echo "/usr/bin/python3 does not exist" | tee -a "$LOGFILE"
+fi
+
+
+osascript -e "display alert \"Environment Check\" message \"Environment check completed. Results are in $LOGFILE. Please send this to Astro Pi Mission Control\""

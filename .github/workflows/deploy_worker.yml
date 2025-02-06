@@ -20,11 +20,18 @@ permissions:
   contents: write
 
 jobs:
+  integration-tests:
+    uses: ./.github/workflows/integration_test_worker.yml
+    with:
+      os: ${{ inputs.os }}
+      python-version: ${{ inputs.python-version }}
+    secrets: inherit
   update_semver_tags:
     runs-on: ${{ inputs.os }}
+    needs: integration-tests
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
@@ -49,7 +56,7 @@ jobs:
     needs: update_semver_tags
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
@@ -61,7 +68,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.ASTRO_PI_REPLAY_TEST_PYPI_API_KEY }}
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
-        uses: rtCamp/action-slack-notify@v2.2.1
+        uses: rtCamp/action-slack-notify@v2.3.2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_COLOR: ${{ job.status }}
@@ -72,32 +79,20 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
+    uses: ./.github/workflows/smoke_test_worker.yml
     needs: publish_to_test_pypi
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ inputs.python-version }}
-          cache: 'pip'
-      - name: Install Windows dependencies and execute
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          cd test/smoke_tests
-          .\execute_smoke_tests.bat
-      - name: Execute smoke tests on Linux/MacOS
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          make test_smoke
-
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ inputs.python-version }}
+    secrets: inherit
   publish_to_prod_pypi:
     runs-on: ${{ inputs.os }}
     needs: smoke_tests
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python_version }}
+          python-version: ${{ inputs.python-version }}
           cache: 'pip'
       - name: Publish to test PyPi
         run: make publish_prod_pypi
@@ -107,7 +102,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.ASTRO_PI_REPLAY_PYPI_API_KEY }}
       - name: Notify alerts channel of failure
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
-        uses: rtCamp/action-slack-notify@v2.2.0
+        uses: rtCamp/action-slack-notify@v2.3.2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_COLOR: ${{ job.status }}

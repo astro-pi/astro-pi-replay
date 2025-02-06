@@ -13,7 +13,7 @@ The exif module uses https://plum-py.readthedocs.io/en/latest/ to mutate the EXI
 import datetime
 from collections import defaultdict
 
-from PIL import ExifTags, Image
+from PIL import Image
 
 from astro_pi_replay.picamera.abstract_camera import PiCamera
 from astro_pi_replay.picamera.exc import PiCameraValueError
@@ -217,12 +217,12 @@ def modify_exif_tags(
         for tag, value in grouped_by_ifd["IFD0"]:
             ifd0_ifd[get_tag_index(tag)] = value
     if len(grouped_by_ifd["EXIF"]) > 0:
-        exif_ifd = current_exif_tags.get_ifd(ExifTags.IFD.Exif)
+        exif_ifd = current_exif_tags.get_ifd(34665)  # ExifTags.IFD.Exif
         for tag, value in grouped_by_ifd["EXIF"]:
             exif_ifd[get_tag_index(tag)] = value
 
     if len(grouped_by_ifd["GPS"]) > 0:
-        gps_ifd = current_exif_tags.get_ifd(ExifTags.IFD.GPSInfo)
+        gps_ifd = current_exif_tags.get_ifd(34853)  # ExifTags.IFD.GPSInfo
         for gps_tag, value in grouped_by_ifd["GPS"]:
             gps_ifd[get_tag_index(gps_tag)] = value
     # TODO need to set the subsecond tags as well...
