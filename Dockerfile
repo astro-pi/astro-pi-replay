@@ -25,7 +25,10 @@ RUN echo "#!/usr/bin/env bash" >> entrypoint.sh && \
     echo "/opt/${NAME}/${VENV_NAME}/bin/${BIN_NAME} \$*" >> entrypoint.sh && \
     chmod +x entrypoint.sh
 
-RUN printenv >> env.txt
+RUN echo "source /opt/${NAME}/${VENV_NAME}/bin/activate" >> ~/.bashrc
+RUN echo "source /opt/${NAME}/${VENV_NAME}/bin/activate" >> /etc/profile
+
+RUN ln -s /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay /usr/local/bin/Astro-Pi-Replay
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["--help"]
