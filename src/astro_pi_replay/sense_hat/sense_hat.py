@@ -18,6 +18,7 @@ from astro_pi_replay.custom_types import (
     XYZDict,
 )
 from astro_pi_replay.executor import AstroPiExecutor
+from astro_pi_replay.preview.teardown_protocol import SupportsBackgroundTaskTeardown
 from astro_pi_replay.sense_hat.abstract_sense_hat import (
     SenseHatAPI,
     SenseHatColourSensorAPI,
@@ -133,7 +134,7 @@ def SenseHatColourSensorAdapter(executor: AstroPiExecutor) -> SenseHatColourSens
 
         @property
         def rgb(self) -> RGB:
-            return self.colour_raw[:3]
+            return self.colour[:3]
 
     return _SenseHatColourSensorAdapter()
 
@@ -145,7 +146,7 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
     else:
         executor = maybe_executor
 
-    class _SenseHatAdapter(SenseHatAPI):
+    class _SenseHatAdapter(SenseHatAPI, SupportsBackgroundTaskTeardown):
         """
         This is an object that conforms to the SenseHat interface
         that returns default values for every function call.
@@ -245,6 +246,7 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
             self._stick = SenseHatStickAPI()
 
             self._display_proc: Optional[SenseHatDisplay] = None
+            self._teardown_registered = False
 
         def _close_window(self) -> None:
             if self._display_proc is not None:
@@ -265,9 +267,11 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 pass
 
         def _open_window(self) -> None:
-            # TODO add teardown using weakref.finalize
-            self._display_proc = SenseHatDisplay(self._image)
-            self._display_proc.start()
+            def _open_window_internal():
+                self._display_proc = SenseHatDisplay(self._image)
+                self._display_proc.start()
+
+            self._register_background_proc(_open_window_internal, self._close_window)
 
         def _get_char_pixels(self, s: str) -> list[list[int]]:
             """
@@ -290,6 +294,16 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 end: int = start + 40
                 char: list[list[int]] = text_pixels[start:end]
                 self._text_dict[s] = char
+
+        def _save_matrix(self):
+            arr: np.ndarray = np.rot90(self._image, k=3)
+            img: Image.Image = Image.fromarray(arr)
+            resized_img: Image.Image = img.resize((256, 256), resample=0)
+            resized_img.save(
+                executor.configuration.sense_hat_snapshot_dir
+                / f"{executor._state._sense_hat_snapshot_index}.png"
+            )
+            executor._state._sense_hat_snapshot_index += 1
 
         def _trim_whitespace(self, char):  # For loading text assets only
             """
@@ -497,6 +511,10 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
             img = np.array(pixel_list, dtype=np.uint8).reshape((8, 8, 3))
             k = (-self._rotation % 360) // 90
             self._image = np.rot90(img, k=k)
+
+            if executor.configuration.snapshot_sense_hat_display:
+                self._save_matrix()
+
             # Emit event to subscriber # TODO refactor this out
             if self._display_proc is not None:
                 try:
@@ -518,6 +536,9 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
 
             self._image[y, x] = np.array(pixel, dtype=np.uint8)
 
+            if executor.configuration.snapshot_sense_hat_display:
+                self._save_matrix()
+
         # TODO move to abstract class
         def set_rotation(self, r: int, redraw: bool = True) -> None:
             # rotation is defined clockwise!
@@ -531,6 +552,9 @@ def SenseHatAdapter(maybe_executor: Optional[AstroPiExecutor] = None) -> SenseHa
                 # to anticlockwise
                 num_anticlockwise_turns: int = ((old - r) % 360) // 90
                 self._image = np.rot90(self._image, k=num_anticlockwise_turns)
+
+                if executor.configuration.snapshot_sense_hat_display:
+                    self._save_matrix()
 
         def show_letter(
             self,

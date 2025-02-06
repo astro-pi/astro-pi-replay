@@ -5,6 +5,7 @@ import logging
 import os
 import platform
 import shutil
+import site
 import subprocess
 import sys
 import tempfile
@@ -20,8 +21,8 @@ import pandas as pd
 import scipy as sp
 from scipy.interpolate._interpolate import interp1d as Interpolator
 
-from astro_pi_replay import PROGRAM_CMD_NAME, PROGRAM_NAME
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay import LOGGING_FORMAT, PACKAGE_ROOT, PROGRAM_CMD_NAME, PROGRAM_NAME
+from astro_pi_replay.configuration import Configuration, get_default_venv_dir
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
 from astro_pi_replay.resources import (
@@ -29,6 +30,8 @@ from astro_pi_replay.resources import (
     get_replay_sequence_dir,
     get_start_time,
 )
+from astro_pi_replay.resources.downloader import Downloader
+from astro_pi_replay.resources.timed_downloader import TimedDownloader
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,13 @@ class AstroPiExecutorState:
         self._last_sense_hat_row_index: int = 0
         self._last_picamera_photo_index: int = 0
         self._start_time: datetime = datetime.now()
+        self._sense_hat_snapshot_index: int = 1
+        self._picamera_instances_count: int = 0
+        # the time spent waiting for the network
+        self._network_time: float = 0
+
+    def get_start_time(self) -> datetime:
+        return timedelta(seconds=self._network_time) + self._start_time
 
 
 class AstroPiExecutor:
@@ -63,7 +73,13 @@ class AstroPiExecutor:
     The class is a singleton
     """
 
-    MODULES_TO_STUB: list[str] = ["sense_hat", "picamera", "orbit"]
+    MODULES_TO_STUB: list[str] = [
+        "sense_hat",
+        "picamera",
+        "orbit",
+        "picamzero",
+        "astro_pi_orbit",
+    ]
     NOT_FOUND = f"{PROGRAM_CMD_NAME} not found"
 
     """
@@ -80,6 +96,7 @@ class AstroPiExecutor:
         replay_mode: bool = True,
         state: Optional[AstroPiExecutorState] = None,
         configuration: Optional[Configuration] = None,
+        downloader: Optional[Downloader] = None,
     ) -> "AstroPiExecutor":
         """
         datetime_format example: 2022-01-31 12:21:15.123456
@@ -96,21 +113,20 @@ class AstroPiExecutor:
             cls.interpolators: dict[str, Interpolator] = {}
             cls._state: AstroPiExecutorState = state
 
+            if configuration is not None:
+                logger.debug(f"Received configuration: {str(configuration)}")
+            else:
+                logger.debug("Configuration not passed directly - loading")
             cls.configuration = (
                 configuration if configuration is not None else Configuration.load()
             )
-
-            # TODO add option to be a bit like easyrandom / haskell type testing
-            # random_mode = False # whether or not to randomly generate data
-            # mode: ir or vis
+            # Set in (astro-pi-replay-online) to alter some error messages
+            cls.is_running_in_browser: bool = False
+            cls.downloader = downloader
+        else:
+            logger.debug("Executor already instantiated")
 
         return cls._instance
-
-    def picamera_replay(self) -> Callable:
-        """
-        Decorator used to conditionally replay photos from file for the PiCamera
-        """
-        return lambda: 1
 
     def sense_hat_replay(self, *args, **kwargs) -> Callable:
         """
@@ -171,12 +187,13 @@ class AstroPiExecutor:
             logger.debug("Returning actual decorator")
         return decorator
 
-    def _find_next_datum(self, df: pd.DataFrame) -> int:
+    def _get_elapsed_time_relative_to(self, first_time: pd.Timestamp) -> pd.Timestamp:
         """
-        Finds the next row in the given dataframe indexed by
-        datetime, based on the elapsed time.
+        Gets the elapsed time since the executor started and adds it to
+        the first_time given. The elapsed time is therefore relative to
+        the input.
         """
-        start_time: datetime = self._state._start_time
+        start_time: datetime = self._state.get_start_time()
         logger.debug(f"Start_time: {start_time}")
         now: datetime = datetime.now()
         # TODO manually code the first call to return index 0 to not
@@ -185,17 +202,31 @@ class AstroPiExecutor:
         delta_in_seconds: pd.Timedelta = pd.Timedelta(
             (now - start_time).total_seconds(), "seconds"
         )
-        first_time: pd.Timestamp = df.iloc[0].name
+        # first_time: pd.Timestamp = df.iloc[0].name
         proposed_time: pd.Timestamp = first_time + delta_in_seconds
+
+        logger.debug(f"now: {now}")
+        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
+        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+        logger.debug(f"first_time: {first_time}")
+        logger.debug(f"proposed_time: {proposed_time}")
+
+        return proposed_time
+
+    def _find_next_datum(self, df: pd.DataFrame) -> int:
+        """
+        Finds the next row in the given dataframe indexed by
+        datetime, based on the elapsed time.
+        """
+        first_time: pd.Timestamp = self._get_first_time(df)
+        proposed_time: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
 
         # Find the nearest time using the proposed time
         nearest_i = df.index.get_indexer(pd.Index([proposed_time]), method="backfill")[
             0
         ]
-        logging.debug(f"Nearest i: {nearest_i}")
-        logger.debug(f"now: {now}")
-        logger.debug(f"delta_tmp: {(now - start_time).total_seconds()}")
-        logger.debug(f"delta_in_seconds: {delta_in_seconds}")
+
+        logger.debug(f"Nearest i: {nearest_i}")
         logger.debug(f"first_time: {first_time}")
         logger.debug(f"proposed_time: {proposed_time}")
         self._state._last_sense_hat_row_index = nearest_i
@@ -205,7 +236,9 @@ class AstroPiExecutor:
             logger.debug(f"Actual time: {actual_time}")
             actual_delta: int = (actual_time - first_time).total_seconds()
             logger.debug(f"Actual delta: {actual_delta}")
-            cutoff: datetime = self._state._start_time + timedelta(seconds=actual_delta)
+            cutoff: datetime = self._state.get_start_time() + timedelta(
+                seconds=actual_delta
+            )
             logger.debug(f"Cutoff: {cutoff}")
             delta = (cutoff - datetime.now()).total_seconds()
             logger.debug(f"Replay delta: {delta}")
@@ -232,10 +265,22 @@ class AstroPiExecutor:
         df = df.set_index(datetime_col)
         return df
 
+    def _get_first_time(self, df: pd.DataFrame):
+        return df.iloc[0].name
+
+    def _add_network_time(self, network_time: float) -> None:
+        self._state._network_time += network_time
+
+    def _get_downloader(self) -> Downloader:
+        if self.downloader is None:
+            self.downloader = TimedDownloader(self._add_network_time)
+        return self.downloader
+
     def _interpolate(
         self, datetime_col: str, col_names: list[str], df: pd.DataFrame
     ) -> pd.DataFrame:
-        d: datetime = datetime.now()
+        first_time: pd.Timestamp = self._get_first_time(df)
+        d: pd.Timestamp = self._get_elapsed_time_relative_to(first_time)
         sub_df_dict: dict[str, list[Union[float, int, datetime]]] = {
             datetime_col: [d.timestamp()]
         }
@@ -246,8 +291,11 @@ class AstroPiExecutor:
                 )
             interpolator = self.interpolators[col_name]
             try:
-                value = interpolator(d.timestamp())
+                # convert to pydatetime to ensure in same timezone
+                # as the interpolated x values
+                value = interpolator(d.to_pydatetime(warn=False).timestamp())
             except ValueError:
+                logger.debug(traceback.format_exc())
                 if d.timestamp() < interpolator.x[0]:
                     value = interpolator.y[0]
                 else:
@@ -257,6 +305,12 @@ class AstroPiExecutor:
         sub_df = sub_df.set_index(datetime_col)
         return sub_df.iloc[0]
 
+    @staticmethod
+    def _reset():
+        AstroPiExecutor._instance = None
+        AstroPiExecutor._df_from_replay_file.cache_clear()
+        AstroPiExecutor._state = AstroPiExecutorState()
+
     def _replay_next(
         self,
         filename: str,
@@ -265,13 +319,18 @@ class AstroPiExecutor:
         reducer: Callable[[pd.DataFrame], object] = lambda s: s.iloc[0],
         allow_interpolation: bool = True,
     ) -> object:
-        """Internal method that opens the given filename and
-        returns the given col names, using the reducer. In effect,
-        this replays the data.
+        """Internal method that opens the given filename,
+        downloading it if required, and returns the given col names,
+        using the reducer. In effect, this replays the data.
 
         allow_interpolation: Whether to respect the interpolate_sense_hat
         variable.
         """
+
+        file_path: Path = Path(filename)
+        if not file_path.exists() and self.configuration.streaming_mode:
+            # download the file
+            self._get_downloader().fetch_sequence_file(file_path)
 
         df = self._df_from_replay_file(filename, datetime_col)
 
@@ -319,12 +378,47 @@ class AstroPiExecutor:
     def time_since_start(self) -> datetime:
         """Time relative to the original start time, as specified
         in the metadata.json file"""
-        execution_start_time: datetime = self._state._start_time
+        execution_start_time: datetime = self._state.get_start_time()
         now: datetime = datetime.now()
         delta: timedelta = now - execution_start_time
 
         original_start_time: datetime = get_start_time()
         return original_start_time + delta
+
+    @property
+    def _has_ffmpeg(self) -> bool:
+        try:
+            subprocess.run(  # nosec B603, B607
+                ["ffmpeg", "-version"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+
+    @property
+    def _has_ffprobe(self) -> bool:
+        try:
+            subprocess.run(  # nosec B603, B607
+                ["ffprobe", "-version"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+
+    @property
+    def _has_tkinter(self) -> bool:
+        try:
+            import tkinter  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
 
     @staticmethod
     def _detect_execution_mode() -> ExecutionMode:
@@ -397,10 +491,31 @@ class AstroPiExecutor:
         with main.open() as f:
             contents = f.read()
         with main_copy.open("w") as f:
-            f.write("import logging" + os.linesep)
-            f.write("logging.basicConfig(level=logging.DEBUG)" + os.linesep)
+            f.write(
+                # TODO only write import datetime
+                # if not already overloaded by from datetime import datetime
+                os.linesep.join(
+                    [
+                        "import logging as replay_tool_logging",
+                        "replay_tool_logging.basicConfig("
+                        + "level=replay_tool_logging.DEBUG,"
+                        + f"format='{LOGGING_FORMAT}')",
+                        "replay_tool_logging.getLogger('PIL').setLevel("
+                        + "replay_tool_logging.INFO)",
+                        "import datetime as replay_tool_datetime",
+                        "replay_tool_logging.Formatter.formatTime = ("
+                        + "lambda self, record, "
+                        + "datefmt=None: replay_tool_datetime.datetime.fromtimestamp("
+                        + "record.created, "
+                        + "replay_tool_datetime.timezone.utc).astimezone().isoformat("
+                        + "sep='T',timespec='milliseconds'))"
+                        + os.linesep,
+                    ]
+                )
+            )
             f.write(contents)
 
+        logger.debug(f"Copying {main_copy} into {main}")
         shutil.copy2(main_copy, main)
         # Teardown is taken care of in add_name_is_main_guard
         return main
@@ -426,55 +541,22 @@ class AstroPiExecutor:
     def _setup_venv(venv_dirname: Path, name: str = "venv") -> VenvResolver:
         venv_dir: Path = venv_dirname / name
 
-        def list_dependencies(python: Optional[Path] = None) -> str:
-            if python is None:
-                executable_name: str = (
-                    "python.exe" if sys.platform == "win32" else "python"
-                )
-                resolved: Optional[str] = shutil.which(executable_name)
-                if resolved is None:
-                    # try python3
-                    executable_name = executable_name.replace("python", "python3")
-                    resolved = shutil.which(executable_name)
-                if resolved is None:
-                    raise Exception(f"Cannot find {executable_name}. Is it installed?")
-                else:
-                    python = Path(resolved)
-            args: list[str] = [rf"{str(python)}", "-m", "pip", "freeze"]
-            logger.debug(" ".join(args))
-            out = subprocess.run(
-                args, text=True, check=True, capture_output=True, shell=False
-            )  # nosec B603
-            logger.debug(out)
-            return out.stdout
+        already_exists: bool = venv_dir.exists()
 
-        # 1. Compare the current environment and the venv for changes.
-        # Deletes the venv if there is a change so that the venv
-        # dependencies remain up to date.
-        if venv_dir.exists():
-            current_deps: str = list_dependencies()  # current venv
-            logger.debug(f"current_deps: {current_deps}")
-            logger.debug("")
-
-            existing_venv: VenvResolver = VenvResolver(venv_dir)
-            # The problem is here
-            executor_venv_deps = existing_venv.list_dependencies()
-            logger.debug(f"executor_venv_deps: {executor_venv_deps}")
-            if current_deps == executor_venv_deps:
-                logger.debug("venv already created - skipping")
-                return existing_venv
-            else:
-                logger.debug(
-                    "Dependencies have changed - deleting "
-                    + f"old venv at {venv_dir} and recreating..."
-                )
-            shutil.rmtree(venv_dir)
-
-        # 2. Copy or creates the venv to the venv_dir, depending on if we're
+        # Copy or creates the venv to the venv_dir, depending on if we're
         # already in one
         venv_resolver: VenvResolver = VenvResolver(venv_dir)
 
-        # 3. Install the executor package as required
+        if already_exists and not venv_resolver.rebuilt:
+            logger.debug("Venv already exists and is compatible - ")
+            logger.debug(
+                "therefore assuming that the executor and its stubs "
+                + "do not need to be installed"
+            )
+            return venv_resolver
+
+        # Install the executor package
+        # transitive dependencies are covered due to the --system-site-packages
         logger.debug("Installing stubbed modules in the venv...")
 
         executor_install_path: Optional[str] = venv_resolver.is_package_installed(
@@ -482,11 +564,13 @@ class AstroPiExecutor:
         )
         if executor_install_path is None:
             logger.debug(f"Installing {PROGRAM_CMD_NAME} into venv...")
-            # editable to access the resources already installed...
-            # TODO copy the resources explicitly rather than depending
-            # on a pip quirk.
-            # TODO do not rely on curdir since people will not be running from the root!
-            venv_resolver.install(os.curdir, editable=True)
+
+            # Copies the resources already downloaded as well
+            shutil.copytree(
+                PACKAGE_ROOT,
+                venv_resolver.venv_info.site_packages_dir / PROGRAM_NAME,
+                dirs_exist_ok=True,
+            )
 
             executor_install_path = venv_resolver.is_package_installed(PROGRAM_NAME)
             if executor_install_path is None:
@@ -494,24 +578,31 @@ class AstroPiExecutor:
                     f"Could not set up {PROGRAM_CMD_NAME} environment"
                 )
 
-        # 4. Install stubs into the venv
+        # Install stubs into the venv
+        logger.debug(f"Installing stubs into venv at {executor_install_path}")
+        venv_resolver.copy_stubs(AstroPiExecutor.MODULES_TO_STUB, executor_install_path)
+
+        return venv_resolver
+
+    @staticmethod
+    def install_global() -> None:
         logger.debug("Installing stubbed modules in the venv...")
+        destination: str = site.getsitepackages()[0]
 
         for module in AstroPiExecutor.MODULES_TO_STUB:
             logger.debug(f"Installing {module}")
             shutil.copytree(
-                Path(executor_install_path) / module,
-                venv_resolver.venv_info.site_packages_dir / module,
+                Path(__file__).parent / module,
+                Path(destination) / module,
             )
-
-        return venv_resolver
+        logger.debug("Done")
 
     @staticmethod
     def run(
         execution_mode: Optional[ExecutionMode],
         venv_dirname: Optional[Path],
         main: Path,
-        debug: bool = False,
+        debug: bool = os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
     ) -> None:
         """
         This method runs the given main file using the given execution mode.
@@ -526,7 +617,7 @@ class AstroPiExecutor:
 
         if execution_mode is None:
             execution_mode = AstroPiExecutor._detect_execution_mode()
-            logging.debug(f"Detected execution mode: {execution_mode}")
+            logger.debug(f"Detected execution mode: {execution_mode}")
         if not main.exists() or not main.is_file():
             raise AstroPiReplayException(f"File {main} is not a regular file")
 
@@ -538,11 +629,7 @@ class AstroPiExecutor:
         if execution_mode == ExecutionMode.REPLAY:
             if venv_dirname is None:
                 logging.debug("venv_dirname is None - fetching value from env")
-                venv_dirname = (
-                    # TODO extract this into astro_pi_replay.config
-                    Path(os.environ.get("HOME", tempfile.gettempdir()))
-                    / f".{PROGRAM_NAME}"
-                )
+                venv_dirname = get_default_venv_dir()
                 logging.debug(f"Found {venv_dirname}")
 
             venv: VenvResolver = AstroPiExecutor._setup_venv(venv_dirname)
@@ -570,7 +657,7 @@ class AstroPiExecutor:
         main = AstroPiExecutor.add_name_is_main_guard(main)
 
         if debug:
-            AstroPiExecutor.add_debug_logging_config(main)
+            main = AstroPiExecutor.add_debug_logging_config(main)
 
         try:
             # Run the program that was passed in
@@ -579,7 +666,7 @@ class AstroPiExecutor:
                 # -u is for unbuffered Python, which is what is used on the
                 # Astro Pis on the ISS.
                 args: list[str] = [rf"{python}", "-u", str(main.resolve())]
-                logging.debug(f"Executing '{' '.join(args)}' in subprocess")
+                logger.debug(f"Executing '{' '.join(args)}' in subprocess")
 
                 def custom_excepthook(type, value, tb):
                     """Hides the internals of the lib

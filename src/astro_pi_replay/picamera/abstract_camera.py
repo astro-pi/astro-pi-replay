@@ -13,7 +13,7 @@ from colorzero import Color
 
 from astro_pi_replay.custom_types import IO_TYPE, UV, XYWH
 from astro_pi_replay.exception import AstroPiReplayException
-from astro_pi_replay.picamera.exc import PiCameraRuntimeError
+from astro_pi_replay.picamera.exc import PiCameraRuntimeError, PiCameraValueError
 from astro_pi_replay.picamera.frames import PiVideoFrame
 from astro_pi_replay.picamera.mmalobj import PiFramerateRange, PiResolution
 from astro_pi_replay.picamera.renderers import PiOverlayRenderer, PiRenderer
@@ -215,12 +215,7 @@ class PiCamera(abc.ABC):
         self._previewing: bool = False
         self.raw_format: str = "yuv"
         self._recording: bool = False
-        # TODO parse the strings properly...
-        self.resolution: PiResolution = (
-            PiResolution(width=resolution[0], height=resolution[1])
-            if resolution is not None
-            else PiResolution(width=1280, height=720)
-        )
+        self._resolution: PiResolution = self._convert_to_PiResolution(resolution)
         self.revision: str = "imx477"
         self.rotation: int = 0
         self.saturation: int = 0
@@ -346,6 +341,31 @@ class PiCamera(abc.ABC):
 
     def request_key_frame(self, splitter_port: int = 1) -> None:
         pass
+
+    @property
+    def resolution(self) -> PiResolution:
+        return self._resolution
+
+    @resolution.setter
+    def resolution(self, resolution: Optional[Union[tuple[int, int], str]]) -> None:
+        self._resolution = self._convert_to_PiResolution(resolution)
+
+    def _convert_to_PiResolution(
+        self, resolution: Optional[Union[tuple[int, int], str]]
+    ) -> PiResolution:
+        if resolution is None:
+            return PiResolution(width=1280, height=720)
+        else:
+            # TODO parse the strings properly...
+            width = resolution[0]
+            height = resolution[1]
+            if not (
+                (0 < int(width) <= PiCamera.MAX_RESOLUTION.width)
+                and (0 < int(height) <= PiCamera.MAX_RESOLUTION.height)
+            ):
+                raise PiCameraValueError(f"Invalid resolution requested: {resolution}")
+
+            return PiResolution(width=width, height=height)
 
     @abstractmethod
     def split_recording(
