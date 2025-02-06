@@ -1,14 +1,21 @@
 # TODO just copy everything from the original.
 class PiCameraError(Exception):
-    pass
+    """
+    Base class for PiCamera errors.
+    """
 
 
 class PiCameraRuntimeError(RuntimeError):
-    pass
+    """
+    Raised when an invalid sequence of operations is attempted with a
+    :class:`PiCamera` object.
+    """
 
 
 class PiCameraValueError(PiCameraError, ValueError):
-    pass
+    """
+    Raised when an invalid value is fed to a :class:`~PiCamera` object.
+    """
 
 
 class PiCameraWarning(Warning):
@@ -42,4 +49,16 @@ class PiCameraAlreadyRecording(PiCameraRuntimeError):
     Raised when :meth:`~PiCamera.start_recording` or
     :meth:`~PiCamera.record_sequence` are called against a port which already
     has an active recording.
+    """
+
+
+class PiCameraMMALError(PiCameraError):
+    """
+    Raised when an MMAL operation fails for whatever reason.
+    """
+
+
+class PiCameraClosed(PiCameraRuntimeError):
+    """
+    Raised when a method is called on a camera which has already been closed.
     """

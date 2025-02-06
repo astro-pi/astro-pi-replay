@@ -46,7 +46,7 @@ def modify_access_times() -> None:
     This is used as part of a trick to generate a video using a variable
     framerate using ffmpeg. This trick is a workaround
     because pyav segfaults for me as of 30/06/23."""
-    if platform.system != "Windows":
+    if platform.system == "Windows":
         raise RuntimeError("Windows not supported")
     for timestamp, photo in photo_datetime_dict.items():
         photo_path: Path = to_index / photo

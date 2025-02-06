@@ -1,10 +1,14 @@
 Current
 --------
-- Add self-version check feature (check if an update is available)
+- AstroPiExecutor.setup_venv should check the venv python version (it will break
+if a different version of python is used later on) - FIX
 - Add upgrader that deletes any invalid replay dirs
 - Fix resources being versioned in AWS - currently breaks CI when package version changes.
   -> temporarily copy to aws ?
   - This may entail having to put my token in the CI - bad idea?
+
+    VERSION THE RESOURCES THEMSELVES?
+
 - fix ffmpeg tests on Windows
   FAILED test/test_picamera_api.py::test_replay_start_recording_supports_all_video_formats[bgr] - AssertionError: assert False
   FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[mjpeg] - assert 0 > 0
@@ -15,16 +19,14 @@ Current
   FAILED test/test_picamera_api.py::test_replay_start_recording_into_stream[bgra] - assert 0 > 0
   FAILED test/test_picamera_api.py::test_replay_records_to_a_circular_stream - AssertionError: assert 0 == 2764800
 
-- Fix flaky CI tests
 Bonuses:
-- CLI completion
 - Add picamera2 support
+- Add option to make Thonny aware of picamera/sense_hat/orbit stubs (aka install into the environment rather than a separate venv)
+- test what happens if a different versoin of Python is used than the astro_pi_replay venv.
+- Install all the Astro Pi deps into the replay tool to avoid a difficult install procedure.
 - check stdout is not being polluted
-- profile mode to profile the main.py being executed
 - remote attach to the executor subprocess
   python3 -m debugpy --listen 1.2.3.4:5678 --wait-for-client -m main
-- profile tests to identify easy winnings
-  - could offer a test download to avoid having to download 800MB each time in CI.
 - Refactor the stubbing of no_wait to make the tests cleaner and more isolated.
 - Fix the picamera previewer
 - copy over picamera exc
@@ -45,29 +47,7 @@ resources are closed properly)
 - PIR sensor?
 - move de421.bsp and tle files out of the github and into the resources download
 - add more photos to help children
-
-Admin & Best-practices:
-- add repo to RPF foundation in TestPypi
-- integration tests (qemu + docker based)
-- Ensure CD builds wheels for many OS and arch types.
 - Complete the documentation and request translations
-- Add dependabot
-- Test on RP4 and Windows machine
-- Thonny support
-- Licence
-
-Now:
------
-
-- Create CI for PRs to `main` branch that
- - runs tests and build
- - passing tests required to merge
-- Create CI for `main` that run same build and test, any system or integration tests,
-and then promotes to the `test` env.
-
-Medium-term:
-------------
-
-Later:
-------
+- integration tests (qemu + docker based)
 - PR hook - version number checker.
+- CLI completion

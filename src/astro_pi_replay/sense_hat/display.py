@@ -14,7 +14,7 @@ try:
     import tkinter as tk
 
     from PIL import ImageTk
-except ModuleNotFoundError:
+except ImportError:
     logger.debug("Tkinter not found - sense hat animated display will not work")
 
 
