@@ -154,6 +154,8 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
+	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
+		$(DOCKER_IMAGE_NAME):latest
 
 build_docs: $(VENV) $(DOC_SOURCES)
 	. $(VENV_NAME)/bin/activate; $(MKDOCS) build
