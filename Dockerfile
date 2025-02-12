@@ -1,6 +1,6 @@
 ARG PYTHON_VERSION
 
-FROM python:${PYTHON_VERSION}-slim as builder
+FROM python:${PYTHON_VERSION}-slim AS builder
 ARG NAME
 ARG BIN_NAME
 ARG VENV_NAME
