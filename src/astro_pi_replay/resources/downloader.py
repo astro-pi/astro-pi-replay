@@ -67,7 +67,7 @@ def get_replay_dir() -> Path:
     return get_resource("replay")
 
 
-def get_replay_sequence_dir(download_metadata: bool = False) -> Path:
+def get_replay_sequence_dir(download_metadata: bool = True) -> Path:
     replay_dir: Path = get_replay_dir()
 
     try:
