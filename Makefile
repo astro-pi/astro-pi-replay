@@ -81,8 +81,9 @@ PY_SOURCES:=$(shell $(FIND) $(SRC_DIR) -name "*.py")
 DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
 
 ifdef SEQUENCE_ID
-ifndef DOWNLOAD_CMD_FLAGS
-  DOWNLOAD_CMD_FLAGS=--sequence-id $(SEQUENCE_ID)
+  ifndef DOWNLOAD_CMD_FLAGS
+    DOWNLOAD_CMD_FLAGS=--sequence-id $(SEQUENCE_ID)
+  endif
 endif
 
 ifdef SKIP_DOWNLOAD
@@ -158,7 +159,7 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg PYTHON_VERSION="$(PYTHON_VERSION)" \
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
-	  --build-arg SEQUENCE_Id="$(SEQUENCE_ID") \
+	  --build-arg SEQUENCE_ID="$(SEQUENCE_ID)" \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
 		$(DOCKER_IMAGE_NAME):latest
