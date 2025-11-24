@@ -49,7 +49,6 @@ else
 PYTEST_FLAGS:=-s
 endif
 REQUIREMENTS_DEV_TXT:=requirements-dev.txt
-REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
 ifdef SMOKE_TEST_LOCAL
@@ -268,11 +267,10 @@ test_smoke:
 uninstall:
 	$(PIP) uninstall --user $(NAME)
 
-$(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
+$(VENV_NAME)/touchfile: $(REQUIREMENTS_DEV_TXT)
 	$(TEST) -d $(VENV_NAME) || $(PYTHON3) $(PYFLAGS) -m $(VENV) $(VENV_NAME) && \
 	. $(VENV_NAME)/bin/activate ; \
 	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
-	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_TXT) ; \
 	$(VENV_PIP) install --editable . ; \
 	$(DOWNLOAD_CMD) \
 	$(TOUCH) $(VENV_NAME)/touchfile
