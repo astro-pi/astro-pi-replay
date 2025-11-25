@@ -173,7 +173,7 @@ _build_docker: assert_env_var_set_PYTHON_VERSION
 	  -f $(DOCKERFILE) \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
-		$(DOCKER_IMAGE_NAME):latest
+		$(DOCKER_IMAGE_NAME):"latest-$(shell basename $(DOCKERFILE) | cut -d. -f2 )"
 
 $(BASE_DOCKERFILE):
 	$(MAKE) _build_docker DOCKERFILE=$(BASE_DOCKERFILE)
