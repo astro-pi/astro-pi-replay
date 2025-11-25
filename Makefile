@@ -92,6 +92,11 @@ else
 DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(BIN_NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
 
+ifdef PROD_DEPS_ONLY
+  VENV_PREREQS:=
+else
+  VENV_PREREQS:=$(REQUIREMENTS_DEV_TXT)
+endif
 
 ###################
 # Rules
@@ -267,10 +272,14 @@ test_smoke:
 uninstall:
 	$(PIP) uninstall --user $(NAME)
 
-$(VENV_NAME)/touchfile: $(REQUIREMENTS_DEV_TXT)
+$(VENV_NAME)/touchfile: $(VENV_PREREQS)
 	$(TEST) -d $(VENV_NAME) || $(PYTHON3) $(PYFLAGS) -m $(VENV) $(VENV_NAME) && \
 	. $(VENV_NAME)/bin/activate ; \
-	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
+	if [ -n "$(VENV_PREREQS)" ]; then \
+	  $(VENV_PIP) install --upgrade -r $(VENV_PREREQS) ; \
+        else \
+	  $(VENV_PIP) install build ; \
+        fi ; \
 	$(VENV_PIP) install --editable . ; \
 	$(DOWNLOAD_CMD) \
 	$(TOUCH) $(VENV_NAME)/touchfile

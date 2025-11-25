@@ -17,7 +17,6 @@ RUN apt update && apt-get install -y make libgl1 libglib2.0-0 libglx-mesa0
 WORKDIR /opt/$NAME
 RUN echo "${NAME} ${BIN_NAME} ${PYTHON_VERSION} ${VENV_NAME}" > foo
 ADD Makefile .
-ADD requirements.txt .
 ADD requirements-dev.txt .
 ADD pyproject.toml .
 ADD MANIFEST.in .
