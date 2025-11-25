@@ -72,7 +72,10 @@ PYTHON_VERSION_EXPR:= $(shell $(CAT) $(PYPROJECT) | \
 	$(GREP) "requires-python" | \
 	$(CUT) -d" " -f 3)
 # the below is a bit brittle, but unlikely to need anything else.
-PYTHON_VERSION:=$(shell echo $(PYTHON_VERSION_EXPR) | $(SED) 's/[>="]//g')
+ifndef PYTHON_VERSION
+  PYTHON_VERSION:=$(shell echo $(PYTHON_VERSION_EXPR) | $(SED) 's/[>="]//g')
+endif
+
 GIT_HASH:=$(shell $(GIT) rev-parse --verify HEAD)
 DOCKER_IMAGE_NAME:=$(NAME)
 DOCKER_IMAGE_TAG:=$(VERSION)_$(GIT_HASH)
@@ -164,6 +167,7 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  --build-arg SEQUENCE_ID="$(SEQUENCE_ID)" \
+	  -f infrastructure/docker/Dockerfile.test-assets \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
 		$(DOCKER_IMAGE_NAME):latest
@@ -190,6 +194,7 @@ diagnostics:
 	@echo "Detected project name: $(NAME)"
 	@echo "Detected bin name: $(BIN_NAME)"
 	@echo "Detected version is: $(VERSION)"
+	@echo "Detected Python version: $(PYTHON_VERSION)"
 	@echo "Detected major version is: $(VERSION_MAJOR)"
 	@echo "Detected minor version is: $(VERSION_MINOR)"
 	@echo "Detected patch version is: $(VERSION_PATCH)"
