@@ -1,3 +1,4 @@
+# No assets are downloaded
 ARG PYTHON_VERSION
 
 FROM python:${PYTHON_VERSION}-slim AS builder
@@ -17,11 +18,14 @@ RUN apt update && apt-get install -y make libgl1 libglib2.0-0 libglx-mesa0
 WORKDIR /opt/$NAME
 RUN echo "${NAME} ${BIN_NAME} ${PYTHON_VERSION} ${VENV_NAME}" > foo
 ADD Makefile .
-ADD requirements-dev.txt .
 ADD pyproject.toml .
 ADD MANIFEST.in .
 ADD src src
-RUN make clean && make install
+RUN make clean && \
+  SKIP_DOWNLOAD=true PROD_DEPS_ONLY=true make install
+
+RUN /opt/${NAME}/${VENV_NAME}/bin/pip uninstall -y build
+#RUN /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay download --test-assets-only
 
 RUN echo "#!/usr/bin/env bash" >> entrypoint.sh && \
     echo "/opt/${NAME}/${VENV_NAME}/bin/${BIN_NAME} \$*" >> entrypoint.sh && \
