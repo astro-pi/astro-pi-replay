@@ -100,6 +100,9 @@ ifdef PROD_DEPS_ONLY
 else
   VENV_PREREQS:=$(REQUIREMENTS_DEV_TXT)
 endif
+BASE_DOCKERFILE := infrastructure/docker/Dockerfile.base
+DOCKERFILE := infrastructure/docker/Dockerfile.test-assets
+
 
 ###################
 # Rules
@@ -159,7 +162,7 @@ assert_on_git_branch_head_or_%:
 
 build: build_python build_docs build_docker
 
-build_docker: assert_env_var_set_PYTHON_VERSION
+_build_docker: assert_env_var_set_PYTHON_VERSION
 	$(DOCKER) build \
 	  --build-arg NAME="$(NAME)" \
 	  --build-arg BIN_NAME="$(BIN_NAME)" \
@@ -167,10 +170,16 @@ build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  --build-arg SEQUENCE_ID="$(SEQUENCE_ID)" \
-	  -f infrastructure/docker/Dockerfile.test-assets \
+	  -f $(DOCKERFILE) \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
 		$(DOCKER_IMAGE_NAME):latest
+
+$(BASE_DOCKERFILE):
+	$(MAKE) _build_docker DOCKERFILE=$(BASE_DOCKERFILE)
+
+build_docker: $(BASE_DOCKERFILE)
+	$(MAKE) _build_docker DOCKERFILE=$(DOCKERFILE)
 
 build_docs: $(VENV) $(DOC_SOURCES)
 	. $(VENV_NAME)/bin/activate; $(MKDOCS) build
@@ -295,4 +304,4 @@ version:
 	@echo $(VERSION)
 	@echo $(SMOKE_TEST_FLAGS)
 
-.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
+.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build _build_docker build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
