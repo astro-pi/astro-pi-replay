@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v1.1.0.json",
+  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v1.2.0.json",
   "title": "Asset metadata schema",
   "description": "A product in the catalog",
   "type": "object",
   "properties": {
     "altitude_average_km": {
       "description": "The average altitude the ISS flew at when the assets were captured, in kilometres",
-      "type": "integer"
+      "type": "number"
     },
     "camera": {
       "type": "object",
@@ -123,6 +123,10 @@
     },
     "video": {
       "description": "The filename of the video e.g. 'video.mp4'",
+      "type": "string"
+    },
+    "notes": {
+      "description": "Miscellaneous notes relating to the asset",
       "type": "string"
     }
   },

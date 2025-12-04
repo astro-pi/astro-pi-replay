@@ -841,8 +841,5 @@ def CameraAdapter(
             self._recording = None
             self._recording_start = None
 
-        def close(self) -> None:
-            pass # no-op
-
 
     return _CameraAdapter(*args, **kwargs)
