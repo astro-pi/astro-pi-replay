@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from astro_pi_replay.main import get_argument_parser
 from test.test_utils import get_test_resource
 from typing import Any, Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -18,6 +19,7 @@ from astro_pi_replay.resources.downloader import (
     SEQUENCES_FILENAME,
     Downloader,
     asset_url,
+    search_for_sequence,
     version_url_prefix,
 )
 
@@ -109,7 +111,8 @@ def fake_get(substituter: Optional[Callable[[str], str]]):
                 type(response).headers = PropertyMock(return_value=headers)
 
                 def fake_iter_content(
-                    chunk_size: Optional[int] = None, decode_unicode: bool = False
+                    chunk_size: Optional[int] = None,
+                    decode_unicode: bool = False
                 ) -> Iterator[bytes]:
                     final_chunk_size: int = 1024 if chunk_size is None else chunk_size
                     i: int = 0
@@ -224,3 +227,14 @@ async def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     vis_dir: Path = tmp_path / "VIS"
     assert vis_dir.exists() and vis_dir.is_dir()
     assert (vis_dir / "AstroPi_2021_colour.png").exists()
+
+
+def test_default_sequence_is_theninja() -> None:
+    parser = get_argument_parser()
+    args = parser.parse_args(["run", "main.py"])
+    resolution = args.resolution
+    photography_type = args.photography_type
+    assert resolution == (4056, 3040)
+    assert photography_type == "VIS"
+    seq = search_for_sequence(resolution, photography_type)
+    assert seq == "theninja"
