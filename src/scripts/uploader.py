@@ -239,18 +239,21 @@ class Uploader:
                     m.update(f.read())
         return m.hexdigest()
 
-    def _upload_file(self, file: Path, url: Optional[str] = None) -> None:
+    def _upload_file(self, file: Path, url: Optional[str] = None,
+            recursive: bool = False
+    ) -> None:
         command_args: list[str] = [
             "aws",
             "s3",
             "cp",
+            "--recursive" if recursive else "",
             str(file),
             url if url is not None else url_prefix.replace("https://", "s3://") + "/",
         ]
         logger.debug(command_args)
         subprocess.run(command_args, check=True)  # nosec B603
 
-    def upload(
+    def upload_zip(
         self,
         base_file: Path,
         zip_name: Optional[str] = None,
@@ -277,6 +280,25 @@ class Uploader:
 
         for f in [zip_file, sha256_file, gpg_file]:
             self._upload_file(f, url)
+
+
+    def upload_raw(
+        self,
+        base_file: Path,
+        url: Optional[str] = None
+    ):
+        """Upload the raw (unzipped) assets."""
+        # validations
+        self._validate_metadata_schema(base_file)
+        self._validate_video(base_file)
+        self._validate_tle_file(base_file)
+        self._validate_no_gps_tags(base_file)
+
+        if not base_file.is_dir():
+            raise RuntimeError(
+                    "Must be a directory to upload directly")
+
+        self._upload_file(base_file, url, recursive=True)
 
 
 class AssetPreparer:
