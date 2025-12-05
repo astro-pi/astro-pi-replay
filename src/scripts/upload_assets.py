@@ -31,7 +31,9 @@ class ValidatedArguments:
     """
 
     sequences: list[Path]
-    upload_videos: bool
+    upload_video_zip: bool
+    raw_only: bool
+    zips_only: bool
 
 
 def parse_args() -> Namespace:
@@ -53,6 +55,20 @@ def parse_args() -> Namespace:
         default=False,
         help="Provide this flag to upload videos. When not provided "
         + "the script will just upload photos",
+    )
+    parser.add_argument(
+        "--zips_only",
+        action="store_true",
+        default=False,
+        help="Only upload the zip files (and skip uploading " +
+        "the raw uncompressed assets)."
+    )
+    parser.add_argument(
+        "--raw-only",
+        action="store_true",
+        default=False,
+        help="Only upload the sequences in uncompressed " +
+        "form (and skip uploading the zipped assets)."
     )
     return parser.parse_args()
 
@@ -79,7 +95,10 @@ def validate_args(args: Namespace, sequences: list[Path]) -> ValidatedArguments:
     print(filtered)
 
     return ValidatedArguments(
-        sequences=filtered, upload_videos=args_as_dict[UPLOAD_VIDEOS_DEST]
+        sequences=filtered, 
+        upload_video_zip=args_as_dict[UPLOAD_VIDEOS_DEST],
+        raw_only=args.raw_only,
+        zips_only=args.zips_only,
     )
 
 
@@ -101,7 +120,7 @@ def collect_sequences() -> list[Path]:
     return sequences
 
 
-def upload(validated_args: ValidatedArguments) -> None:
+def upload_zips(validated_args: ValidatedArguments) -> None:
     # Upload standard assets with:
     u = Uploader()
     to_include = [
@@ -119,34 +138,39 @@ def upload(validated_args: ValidatedArguments) -> None:
                 if any(im.get(tag) for tag in GPS_TAGS):
                     raise RuntimeError("GPS exif tags are populated")
 
-        u.upload(
-            sequence_base,
-            include_filter=lambda f: any(
-                Path(f).is_relative_to(sequence_base / include)
-                for include in to_include
-            ),
-            url=s3_url,
-        )
-        if validated_args.upload_videos:
-            u.upload(
+        if validated_args.zips_only or not validated_args.raw_only:
+            u.upload_zip(
                 sequence_base,
-                include_filter=lambda f: Path(f).is_relative_to(
-                    sequence_base / "videos"
+                include_filter=lambda f: any(
+                    Path(f).is_relative_to(sequence_base / include)
+                    for include in to_include
                 ),
-                zip_name=sequence_base.name + "_videos",
                 url=s3_url,
+            )
+            if validated_args.upload_video_zip:
+                u.upload_zip(
+                    sequence_base,
+                    include_filter=lambda f: Path(f).is_relative_to(
+                        sequence_base / "videos"
+                    ),
+                    zip_name=sequence_base.name + "_videos",
+                    url=s3_url,
+                )
+        if validated_args.raw_only or not validated_args.zips_only:
+            u.upload_raw(
+                sequence_base,
+                url=s3_url + f"{sequence_base.name}/"
             )
 
 
 def _main(args: Namespace) -> None:
     collected_sequences: list[Path] = collect_sequences()
     validated: ValidatedArguments = validate_args(args, sequences=collected_sequences)
-    upload(validated)
+    upload_zips(validated)
 
 
 def main() -> None:
     _main(parse_args())
-
 
 if __name__ == "__main__":
     main()
