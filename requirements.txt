@@ -1,4 +1,4 @@
-typing_extensions==4.8.0
+typing_extensions>=4.11.0,<5
 pandas>=2
 Pillow>=9
 exif==1.6.0
