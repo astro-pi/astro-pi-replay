@@ -170,6 +170,7 @@ _build_docker: assert_env_var_set_PYTHON_VERSION
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
 	  --build-arg SEQUENCE_ID="$(SEQUENCE_ID)" \
+	  $(EXTRA_BUILD_ARGS) \
 	  -f $(DOCKERFILE) \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
