@@ -10,5 +10,4 @@ RUN /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay download --sequence mz_synthet
 RUN if [ "$DOCKER_USER" -n ]; then \
   useradd ${DOCKER_USER} -m \
     -g ${DOCKER_GID} \
-    -u ${DOCKER_UID} \
-fi
+    -u ${DOCKER_UID}; fi
