@@ -7,7 +7,8 @@ ARG DOCKER_GID=1000
 RUN /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay download --sequence mz_synthetic_test_data
 
 # if DOCKER_USER is set, use it and given uid/gids.
-RUN if [ "$DOCKER_USER" -n ]; then \
+RUN test -n "$DOCKER_USER" && \
+  groupadd ${DOCKER_USER} -g ${DOCKER_GID} && \
   useradd ${DOCKER_USER} -m \
     -g ${DOCKER_GID} \
-    -u ${DOCKER_UID}; fi
+    -u ${DOCKER_UID}
