@@ -1,14 +1,18 @@
 FROM astro_pi_replay:latest-base
 
-ARG DOCKER_USER=""
-ARG DOCKER_UID=1000
-ARG DOCKER_GID=1000
+ARG DOCKER_USER="root"
+ARG DOCKER_USER_UID=0
+ARG DOCKER_USER_GID=0
+ARG DOCKER_GID=984
 
 RUN /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay download --sequence mz_synthetic_test_data
 
 # if DOCKER_USER is set, use it and given uid/gids.
-RUN test -n "$DOCKER_USER" && \
-  groupadd ${DOCKER_USER} -g ${DOCKER_GID} && \
+RUN test ${DOCKER_USER} != "root" && \
+  groupadd ${DOCKER_USER} -g ${DOCKER_USER_GID} && \
+  groupadd docker -g ${DOCKER_GID} && \
   useradd ${DOCKER_USER} -m \
-    -g ${DOCKER_GID} \
-    -u ${DOCKER_UID}
+    -g ${DOCKER_USER_GID} \
+    -u ${DOCKER_USER_UID} && \
+  usermod -aG docker ${DOCKER_USER} || true
+
