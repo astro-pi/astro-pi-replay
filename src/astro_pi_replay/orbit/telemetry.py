@@ -12,7 +12,8 @@ from skyfield.toposlib import GeographicPosition
 from astro_pi_replay.resources import get_resource, get_tle
 
 logger = logging.getLogger(__name__)
-_BSP_FILE: Path = get_resource("de421.bsp")
+_DE421_FILE: Path = get_resource("de421.bsp")
+_DE4440S_FILE: Path = get_resource("de440s.bsp")
 _timescale: Timescale = load.timescale()
 
 
@@ -28,9 +29,9 @@ def coordinates(satellite: skyfield.api.EarthSatellite) -> GeographicPosition:
     return rel_pos.subpoint()
 
 
-def load_ephemeris() -> SpiceKernel:
-    loader: Loader = Loader(_BSP_FILE.parent, verbose=False)
-    return typing.cast(SpiceKernel, loader(_BSP_FILE.name))
+def load_ephemeris(bsp_filename: str) -> SpiceKernel:
+    loader: Loader = Loader(_DE421_FILE.parent, verbose=False)
+    return typing.cast(SpiceKernel, loader(bsp_filename))
 
 
 def load_iss() -> skyfield.api.EarthSatellite:
@@ -51,4 +52,6 @@ def load_iss() -> skyfield.api.EarthSatellite:
 ISS: typing.Callable[[], skyfield.api.EarthSatellite] = load_iss
 
 # Expose ephemeris in the API
-ephemeris: SpiceKernel = load_ephemeris()
+ephemeris: SpiceKernel = load_ephemeris(_DE421_FILE.name)
+de421: SpiceKernel = ephemeris
+de440s: SpiceKernel = load_ephemeris(_DE4440S_FILE.name)
