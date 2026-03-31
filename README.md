@@ -20,6 +20,13 @@ This will prepare a sequence of near-infrared images (NIR) images, together with
 data collected from the Sense Hat, to be returned by all calls to `picamera`, `sense_hat`, etc.
 The CLI allows for some configuration of this behaviour - see the [Documentation](#documentation) for more details.
 
+### Docker
+
+#### For Mission Zero
+```bash
+make build_docker DOCKERFILE=infrastructure/docker/Dockerfile.base
+make build_docker DOCKERFILE=infrastructure/docker/Dockerfile.mz
+```
 ## Documentation
 
 See the [docs](../docs) page.
