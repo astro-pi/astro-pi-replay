@@ -17,9 +17,10 @@ def resequence(
     is_dry_run: bool
 ) -> None:
     assert src.exists() and src.is_dir()
-    if not dest_dir.exists():
+    if not dest_dir.exists() and not is_dry_run:
         dest_dir.mkdir(parents=True)
-    assert dest_dir.is_dir()
+    elif not is_dry_run:
+        assert dest_dir.is_dir()
 
     logging.info(f"src: {src}")
     logging.info(f"dest_dir: {dest_dir}")
