@@ -1,0 +1,167 @@
+{
+  "schema_type": "dataframe",
+  "columns": {
+    "datetime": {
+      "dtype": "datetime64[ns]",
+      "nullable": false
+    },
+    "red": {
+      "dtype": "uint8",
+      "nullable": false
+    },
+    "green": {
+      "dtype": "uint8",
+      "nullable": false
+    },
+    "blue": {
+      "dtype": "uint8",
+      "nullable": false
+    },
+    "clear": {
+      "dtype": "uint8",
+      "nullable": false
+    },
+    "gain": {
+      "dtype": "uint8",
+      "nullable": false
+    },
+    "red_raw": {
+      "dtype": "uint16",
+      "nullable": false
+    },
+    "green_raw": {
+      "dtype": "uint16",
+      "nullable": false
+    },
+    "blue_raw": {
+      "dtype": "uint16",
+      "nullable": false
+    },
+    "clear_raw": {
+      "dtype": "uint16",
+      "nullable": false
+    },
+    "integration_time": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "integration_cycles": {
+      "dtype": "uint16",
+      "nullable": false
+    },
+    "temperature_from_humidity": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "temperature_from_pressure": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "temp": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "pres": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "temperature": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "hum": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "compass": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "accelerometer_roll": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "accelerometer_pitch": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "accelerometer_yaw": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyroscope_roll": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyroscope_pitch": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyroscope_yaw": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "roll": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "pitch": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "yaw": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "orientation_radians_roll": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "orientation_radians_pitch": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "orientation_radians_yaw": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "mag_x": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "mag_y": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "mag_z": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "acc_x": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "acc_y": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "acc_z": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyro_x": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyro_y": {
+      "dtype": "float64",
+      "nullable": false
+    },
+    "gyro_z": {
+      "dtype": "float64",
+      "nullable": false
+    }
+  },
+  "coerce": true,
+  "drop_invalid_rows": false
+}
