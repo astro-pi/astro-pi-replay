@@ -1,15 +1,50 @@
 # Uses space-track.org to find the nearest TLE to the 
 # given daterange.
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import argparse
 import logging
-import urllib.parse
+import subprocess
+import sys
+import json
+
+import spacetrack
+import spacetrack.operators as op
+
+
+logger = logging.getLogger(Path(__file__).name)
 
 ISS_ZARYA_NORAD_CAT_ID: int = 25544
 SECONDS_IN_DAY: int = 86400 # 60*60*24
 
+
+def get_start_and_end_from_file(csv_file: Path) -> tuple[datetime,datetime]:
+    with Path(args.csv_file).open() as f:
+        lines = f.read().strip().splitlines()
+    header_line = lines[0]
+    delimiter = ","
+    headers = header_line.split(delimiter)
+    datetime_header = "datetime"
+    if datetime_header not in headers:
+        logger.error("Supplied csv does not " +
+        f"include {datetime_header} header")
+        sys.exit(1)
+
+    datetime_index = headers.index(datetime_header)
+    min_date: Optional[datetime] = None
+    max_date: Optional[datetime] = None
+    for line in lines[1:]:
+        cols = line.split(delimiter)
+        dt = datetime.fromisoformat(cols[datetime_index])
+        if min_date is None or dt < min_date:
+            min_date = dt
+        if max_date is None or dt > max_date:
+            max_date = dt
+    if min_date is None or max_date is None:
+        logger.error(f"File {csv_file} does not contain dates")
+        sys.exit(1)
+    return min_date, max_date
 
 def _datetime_to_epoch(d: datetime) -> str:
     """
@@ -33,63 +68,63 @@ def _datetime_to_epoch(d: datetime) -> str:
     # return ""
 
 
-def get_tle_list(start: datetime, end: datetime) -> list[str]:
-    logging.debug(f"Searching for best TLE to fit {start} - {end}")
+def get_tle_list(start: Union[datetime,date], end: Union[datetime,date]) -> list[dict]:
+    logger.debug(f"Searching for best TLE to fit {start} - {end}")
 
-    # 2023-05-03
-    # https://www.space-track.org/basicspacedata/query/class/tle/NORAD_CAT_ID/25544/EPOCH/>2023-05-03,<2023-05-04/orderby/EPOCH asc/limit/5/format/tle/emptyresult/show
-
-
-    protocol: str = "https"
-    origin: str = "www.space-track.org"
-    limit: int  = 5
-    pathname = f"basicspacedata/query" + \
-        "/class/tle" + \
-        f"/NORAD_CAT_ID/{ISS_ZARYA_NORAD_CAT_ID}" + \
-        f"/EPOCH/>{start.date().isoformat()}," + \
-        f"<{end.date().isoformat()}" + \
-        "/orderby/EPOCH asc" + \
-        f"/limit/{limit}/" + \
-        "/format/tle/emptyresult/show"
-
-    unencoded_url: str = f"{protocol}://{origin}/{pathname}"
-
-    logging.debug(unencoded_url)
-
-    encoded_url: str = urllib.parse.quote(unencoded_url)
-    logging.debug(encoded_url)
-    return [] # TODO
+    password = subprocess.run(
+        ["op", "read", "op://Employee/Spacetrack/password"],
+        check=True, text=True, capture_output=True
+    ).stdout.strip()
+    with spacetrack.SpaceTrackClient(
+            identity="geraint.ballinger@raspberrypi.org", 
+            password=password) as st:
+        response = st.gp_history(
+            norad_cat_id=ISS_ZARYA_NORAD_CAT_ID,
+            epoch=op.inclusive_range(start, end),
+            orderby="EPOCH asc",
+            format="json",
+        )
+        return json.loads(response)
 
 
 
 def find_nearest_tle(
-    tle_list: list[str], 
-    midpoint: str
-) -> list[str]:
-    midpoint_epoch = float(midpoint)
+    tle_list: list[dict], 
+    midpoint: datetime
+) -> dict:
+    if not tle_list:
+        raise ValueError()
+    smallest_diff: Optional[timedelta] = None
+    best_index: Optional[int] = None
 
-    smallest: Optional[tuple[float, int]] = None
+    for i, tle_dict in enumerate(tle_list):
+        # Space-Track JSON format stores the epoch as an ISO string
+        epoch = datetime.fromisoformat(tle_dict["EPOCH"])
+        
+        diff = abs(epoch - midpoint)
+        
+        if smallest_diff is None or diff < smallest_diff:
+            smallest_diff = diff
+            best_index = i
 
-    for i in range(len(tle_list) // 2):
-        first_line = tle_list[i*2]
-        epoch = float(first_line.split()[2])
-        diff = abs(epoch - midpoint_epoch)
-        if smallest is None:
-            smallest = (diff, i)
-        if smallest is not None:
-            smallest_diff, _ = smallest
-            if diff < smallest_diff:
-                smallest = (diff,i)
-
-    if smallest is None:
-        return []
+    if best_index is not None:
+        logger.info(f"Minimised diff is: {smallest_diff}")
+        best = tle_list[best_index]
+        logger.info(f"Epoch: {best['EPOCH']}")
+        return tle_list[best_index]
     else:
-        _, i = smallest
-        return tle_list[i*2:(i*2)+1]
-    
+        raise ValueError()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
+
+#     with spacetrack.SpaceTrackClient(identity="geraint.ballinger@raspberrypi.org", password=password) as st:
+#         tles = st.gp_history(
+#             norad_cat_id=25544,
+#             epoch=op.inclusive_range(min_date, max_date),
+#             orderby="EPOCH asc",
+#             format="json",
+#         )
 
     parser = argparse.ArgumentParser(
             prog=Path(__file__).stem,
@@ -99,19 +134,58 @@ if __name__ == "__main__":
                         "'2023-05-03 03:32:26'"
             ])
     )
-    parser.add_argument("start",
+    parser.add_argument("--csv-file", type=Path, 
+                        help="Path to csv file (photos.csv) " +
+                        "containing the photo datetimes")
+    parser.add_argument("--start",
                         help="The sequence start in ISO 8601 format.")
-    parser.add_argument("end",
+    parser.add_argument("--end",
                         help="The sequence end in ISO 8601 format.")
+    parser.add_argument("--debug", action="store_true",
+                        help="Emit debugging messages")
 
     args = parser.parse_args()
-    start = datetime.fromisoformat(args.start)
-    end = datetime.fromisoformat(args.end)
+
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(level=log_level)
+    logger.setLevel(log_level)
+    spacetrack_logger = logging.getLogger("httpcore")
+    spacetrack_logger.setLevel(log_level)
+
+    if all([a is None for a in [args.csv_file, args.start, args.end]]):
+           logger.error(
+               "Please specify either a csv file or " +
+               "start and end datetimes."
+           )
+           sys.exit(1)
+
+    start: datetime
+    end: datetime
+    if args.csv_file:
+        start, end = get_start_and_end_from_file(args.csv_file)
+    else:
+        start = datetime.fromisoformat(args.start)
+        end = datetime.fromisoformat(args.end)
 
     midpoint = start + ((end - start) / 2)
-    midpoint_epoch = _datetime_to_epoch(midpoint)
-    logging.debug(f"midpoint: {midpoint_epoch}")
+    # midpoint_epoch = _datetime_to_epoch(midpoint)
+    # logger.debug(f"midpoint: {midpoint_epoch}")
 
     tles = get_tle_list(start, end)
-    tle = find_nearest_tle(tles, midpoint_epoch)
+    if len(tles) == 0:
+        logger.warning("Could not find TLEs within the supplied timeframe")
+        logger.info("Broadening search to 24h window...")
+        tles = get_tle_list(
+                start.date(),
+                end.date() + timedelta(days=1))
+    if len(tles) > 0:
+        tle = find_nearest_tle(tles, midpoint)[0]
+        if len(tle) > 0:
+            for key in ["TLE_LINE0","TLE_LINE1","TLE_LINE2"]:
+                print(tle[key])
+            # iss-23123_20525188.tle
+        else:
+            logger.error("No TLE data found in range")
+
+            
 

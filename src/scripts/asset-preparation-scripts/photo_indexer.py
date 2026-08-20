@@ -84,7 +84,7 @@ if __name__ == "__main__":
             description="Generates the photo_index.csv file " +
             "by globbing the given src dir using the given " +
             "glob pattern, sorting alphanumerically (ascending) " +
-            "and then collecting the required metadata. Outputs"
+            "and then collecting the required metadata. Outputs "
             "the csv to stdout."
     )
 
