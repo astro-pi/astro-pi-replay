@@ -141,8 +141,12 @@
       "description": "A list of WGS84 coordinates of the ISS position",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/SignedDMSCoordinate"
+        "$ref": "#/$defs/WGS84Coordinates"
       }
+    },
+    "rev": {
+      "type": "string",
+      "description": "The astro-mono commit revision"
     }
   },
   "oneOf": [
@@ -188,6 +192,20 @@
 	   "exclusiveMaximum": 60
 	 }
        }
+    },
+    "WGS84Coordinates": {
+      "type": "object",
+      "properties": {
+	"latitude": {
+	  "$ref": "#/$defs/SignedDMSCoordinate"
+	},
+	"longitude": {
+	  "$ref": "#/$defs/SignedDMSCoordinate"
+	},
+	"altitude": {
+	  "type": "number"
+	}
+      }
     }
   }
 }
