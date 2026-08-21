@@ -147,6 +147,10 @@
     "rev": {
       "type": "string",
       "description": "The astro-mono commit revision"
+    },
+    "version": {
+      "type": "string",
+      "description": "The version identifier of this sequence, in case of updates"
     }
   },
   "oneOf": [
