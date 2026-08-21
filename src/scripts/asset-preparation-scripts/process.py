@@ -1,0 +1,12 @@
+# Order:
+#   upsampler.py
+#   strip_lat_lon_exif_tags.py
+#   restart_sequencer.py
+#   photo_indexer.py
+#   modify_access_times.py
+#   create_video.py
+#   tle_finder.py
+#   restart_csv_datetimes.py
+#   normalise_csv_headings.py
+#   supplement_csv_data.py
+#   build_metadata.py
