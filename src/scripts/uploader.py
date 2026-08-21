@@ -28,6 +28,7 @@ from astro_pi_replay.resources.downloader import (
     get_metadata_schema,
     url_prefix,
 )
+from scripts.upload_utils import collect_sequences
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -177,6 +178,49 @@ class Uploader:
 
         logger.info(f"{base_file} passed (no) exif gps checks")
 
+    def _validate_unique_sequence_ids(self):
+        """
+        Ensures all detected sequence ids are unique.
+        """
+        sequences = collect_sequences()
+        if len(sequences) != len(set(sequences)):
+            raise RuntimeError(
+                "Repeating sequence id detected! " +
+                "Ensure sequences in the replay/IR and replay/VIS are globally unique (is prohibited to have e.g. sequence-foo in both replay/VIS and replay/IR)")
+        pass
+
+    def _validate_photo_index_csv(self, base_file: Path):
+        photos_dir: Path = base_file / "photos"
+        filename = "photo_index.csv"
+        expected_file = photos_dir / filename
+        if not expected_file.exists():
+            raise FileNotFoundError(
+                f"{expected_file} does not exist")
+
+        file_lines = expected_file.read_text().strip().splitlines()
+        # first row should be datetime,name
+        expected_header = "datetime,name"
+
+        if file_lines[0] != expected_header:
+            raise RuntimeError(
+                f"{filename} does not start with " +
+                expected_header)
+
+        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        with metadata_filepath.open() as f:
+            metadata = json.load(f)
+
+        prefix = metadata["photos"]["prefix"]
+        suffix = metadata["photos"]["suffix"]
+
+        photo_count = len(list(photos_dir.glob(f"{prefix}*{suffix}")))
+        if len(file_lines) - 1 != photo_count:
+            raise RuntimeError(
+                f"Number of lines in {filename} does not "+
+                "match the number of detected photos using " +
+                f"the metadata glob pattern (detected " +
+                f"{photo_count})")
+
     def _create_zip(
         self,
         directory_to_zip: Path,
@@ -239,23 +283,31 @@ class Uploader:
                     m.update(f.read())
         return m.hexdigest()
 
-    def _upload_file(self, file: Path, url: Optional[str] = None,
-            recursive: bool = False
+    def _upload_file(
+            self, file: Path, url: Optional[str] = None,
+            recursive: bool = False,
+            exclusions: Optional[set[str]] = None
     ) -> None:
         command_args: list[str] = [
             "aws",
             "s3",
-            "cp",
-            "--recursive" if recursive else "",
+            "cp"
+        ]
+        if recursive:
+            command_args.append("--recursive")
+        if exclusions:
+            for ex in exclusions:
+                command_args.extend(["--exclude", ex])
+        command_args.extend([
             str(file),
             url if url is not None else url_prefix.replace("https://", "s3://") + "/",
-        ]
+        ])
         logger.debug(command_args)
         subprocess.run(command_args, check=True)  # nosec B603
 
     def upload_zip(
         self,
-        base_file: Path,
+        base_dir: Path,
         zip_name: Optional[str] = None,
         include_filter: Optional[Callable[[str], bool]] = None,
         url: Optional[str] = None,
@@ -267,13 +319,15 @@ class Uploader:
         include_filter: used to filter files under the base file in/out of the zip
         """
         # validations
-        self._validate_metadata_schema(base_file)
-        self._validate_video(base_file)
-        self._validate_tle_file(base_file)
-        self._validate_no_gps_tags(base_file)
+        self._validate_unique_sequence_ids()
+        self._validate_metadata_schema(base_dir)
+        self._validate_video(base_dir)
+        self._validate_tle_file(base_dir)
+        self._validate_no_gps_tags(base_dir)
+        self._validate_photo_index_csv(base_dir)
 
         zip_file: Path = self._create_zip(
-            base_file, zip_name=zip_name, include_filter=include_filter
+            base_dir, zip_name=zip_name, include_filter=include_filter
         )
         sha256_file: Path = self._create_sha256_checksum(zip_file)
         gpg_file: Path = self._create_gpg_signature(zip_file)
@@ -285,7 +339,8 @@ class Uploader:
     def upload_raw(
         self,
         base_file: Path,
-        url: Optional[str] = None
+        url: Optional[str] = None,
+        to_exclude: Optional[set[str]] = None
     ):
         """Upload the raw (unzipped) assets."""
         # validations
@@ -298,7 +353,9 @@ class Uploader:
             raise RuntimeError(
                     "Must be a directory to upload directly")
 
-        self._upload_file(base_file, url, recursive=True)
+        self._upload_file(
+                base_file, url,
+                recursive=True, exclusions=to_exclude)
 
 
 class AssetPreparer:
