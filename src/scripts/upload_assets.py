@@ -5,15 +5,15 @@ Usage (from the src directory):
     python3 -m scripts.upload_assets
 """
 import dataclasses
-import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Union
 
 import exif
 
-from astro_pi_replay.resources.downloader import asset_url, get_replay_dir
+from astro_pi_replay.resources.downloader import asset_url
 
+from .upload_utils import collect_sequences
 from .uploader import GPS_TAGS, Uploader
 
 CURRENT_DIR = Path(__file__).parent
@@ -21,7 +21,6 @@ PROJECT_DIR = CURRENT_DIR.parent.parent
 SEQUENCE_IDS_DEST: str = "sequence_ids"
 UPLOAD_VIDEOS_DEST: str = "upload_videos"
 IMAGE_SUFFIXES: set[str] = set(["jpeg", "jpg", "png"])
-replay_dir: Path = get_replay_dir()
 
 
 @dataclasses.dataclass
@@ -102,24 +101,6 @@ def validate_args(args: Namespace, sequences: list[Path]) -> ValidatedArguments:
     )
 
 
-def collect_sequences() -> list[Path]:
-    """
-    Collects sequences in the {replay_dir}/VIS and {replay_dir}/IR
-    directories.
-    """
-    sequences: list[Path] = []
-    for photography_type in os.listdir(replay_dir):
-        sequences_root: Path = replay_dir / photography_type
-        if not sequences_root.is_dir():
-            continue  # skip files that are not directories
-        sequence_id: str
-        for sequence_id in os.listdir(sequences_root):
-            # Upload the photos and videos separately
-            sequence_base: Path = sequences_root / sequence_id
-            sequences.append(sequence_base)
-    return sequences
-
-
 def upload_zips(validated_args: ValidatedArguments) -> None:
     # Upload standard assets with:
     u = Uploader()
@@ -128,6 +109,9 @@ def upload_zips(validated_args: ValidatedArguments) -> None:
         "data",
         "metadata.json",
     ]
+    to_exclude = set([
+        ".DS_Store",
+    ])
 
     for sequence_base in validated_args.sequences:
         s3_url = asset_url.replace("https://", "s3://") + "/"
@@ -141,17 +125,19 @@ def upload_zips(validated_args: ValidatedArguments) -> None:
         if validated_args.zips_only or not validated_args.raw_only:
             u.upload_zip(
                 sequence_base,
-                include_filter=lambda f: any(
+                include_filter=lambda f: (any(
                     Path(f).is_relative_to(sequence_base / include)
-                    for include in to_include
-                ),
+                    for include in to_include) and \
+                    Path(f).name not in to_exclude),
                 url=s3_url,
             )
             if validated_args.upload_video_zip:
                 u.upload_zip(
                     sequence_base,
-                    include_filter=lambda f: Path(f).is_relative_to(
-                        sequence_base / "videos"
+                    include_filter=lambda f: (
+                        Path(f).is_relative_to(
+                            sequence_base / "videos"
+                        ) and Path(f).name not in to_exclude
                     ),
                     zip_name=sequence_base.name + "_videos",
                     url=s3_url,
@@ -159,9 +145,9 @@ def upload_zips(validated_args: ValidatedArguments) -> None:
         if validated_args.raw_only or not validated_args.zips_only:
             u.upload_raw(
                 sequence_base,
-                url=s3_url + f"{sequence_base.name}/"
+                url=s3_url + f"{sequence_base.name}/",
+                to_exclude=to_exclude
             )
-
 
 def _main(args: Namespace) -> None:
     collected_sequences: list[Path] = collect_sequences()
