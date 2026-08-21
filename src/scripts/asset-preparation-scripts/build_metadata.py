@@ -13,7 +13,8 @@ from skyfield.api import Loader
 def _get_iss_coords(
     start: datetime,
     sequence_length: timedelta,
-    tle_filepath: Path
+    tle_filepath: Path,
+    every_minute = False
 ) -> Geocentric:
     """
     Returns the ISS positions in the GCRF at each minute from the
@@ -29,9 +30,10 @@ def _get_iss_coords(
 
     ts = load.timescale()
 
+    divisor = 60 if every_minute else 1
     dts = []
-    for i in range(round(sequence_length.total_seconds() / 60)):
-        dt = (start + timedelta(minutes=i)).replace(
+    for i in range(round(sequence_length.total_seconds() / divisor)):
+        dt = (start + timedelta(seconds=i)).replace(
                 tzinfo=timezone.utc)
         dts.append(dt)
 
@@ -52,7 +54,7 @@ def get_iss_wgs84_coordinates(
     sequence_length: timedelta,
     tle_filepath: Path
 ):
-    coords = _get_iss_coords(start, sequence_length, tle_filepath).subpoint()
+    coords = _get_iss_coords(start, sequence_length, tle_filepath, every_minute=True).subpoint()
 
     lats = np.array(coords.latitude.signed_dms()).T # (N, 4)
     longs = np.array(coords.longitude.signed_dms()).T # (N, 4)
