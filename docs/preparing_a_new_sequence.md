@@ -23,9 +23,9 @@ The steps needed to process the chosen image sequence are:
  - The nearest [TLE file](https://en.wikipedia.org/wiki/Two-line_element_set) for the ISS must be provided and placed in the `data` dir. This is usually found by querying the [https://www.space-track.org]() website. An example query (pre-url-encoding) is:
 
     ```txt
-    https://www.space-track.org/basicspacedata/query/class/tle/NORAD_CAT_ID/25544/EPOCH/>2023-05-03,<2023-05-04/orderby/EPOCH asc/limit/5/format/tle/emptyresult/show
+    https://www.space-track.org/basicspacedata/query/class/gp_history/norad_cat_id/25544/epoch/2023-05-03--2023-05-04/format/tle
     ```
-    This query fetches the first 5 two line element lines in the range 2023-05-03 to 2023-05-04.
+    This query fetches the TLEs in the range 2023-05-03 to 2023-05-04.
  - Missing `sense hat` data must be collated - perhaps by renaming the sense hat data collected by the original submission - or by other means. The sense hat file format is explained [./data_csv_schema.md](here).
  - The `sense hat` data may need to be changed to match the timestamps of the images.
  - The `metadata.json` file must be generated. The schema for this is accessible at [../src/astro_pi_replay/resources/metadata_schema.json]().
