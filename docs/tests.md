@@ -16,4 +16,4 @@ Additionally, when running locally you will need to configure your environment t
 
 # Smoke tests
 
-TODO
+This is executed post-deployment to PyPI to ensure that the deployed wheel is installable and a simple program can be executed.
