@@ -7,19 +7,22 @@ from pathlib import Path
 from typing import Optional
 from collections import namedtuple
 import re
+import tomllib
 
 import pytest
 from packaging import version
+from packaging.markers import Marker
+from packaging.requirements import Requirement
 
 from ..test_constants import PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 
-REQUIREMENTS_TXT = PROJECT_ROOT / "requirements.txt"
 PIWHEELS_URL = "https://piwheels.org/simple"
 
 if os.environ.get("PYTEST_PROFILE", None) != "INTEGRATION_TESTS":
     pytest.skip("Skipping integration tests", allow_module_level=True)
+
 
 
 SkippedDependency = namedtuple("SkippedDependency", ["name", "reason"])
@@ -52,6 +55,35 @@ class Platform:
     def __len__(self):
         return 1
 
+def get_dependencies(platform: Platform):
+    with (PROJECT_ROOT / "pyproject.toml").open('rb') as f:
+        pyproject = tomllib.load(f)
+    raw_deps = pyproject.get("project", {}).get("dependencies", [])
+
+
+    platform.platform
+    arch = "x86_64" if "x86_64" in platform.platform else "aarch64"
+    if "linux" in platform.platform:
+        sys_plat, os_name = "linux", "posix"
+    elif "win" in platform.platform:
+        sys_plat, os_name = "win32", "nt"
+    else:
+        sys_plat, os_name = "darwin", "posix"
+
+    env_context = {
+        "python_version": platform.max_python_version,
+        "python_full_version": platform.max_python_version,
+        "sys_platform": sys_plat,
+        "os_name": os_name,
+        "platform_system": sys_plat.title(),
+        "platform_machine": arch,
+    }
+    for dep_str in raw_deps:
+        req = Requirement(dep_str)
+        if req.marker is None or req.marker.evaluate(
+                environment=env_context):
+            req.marker = None
+            yield str(req)
 
 # May want to explore glibc builds of the form manylinux_2_x_
 # e.g. bookworm glibc version is 2.36
@@ -59,10 +91,14 @@ MANYLINUX_X86_64 = "manylinux2014_x86_64"
 MANYLINUX_ARCH64 = "manylinux2014_aarch64"
 LINUX_ARMV7L = "linux_armv7l"
 LINUX_ARMV6L = "linux_armv6l"
+TRIXIE_PYTHON_VERSION = "3.13.5"
 BOOKWORM_PYTHON_VERSION = "3.11.2"
 BULLSEYE_PYTHON_VERSION = "3.9.2"
 
 # Special test cases for Raspberry Pi OS / Debian
+trixie_arch64: Platform = Platform(MANYLINUX_ARCH64, TRIXIE_PYTHON_VERSION)
+trixie_armv7l: Platform = Platform(LINUX_ARMV7L, TRIXIE_PYTHON_VERSION, PIWHEELS_URL)
+trixie_armv6l: Platform = Platform(LINUX_ARMV6L, TRIXIE_PYTHON_VERSION, PIWHEELS_URL)
 bookworm_arch64: Platform = Platform(MANYLINUX_ARCH64, BOOKWORM_PYTHON_VERSION)
 bookworm_armv7l: Platform = Platform(
     LINUX_ARMV7L, BOOKWORM_PYTHON_VERSION, PIWHEELS_URL
@@ -137,6 +173,10 @@ skip_opencv_on_mavericks_x86= SkippedDependency(
 @pytest.mark.parametrize(
     "platform,skipped_dependencies",
     [
+        pytest.param(trixie_arch64, [], id="trixie_arch64"),
+        pytest.param(trixie_armv7l, [], id="trixie_armv7l"),
+        pytest.param(trixie_armv6l, [], id="trixie_armv6l"),
+
         pytest.param(bookworm_arch64, [], id="bookworm_arch64"),
         pytest.param(bookworm_armv7l, [skip_opencv_on_32bit_rpos], id="bookworm_armv7l"),
         pytest.param(bookworm_armv6l, [skip_opencv_on_32bit_rpos], id="bookworm_armv6l"),
@@ -158,8 +198,7 @@ def test_dependency_wheels_available(
     skipped_dependency_names = [
         str(dep.name) for dep in skipped_dependencies]
 
-    with REQUIREMENTS_TXT.open() as f:
-        dependencies = f.readlines()
+    dependencies = get_dependencies(platform)
     for dependency in dependencies:
         if not dependency.startswith("#"):
             # Remove comments and leading/trailing whitespace
