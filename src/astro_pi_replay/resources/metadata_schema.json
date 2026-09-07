@@ -167,9 +167,7 @@
     "end",
     "photography_type",
     "photos",
-    "video",
-    "iss_deployment_location",
-    "sequence_description"
+    "video"
   ],
   "$defs": {
     "SignedDMSCoordinate": {
