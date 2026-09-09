@@ -11,7 +11,6 @@ import tomli
 
 import pytest
 from packaging import version
-from packaging.markers import Marker
 from packaging.requirements import Requirement
 
 from ..test_constants import PROJECT_ROOT
