@@ -47,6 +47,8 @@ class Configuration:
     astro_pi_replay_version: str
     is_transparent_to_user: bool
     streaming_mode: bool
+    resolution: tuple[int,int]
+    photography_type: str
 
     @staticmethod
     def _from_json(jstr: str) -> "Configuration":
@@ -54,6 +56,7 @@ class Configuration:
         d["sense_hat_snapshot_dir"] = Path(d["sense_hat_snapshot_dir"])
         if "astro_pi_replay_version" not in d:
             d["astro_pi_replay_version"] = decrement_semver(__version__)
+        d["resolution"] = tuple(d["resolution"])
         return Configuration(**d)
 
     @staticmethod
@@ -68,6 +71,8 @@ class Configuration:
             __version__,
             args.is_transparent_to_user,
             args.streaming_mode,
+            args.resolution,
+            args.photography_type
         )
 
     @staticmethod
