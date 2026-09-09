@@ -270,8 +270,8 @@ def get_original_replay_dir() -> Path:
     return get_resource("replay")
 
 
-def get_test_asset_path() -> str:
-    return "VIS/test_data"
+def get_test_asset_path() -> Path:
+    return Path("VIS/test_data")
 
 
 def TestConfiguration(
@@ -285,7 +285,7 @@ def TestConfiguration(
         no_wait_images,
         interpolate_sense_hat,
         debug,
-        get_test_asset_path(),
+        get_test_asset_path().name,
         snapshot_sense_hat_display,
         sense_hat_snapshot_dir,
         __version__,
