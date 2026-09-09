@@ -23,12 +23,9 @@ from exif import DATETIME_STR_FORMAT, Image
 from tqdm import tqdm
 
 from astro_pi_replay import PROGRAM_NAME
-from astro_pi_replay.resources.downloader import (
-    METADATA_FILE_NAME,
-    get_metadata_schema,
-    url_prefix,
-)
+from astro_pi_replay.resources.downloader import get_metadata_schema
 from scripts.upload_utils import collect_sequences
+import astro_pi_replay.resources.config as cfg
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -95,7 +92,7 @@ class Uploader:
         Ensures the metadata.json file exists and
         passes schema validation
         """
-        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        metadata_filepath: Path = base_file / cfg.METADATA_FILE_NAME
         with metadata_filepath.open() as f:
             metadata = json.load(f)
         schema = get_metadata_schema()
@@ -106,7 +103,7 @@ class Uploader:
         """
         Ensures the video referenced in the metadata file exists
         """
-        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        metadata_filepath: Path = base_file / cfg.METADATA_FILE_NAME
         with metadata_filepath.open() as f:
             metadata = json.load(f)
         video: str = metadata["video"]
@@ -117,7 +114,7 @@ class Uploader:
         """
         Ensures the tle file given by the metadata file exists
         and has the correct SHA256 hash"""
-        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        metadata_filepath: Path = base_file / cfg.METADATA_FILE_NAME
         with metadata_filepath.open() as f:
             metadata = json.load(f)
         file: str = metadata["tle"]["file"]
@@ -206,7 +203,7 @@ class Uploader:
                 f"{filename} does not start with " +
                 expected_header)
 
-        metadata_filepath: Path = base_file / METADATA_FILE_NAME
+        metadata_filepath: Path = base_file / cfg.METADATA_FILE_NAME
         with metadata_filepath.open() as f:
             metadata = json.load(f)
 
@@ -300,7 +297,7 @@ class Uploader:
                 command_args.extend(["--exclude", ex])
         command_args.extend([
             str(file),
-            url if url is not None else url_prefix.replace("https://", "s3://") + "/",
+            url if url is not None else cfg.url_prefix.replace("https://", "s3://") + "/",
         ])
         logger.debug(command_args)
         subprocess.run(command_args, check=True)  # nosec B603

@@ -26,7 +26,6 @@ from astro_pi_replay.picamera.exc import (
     PiCameraValueError,
 )
 from astro_pi_replay.picamera.streams import PiCameraCircularIO
-from astro_pi_replay.resources import get_replay_sequence_dir
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +193,7 @@ def test_replay_capture_continuous_replays_into_streams(executor: AstroPiExecuto
             pass
 
     # Calculate the expected size
-    with (get_replay_sequence_dir() / "metadata.json").open("r") as f:
+    with (executor.configuration.get_replay_sequence_dir() / "metadata.json").open("r") as f:
         metadata: dict[str, Any] = json.loads(f.read())
     resolution: tuple[int, int] = metadata["resolution_x"], metadata["resolution_y"]
 
