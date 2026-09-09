@@ -16,6 +16,7 @@ from astro_pi_replay.exception import AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import Downloader, get_resource
 from astro_pi_replay.resources.downloader import has_installed, search_for_sequence
+from astro_pi_replay.runtime_state import state
 from astro_pi_replay.self_updater import SelfUpdater
 
 logger = logging.getLogger(__name__)
