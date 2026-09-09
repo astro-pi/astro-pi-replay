@@ -89,7 +89,9 @@ class Configuration:
                     # filter out hidden attributes
                     if not key.startswith("_")
                 }
-            )
+            ),
+            indent=2,
+            sort_keys=True
         )
 
     def save(self) -> None:
