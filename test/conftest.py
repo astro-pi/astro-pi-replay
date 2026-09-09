@@ -157,7 +157,7 @@ def set_replay_sequence() -> Iterable:
     Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point
     to the test data dir.
     """
-    value: str = get_test_asset_path()
+    value: str = str(get_test_asset_path())
     logger.debug(f"Setting {REPLAY_SEQUENCE_ENV_VAR} to {value}")
     os.environ[REPLAY_SEQUENCE_ENV_VAR] = value
 
