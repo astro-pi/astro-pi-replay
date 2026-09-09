@@ -1,6 +1,6 @@
 import collections
 from enum import Enum
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, TypedDict, Union
 
 from typing_extensions import TypeAlias
 
@@ -27,6 +27,13 @@ DEFAULT_CALLABLE = (
     lambda x: x
 )  # TODO could use inspect module to check type annotations at runtime
 
+
+class SequenceCSVRow(TypedDict):
+    """A row from sequences.csv"""
+    sequence_id: str
+    resolution: tuple[int,int]
+    photography_type: str
+    window: str
 
 class ExecutionMode(str, Enum):
     REPLAY = ("REPLAY",)
