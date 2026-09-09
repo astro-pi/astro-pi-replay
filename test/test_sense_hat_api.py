@@ -10,7 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.resources import get_replay_sequence_dir
 from astro_pi_replay.sense_hat.sense_hat import SenseHatAdapter
 
 ###########
@@ -432,7 +431,7 @@ def test_interpolates_values():
     sh = SenseHatAdapter(executor)
 
     # Find the frst two rows
-    test_sh_data: Path = get_replay_sequence_dir() / "data" / "data.csv"
+    test_sh_data: Path = configuration.get_replay_sequence_dir() / "data" / "data.csv"
     # TODO this name should be static and globally defined
     df = executor._df_from_replay_file(str(test_sh_data), "datetime")
     first_date = df.iloc[0].name.to_pydatetime()
