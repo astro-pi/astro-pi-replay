@@ -1,7 +1,6 @@
 from pathlib import Path
 import os
 
-
 from astro_pi_replay import PROGRAM_NAME, __version__
 
 

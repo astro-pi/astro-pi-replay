@@ -10,14 +10,17 @@ import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, cast
 
 import pandas as pd
 import requests
+from requests import Timeout, RequestException
 from tqdm import tqdm
 
 from astro_pi_replay import __version__
+from astro_pi_replay.custom_types import SequenceCSVRow
 from astro_pi_replay.exception import AstroPiReplayException
+from astro_pi_replay.runtime_state import state
 import astro_pi_replay.resources.config as cfg
 
 if TYPE_CHECKING:
@@ -51,14 +54,29 @@ def get_metadata_schema() -> dict:
         return json.load(f)
 
 
-def search_for_sequence(
+async def search_for_sequence(
     resolution: tuple[int, int],
-    photography_type: str
+    photography_type: str,
+    check_for_sequences_override: bool = False
 ) -> str:
     """
     Returns the id of the most appropriate photo sequence given the requested
     resolution and photography type.
+
     """
+    if check_for_sequences_override:
+        downloader = Downloader()
+
+        try:
+            await downloader.check_for_sequences_override()
+        except (Timeout, ConnectionError) as e:
+            state.is_offline = True
+            logger.debug(
+                "Could not check for sequence " + f"override file: {e}"
+            )
+        except RequestException as e:
+            logger.debug(f"Could not check for sequence " f"override file: {e}")
+            logger.exception(e)
     sequence: str
 
     # save it if not already open
@@ -78,8 +96,24 @@ def search_for_sequence(
         )
     return sequence
 
+def get_sequence_metadata(sequence_id: str) -> SequenceCSVRow:
+    df = pd.read_csv(cfg.SEQUENCES_FILE)
+    filtered = df[df['sequence_id'] == sequence_id]
+    if len(filtered) != 1:
+        raise ValueError(
+            f"Could not find sequence_id {sequence_id}"
+        )
+    if not isinstance(filtered, pd.DataFrame):
+        raise RuntimeError(
+            f"filtered {filtered} is not of the expected DataFrame type"
+        )
+    filtered['resolution' ] = filtered['resolution'].apply(
+            lambda res_str: tuple(res_str.split("x")))
 
-def has_installed(
+    row = list(filtered.T.to_dict().values())[0]
+    return cast(SequenceCSVRow, row)
+
+async def has_installed(
     resolution: tuple[int, int],
     photography_type: str,
     sequence_name: Optional[str] = None,
@@ -88,7 +122,7 @@ def has_installed(
     if sequence_name is None:
         sequence = os.environ.get(
             cfg.REPLAY_SEQUENCE_ENV_VAR,
-            search_for_sequence(resolution, photography_type),
+            await search_for_sequence(resolution, photography_type),
         )
     else:
         sequence = sequence_name
@@ -314,7 +348,7 @@ class Downloader:
         elif sequence is not None:
             sequence_id = sequence
         else:
-            sequence_id = search_for_sequence(resolution, photography_type)
+            sequence_id = await search_for_sequence(resolution, photography_type)
 
         sequences_to_install: list[str] = [sequence_id]
         if with_video:
@@ -323,7 +357,7 @@ class Downloader:
         for seq in sequences_to_install:
             logger.debug(f"Request to install {seq}")
 
-            if has_installed(resolution, photography_type, seq):
+            if await has_installed(resolution, photography_type, seq):
                 logger.debug(f"{seq} already installed")
                 continue
             if not self.has_downloaded(seq):

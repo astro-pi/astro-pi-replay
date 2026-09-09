@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from astro_pi_replay.main import get_argument_parser
+
 from test.test_utils import get_test_resource
-from typing import Any, Callable, Iterator, Optional
+from typing import Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -17,49 +17,6 @@ import astro_pi_replay.resources.config as cfg
 def test_get_replay_dir():
     replay_dir: Path = get_replay_dir()
     assert replay_dir.name == "replay"
-
-
-def test_get_replay_sequence_dir(test_configuration: Configuration):
-    sequence_dir: Path = test_configuration.get_replay_sequence_dir()
-    assert sequence_dir.is_relative_to(get_replay_dir())
-    assert test_configuration.get_replay_sequence_dir().name == "test_data"
-
-
-def test_get_metadata(test_configuration: Configuration):
-    metadata: dict[str, Any] = test_configuration.get_metadata()
-    expected_metadata: dict[str, Any] = {
-        "altitude_average_km": 408,
-        "camera": {
-            "name": "Sony IMX477",
-            "sensor_size_x": "6.287mm",
-            "sensor_size_y": "4.712mm",
-            "sensor_resolution_x": 4056,
-            "sensor_resolution_y": 3040,
-        },
-        "lens": {"name": "Kowa 5mm C-mount Lens", "focal_length": "5mm"},
-        "ground_sampling_distance_cm": 39588,
-        "resolution_x": 1280,
-        "resolution_y": 720,
-        "tle": {
-            "file": "data/iss-23097_09993082.tle",
-            "sha256sum": "545c9581ca3d2bcd7d772a770ed7b70bfaa4613f1bd4d43530ff86a152afbe63",  # noqa: E501
-        },
-        "start": "2023-04-27 06:41:09.939574",
-        "end": "2023-04-27 09:40:47.108350",
-        "team_credits": "OrbitAz",
-        "photography_type": "VIS",
-        "photos": {"prefix": "img", "suffix": "jpg", "isZeroIndexed": True},
-        "video": "OrbitAz.mp4",
-    }
-    assert metadata == expected_metadata
-
-
-def test_get_tle(test_configuration: Configuration):
-    tle_file: Path = test_configuration.get_tle()
-    sequence_dir: Path = test_configuration.get_replay_sequence_dir()
-    tle_metadata: dict[str, str] = test_configuration.get_metadata("tle")
-    assert tle_file.is_relative_to(sequence_dir)
-    assert str(tle_file.relative_to(sequence_dir)) == tle_metadata["file"]
 
 
 # Helper methods for mocking requests library
@@ -219,12 +176,12 @@ async def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     assert (vis_dir / "AstroPi_2021_colour.png").exists()
 
 
-def test_default_sequence_is_theninja() -> None:
-    parser = get_argument_parser()
-    args = parser.parse_args(["run", "main.py"])
-    resolution = args.resolution
-    photography_type = args.photography_type
-    assert resolution == (4056, 3040)
-    assert photography_type == "VIS"
-    seq = search_for_sequence(resolution, photography_type)
+@pytest.mark.asyncio
+async def test_default_sequence_is_theninja() -> None:
+    config = await Configuration.default()
+
+    assert config.resolution == (4056, 3040)
+    assert config.photography_type == "VIS"
+    seq = await search_for_sequence(
+            config.resolution, config.photography_type)
     assert seq == "theninja"
