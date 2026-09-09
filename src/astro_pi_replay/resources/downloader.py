@@ -9,42 +9,23 @@ import sys
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
 import pandas as pd
 import requests
 from tqdm import tqdm
+from requests import Timeout, RequestException
 
-from astro_pi_replay import PROGRAM_NAME, __version__
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay import __version__
 from astro_pi_replay.exception import AstroPiReplayException
+from astro_pi_replay.runtime_state import state
+import astro_pi_replay.resources.config as cfg
+
+if TYPE_CHECKING:
+    from astro_pi_replay.configuration import Configuration
 
 logger = logging.getLogger(__name__)
-
-RESOURCE_DIR: Path = Path(__file__).parent
-EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
-REPLAY_DIR_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_DIR"
-REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
-SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
-METADATA_FILE_NAME: str = "metadata.json"
-SEQUENCES_FILENAME: str = "sequences.csv"
-SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
-
-GPG_EMAIL = "enquiries@astro-pi.org"
-BUCKET_NAME: str = "static.raspberrypi.org"
-BUCKET_URL: str = os.environ.get(
-    f"__{PROGRAM_NAME.upper()}_BUCKET_URL", f"https://{BUCKET_NAME}"
-)
-URL_BASE: str = f"{BUCKET_URL}/files/astro-pi"
-GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
-url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
-asset_url: str = f"{url_prefix}/assets"
-asset_prefix: str = str(Path(asset_url).relative_to(Path(BUCKET_URL)))
-version_url_prefix: str = f"{url_prefix}/{__version__}"
-
-ONE_HOUR: int = 60 * 60
 
 
 def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
@@ -67,79 +48,16 @@ def get_replay_dir() -> Path:
     return get_resource("replay")
 
 
-def get_replay_sequence_dir(download_metadata: bool = True) -> Path:
-    replay_dir: Path = get_replay_dir()
-
-    try:
-        config = Configuration.load()
-        if config.sequence is not None:
-            for photography_type in (
-                f for f in os.listdir(replay_dir) if not f.startswith(".")
-            ):
-                if config.sequence in (
-                    f
-                    for f in os.listdir(replay_dir / photography_type)
-                    if not f.startswith(".")
-                ):
-                    return replay_dir / photography_type / config.sequence
-
-            # if here, the sequence wasn't found
-            if config.streaming_mode and download_metadata:
-                downloader = Downloader()
-                metadata_path: Path = downloader.fetch_metadata(config.sequence)
-
-                with metadata_path.open() as f:
-                    metadata: dict[str, Any] = json.load(f)
-
-                photography_type = str(metadata["photography_type"])
-
-                sequence_dir: Path = replay_dir / photography_type / config.sequence
-                sequence_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(metadata_path, sequence_dir)
-                return sequence_dir
-    except FileNotFoundError:
-        pass
-
-    replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
-    if replay_sequence is not None:
-        return replay_dir / Path(replay_sequence)
-    raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
-
-
-def get_video() -> Path:
-    name: str = get_metadata("video")
-    return get_replay_sequence_dir() / "videos" / name
-
-
-def get_metadata(key: Optional[str] = None, download_metadata: bool = False) -> Any:
-    """
-    Loads the photo album metadata
-    """
-    # TODO load the file once
-    with (get_replay_sequence_dir(download_metadata) / METADATA_FILE_NAME).open() as f:
-        metadata: dict[str, Any] = json.loads(f.read())
-
-    return metadata[key] if key else metadata
-
-
 def get_metadata_schema() -> dict:
     with get_resource("metadata_schema.json").open() as f:
         return json.load(f)
 
 
-def get_start_time() -> datetime:
-    return datetime.strptime(get_metadata("start"), EXPECTED_DATETIME_FORMAT)
-
-
-def get_tle(download_metadata: bool = False) -> Path:
-    """
-    Returns the path to the TLE specified in metadata.json
-    """
-    tle_dict: dict[str, str] = get_metadata("tle", download_metadata)
-    return get_replay_sequence_dir() / str(tle_dict["file"])
-
-
-def search_for_sequence(resolution: tuple[int, int], photography_type: str) -> str:
+def search_for_sequence(
+    resolution: tuple[int, int],
+    photography_type: str,
+    check_for_sequences_override: bool = False
+) -> str:
     """
     Returns the id of the most appropriate photo sequence given the requested
     resolution and photography type.
@@ -436,15 +354,19 @@ class Downloader:
             destination = self.tempdir
         return self.download_file(url, destination)
 
-    def fetch_sequence_file(self, file_path: Path) -> Path:
+    def fetch_sequence_file(
+        self,
+        file_path: Path,
+        config: "Configuration"
+    ) -> Path:
         """
         file_path: Absolute Path to an asset that is in the
             get_replay_sequence_dir()
         """
 
         logger.debug(f"Fetching {file_path}")
-        sequence_dir: Path = get_replay_sequence_dir()
-        sequence_id: str = get_replay_sequence_dir().name
+        sequence_dir: Path = config.get_replay_sequence_dir()
+        sequence_id: str = config.get_replay_sequence_dir().name
         seq_dir_url: str = f"{asset_url}/{sequence_id}"
         url: str = f"{seq_dir_url}/{file_path.relative_to(sequence_dir)}"
         return self.download_file(url, file_path.parent)

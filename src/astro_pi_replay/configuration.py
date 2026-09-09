@@ -8,6 +8,7 @@ from typing import Callable, Optional
 
 from astro_pi_replay import PROGRAM_NAME, __version__
 from astro_pi_replay.version_utils import decrement_semver
+import astro_pi_replay.resources.config as cfg
 
 logger = logging.getLogger(__name__)
 
@@ -95,3 +96,72 @@ class Configuration:
             logger.debug(f"Overwriting {CONFIG_FILE_NAME} file")
         with config_file.open("w") as f:
             f.write(self._to_json())
+
+    def get_replay_sequence_dir(
+        self,
+        download_metadata: bool = True
+    ) -> Path:
+
+        replay_dir: Path = get_replay_dir()
+
+        try:
+            config = Configuration.load()
+            if config.sequence is not None:
+                for photography_type in (
+                    f for f in os.listdir(replay_dir) if not f.startswith(".")
+                ):
+                    if config.sequence in (
+                        f
+                        for f in os.listdir(replay_dir / photography_type)
+                        if not f.startswith(".")
+                    ):
+                        return replay_dir / photography_type / config.sequence
+
+                # if here, the sequence wasn't found
+                if config.streaming_mode and download_metadata:
+                    downloader = Downloader()
+                    metadata_path: Path = downloader.fetch_metadata(config.sequence)
+
+                    with metadata_path.open() as f:
+                        metadata: dict[str, Any] = json.load(f)
+
+                    photography_type = str(metadata["photography_type"])
+
+                    sequence_dir: Path = replay_dir / photography_type / config.sequence
+                    sequence_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(metadata_path, sequence_dir)
+                    return sequence_dir
+        except FileNotFoundError:
+            pass
+
+        replay_sequence: Optional[str] = os.environ.get(cfg.REPLAY_SEQUENCE_ENV_VAR)
+        if replay_sequence is not None:
+            return replay_dir / Path(replay_sequence)
+        raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
+
+
+    def get_video(self) -> Path:
+        name: str = self.get_metadata("video")
+        return self.get_replay_sequence_dir() / "videos" / name
+
+
+    def get_metadata(self, key: Optional[str] = None, download_metadata: bool = False) -> Any:
+        """
+        Loads the photo album metadata
+        """
+        # TODO load the file once
+        with (self.get_replay_sequence_dir(download_metadata) / cfg.METADATA_FILE_NAME).open() as f:
+            metadata: dict[str, Any] = json.loads(f.read())
+
+        return metadata[key] if key else metadata
+
+    def get_start_time(self) -> datetime:
+        return datetime.strptime(self.get_metadata("start"), cfg.EXPECTED_DATETIME_FORMAT)
+
+    def get_tle(self, download_metadata: bool = False) -> Path:
+        """
+        Returns the path to the TLE specified in metadata.json
+        """
+        tle_dict: dict[str, str] = self.get_metadata("tle", download_metadata)
+        return self.get_replay_sequence_dir() / str(tle_dict["file"])
+
