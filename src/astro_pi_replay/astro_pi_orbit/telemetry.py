@@ -9,7 +9,8 @@ from skyfield.positionlib import Geocentric
 from skyfield.timelib import Time
 from skyfield.toposlib import GeographicPosition
 
-from astro_pi_replay.resources import get_resource, get_tle
+from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.resources import get_resource
 
 logger = logging.getLogger(__name__)
 _BSP_FILE: Path = get_resource("de421.bsp")
@@ -34,7 +35,8 @@ def load_ephemeris() -> SpiceKernel:
 
 
 def load_iss() -> skyfield.api.EarthSatellite:
-    tle_file = get_tle()
+    config = Configuration.load()
+    tle_file = config.get_tle()
     loader: Loader = Loader(tle_file.parent, verbose=False)
     satellites: list[skyfield.api.EarthSatellite] = loader.tle_file(tle_file.name)
     iss = next((sat for sat in satellites if sat.name == "ISS (ZARYA)"), None)
