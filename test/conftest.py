@@ -220,3 +220,13 @@ def set_config_dir(mock_config_filepath) -> Iterable:
     yield
     logger.debug(f"Unsetting {CONFIG_FILE_ENV_VAR}")
     os.environ.pop(str(CONFIG_FILE_ENV_VAR), None)
+
+
+@pytest.fixture
+def none_args() -> dict[str,None]:
+    keys = [ "debug", "main", "match_original_photo_intervals",
+        "cmd", "mode", "venv_dir", "resolution",
+        "photography_type", "sequence", "interpolate_sense_hat",
+        "snapshot_sense_hat_display", "sense_hat_snapshot_dir",
+        "is_transparent_to_user", "streaming_mode"]
+    return { k:None for k in keys }
