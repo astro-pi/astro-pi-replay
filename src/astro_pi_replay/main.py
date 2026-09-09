@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import cProfile
 import datetime
@@ -7,15 +8,16 @@ import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
 from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.runtime_state import state
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayRuntimeError
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.resources import Downloader, get_resource
-from astro_pi_replay.resources.downloader import has_installed, search_for_sequence
+from astro_pi_replay.resources.downloader import has_installed
 from astro_pi_replay.runtime_state import state
 from astro_pi_replay.self_updater import SelfUpdater
 
@@ -35,14 +37,16 @@ UPDATE_CMD: str = "update"
 VERSION_CMD: str = "version"
 INSTALL_CMD: str = "install"
 
+DEFAULT_PHOTOGRAPHY_TYPE: str = "VIS"
+DEFAULT_RESOLUTION: tuple[int,int] = (4056, 3040)
 
 def get_argument_parser() -> ArgumentParser:
     arg_parser = ArgumentParser(prog=PROGRAM_CMD_NAME, description="")
     arg_parser.add_argument(
         "--debug",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         help="Emit debug messages",
-        default=os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None,
+        default=os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None),
     )
     arg_parser.add_argument(
         "--profile",
@@ -72,35 +76,36 @@ def get_argument_parser() -> ArgumentParser:
     )
     download_parser.add_argument(
         "--resolution",
-        default=(4056, 3040),
+        default=None,
         choices=((4056, 3040), (1280, 720)),
         help="The resolution of images to playback. Default is (4056, 3040)",
     )
     download_parser.add_argument(
         "--photography-type",
-        default="VIS",
+        default=None,
         choices=(("VIS", "IR")),
         help="Whether to playback visible light photos "
         + "(VIS) or infrared light (IR). Default is VIS.",
     )
     download_parser.add_argument(
-        "--sequence", default=None, help="The sequence id to use in replays."
+        "--sequence", default=None,
+        help="The sequence id to use in replays."
     )
 
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
     run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
     run_parser.add_argument(
         "--interpolate-sense-hat-values",
-        action="store_true",
-        default=True,
+        action=argparse.BooleanOptionalAction,
+        default=None,
         dest="interpolate_sense_hat",
         help="Whether to interpolate measurements from the " + "sense hat.",
     )
     run_parser.add_argument(
-        "--no-match-original-photo-intervals",
-        action="store_true",
-        default=False,
-        help="Disable this mode to stop sleeping in between successive captures to "
+        "--match-original-photo-intervals",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Whether to sleep in between successive captures to "
         + "try and match the timestamps of the original photos.",
     )
     run_parser.add_argument(
@@ -117,13 +122,13 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.add_argument(
         "--resolution",
-        default=(4056, 3040),
+        default=None,
         choices=((4056, 3040), (1280, 720)),
         help="The resolution of images to playback. Default is (4056, 3040)",
     )
     run_parser.add_argument(
         "--photography-type",
-        default="VIS",
+        default=None,
         choices=(("VIS", "IR")),
         help="Whether to playback visible light photos "
         + "(VIS) or infrared light (IR). Default is VIS.",
@@ -133,22 +138,22 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.add_argument(
         "--snapshot-sense-hat-display",
-        action="store_true",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Whether to save snapshots of the SenseHat display to "
         + "--sense-hat-snapshot-dir. Defaults to False.",
     )
     run_parser.add_argument(
         "--sense-hat-snapshot-dir",
         type=Path,
-        default=Path(os.getcwd()),
+        default=None,
         help="The directory in which to save snapshots of the SenseHat display. "
         + "Defaults to the current directory.",
     )
     run_parser.add_argument(
         "--is-transparent-to-user",
-        action="store_false",
-        default=True,
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Whether to warn the user when a called method or accessed "
         + "attribute that would work using the real hardware is not fully "
         + "implemented by the replay tool. By default, the replay tool continues "
@@ -156,9 +161,9 @@ def get_argument_parser() -> ArgumentParser:
     )
     run_parser.add_argument(
         "--streaming-mode",
-        action="store_true",
-        default=False,
-        help="Stream the image assets from storage instead "
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Whether to stream the image assets from storage instead "
         + "of bulk downloading prior to running",
     )
     run_parser.set_defaults(cmd="run")
@@ -192,48 +197,35 @@ async def _main(args: Namespace) -> None:
 
     logger.debug(args)
 
+    config = await Configuration.resolve_configuration(args)
+
     if hasattr(args, "cmd"):
         downloader = Downloader()
         self_updater: SelfUpdater = SelfUpdater()
         if args.cmd == "run":
             self_updater.check_for_updates()
 
-            is_offline: bool = False
-            if args.sequence is None:
-                try:
-                    await downloader.check_for_sequences_override()
-                except (Timeout, ConnectionError) as e:
-                    is_offline = True
-                    logger.debug(
-                        "Could not check for sequence " + f"override file: {e}"
-                    )
-                except RequestException as e:
-                    logger.debug(f"Could not check for sequence " f"override file: {e}")
-                    logger.exception(e)
 
-                args.sequence = search_for_sequence(
-                    args.resolution, args.photography_type
-                )
-                logger.debug(f"Selected {args.sequence}")
+            logger.debug(f"Selected {config.sequence}")
 
-            if not args.streaming_mode and not has_installed(
-                args.resolution, args.photography_type, args.sequence
+            if not config.streaming_mode and not await has_installed(
+                config.resolution, config.photography_type, config.sequence
             ):
                 try:
                     await downloader.install(
-                        args.resolution, args.photography_type, args.sequence
+                        config.resolution, config.photography_type, config.sequence
                     )
                 except (Timeout, ConnectionError, HTTPError) as e:
                     logger.debug(e)
-                    is_offline = True
+                    state.is_offline = True
 
-                if is_offline:
+                if state.is_offline:
                     raise AstroPiReplayRuntimeError(
                         os.linesep.join(
                             [
                                 "It looks like you are offline.",
                                 "You must be online to download "
-                                + f"the photo sequence '{args.sequence}'.",
+                                + f"the photo sequence '{config.sequence}'.",
                             ]
                         )
                     )
@@ -241,16 +233,17 @@ async def _main(args: Namespace) -> None:
             with get_resource("motd").open("r") as f:
                 sys.stdout.write(f.read())
 
-            Configuration.from_args(args).save()
-            AstroPiExecutor.run(args.mode, args.venv_dir, args.main, args.debug)
+            config.save() # overwrite
+
+            AstroPiExecutor.run(args.mode, args.venv_dir, args.main, config.debug)
         elif args.cmd == "download":
             await downloader.check_for_sequences_override()
             await downloader.install(
-                args.resolution,
-                args.photography_type,
-                args.sequence,
+                config.resolution,
+                config.photography_type,
+                config.sequence,
                 args.test_assets_only,
-                args.with_video,
+                args.with_video
             )
         elif args.cmd == UPDATE_CMD:
             self_updater.update(args.venv_dir)
