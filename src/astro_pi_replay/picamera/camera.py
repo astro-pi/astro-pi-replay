@@ -31,7 +31,7 @@ from astro_pi_replay.picamera.preview import CameraPreview
 from astro_pi_replay.picamera.renderers import PiOverlayRenderer, PiRenderer
 from astro_pi_replay.preview.preview import ProcStdoutConsumer
 from astro_pi_replay.preview.teardown_protocol import SupportsBackgroundTaskTeardown
-from astro_pi_replay.resources import get_replay_sequence_dir, get_resource, get_video
+from astro_pi_replay.resources import get_resource
 
 logger = logging.getLogger(__name__)
 
@@ -205,14 +205,14 @@ def PiCameraAdapter(
 
             name: str = str(
                 executor._replay_next(
-                    str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
+                    str(executor.configuration.get_replay_sequence_dir() / "photos" / "photo_index.csv"),
                     "datetime",
                     ["name"],
                     allow_interpolation=False,
                 )
             )
 
-            image_path: Path = get_replay_sequence_dir() / "photos" / name
+            image_path: Path = executor.configuration.get_replay_sequence_dir() / "photos" / name
             im = Image.open(image_path)
 
             # Conditionally add text annotation
@@ -381,7 +381,7 @@ def PiCameraAdapter(
                     [executor._has_ffmpeg, executor._has_ffprobe, executor._has_tkinter]
                 ):
                     preview: CameraPreview = CameraPreview(
-                        str(get_replay_sequence_dir() / "videos" / "video.mp4")
+                        str(executor.configuration.get_replay_sequence_dir() / "videos" / "video.mp4")
                     )
                     self._preview_proc = preview
                     preview.start()
@@ -419,7 +419,7 @@ def PiCameraAdapter(
             if not executor._has_ffmpeg:
                 raise AstroPiReplayException("Please install ffmpeg")
 
-            video: Path = get_video()
+            video: Path = executor.configuration.get_video()
 
             # TODO add annotations
             # TODO resize

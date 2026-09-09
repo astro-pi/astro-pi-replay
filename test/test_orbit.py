@@ -10,12 +10,11 @@ from skyfield.toposlib import GeographicPosition
 
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.orbit import ISS, ephemeris
-from astro_pi_replay.resources import get_start_time
 
 
-def test_ISS_coordinates_returns_coordinates():
+def test_ISS_coordinates_returns_coordinates() -> None:
     executor = AstroPiExecutor()
-    start_time = get_start_time()
+    start_time = executor.configuration.get_start_time()
     with patch.object(executor, "time_since_start", return_value=start_time):
         iss = ISS(executor)
         with patch(
@@ -34,7 +33,7 @@ def test_ISS_coordinates_returns_coordinates():
 
 def test_ISS_at_ignores_argument_in_favour_of_relative_time():
     executor = AstroPiExecutor()
-    start_time = get_start_time()
+    start_time = executor.configuration.get_start_time()
     with patch.object(executor, "time_since_start", return_value=start_time):
         iss = ISS(executor)
         timescale: Timescale = load.timescale()
@@ -51,9 +50,9 @@ def test_ISS_at_ignores_argument_in_favour_of_relative_time():
             assert mock_at.call_args.args[0] != t
 
 
-def test_ISS_is_sunlit_works_as_advertised():
+def test_ISS_is_sunlit_works_as_advertised() -> None:
     executor = AstroPiExecutor()
-    start_time = get_start_time()
+    start_time = executor.configuration.get_start_time()
     with patch.object(executor, "time_since_start", return_value=start_time):
         iss = ISS(executor)
         timescale: Timescale = load.timescale()

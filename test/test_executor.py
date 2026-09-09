@@ -22,10 +22,9 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, PROGRAM_NAME, __version__
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, PROGRAM_NAME, Configuration, __version__
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.executor import AstroPiExecutor, Lifecycle
-from astro_pi_replay.resources import get_start_time
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -84,11 +83,11 @@ def test_executor_is_singleton():
     assert executor1 == executor2
 
 
-def test_time_since_start():
+def test_time_since_start(test_configuration: Configuration):
     executor = AstroPiExecutor()
     with patch("astro_pi_replay.executor.datetime") as mock_datetime:
         mock_datetime.now.return_value = executor._state.get_start_time()
-        assert executor.time_since_start() == get_start_time()
+        assert executor.time_since_start() == test_configuration.get_start_time()
 
 
 ###########################################

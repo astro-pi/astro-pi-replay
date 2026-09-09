@@ -12,13 +12,9 @@ import jsonschema
 import pytest
 from botocore.config import Config
 
-from astro_pi_replay.resources.downloader import (
-    BUCKET_NAME,
-    METADATA_FILE_NAME,
-    asset_prefix,
-    get_resource,
-)
+from astro_pi_replay.resources.downloader import get_resource
 from scripts.uploader import GPS_TAGS
+import astro_pi_replay.resources.config as cfg
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +39,7 @@ def s3_client():
 @pytest.fixture(scope="module")
 def asset_keys(s3_client) -> list[str]:
     response = s3_client.list_objects_v2(
-            Bucket=BUCKET_NAME, Prefix=asset_prefix)
+            Bucket=cfg.BUCKET_NAME, Prefix=cfg.asset_prefix)
     asset_keys: list[str] = []
     if "Contents" in response:
         asset_keys = [obj["Key"] for obj in response["Contents"]]
@@ -82,7 +78,7 @@ def download_all_assets(
         destination: Path = parent_path / filepath.name
 
         if not destination.exists():
-            s3_client.download_file(BUCKET_NAME, key, str(destination))
+            s3_client.download_file(cfg.BUCKET_NAME, key, str(destination))
         filepaths.append(destination)
     return filepaths
 
@@ -147,7 +143,7 @@ def test_asset_metadata_matches_schema(photo_assets: list[Path]):
         tmpdir: Path = Path(tempfile.mkdtemp())
         shutil.unpack_archive(asset_path.name, tmpdir)
 
-        metadata_file = tmpdir / asset_path.stem / METADATA_FILE_NAME
+        metadata_file = tmpdir / asset_path.stem / cfg.METADATA_FILE_NAME
         assert metadata_file.exists()
         with metadata_file.open() as f:
             to_validate = json.load(f)

@@ -22,7 +22,7 @@ from astro_pi_replay.configuration import (
     Configuration,
 )
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
+from astro_pi_replay.resources.config import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
