@@ -19,7 +19,6 @@ from astro_pi_replay.configuration import Configuration
 from astro_pi_replay.exception import FfmpegNotInstalledException
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.picamzero.camera_adapter import CameraAdapter
-from astro_pi_replay.resources import get_replay_sequence_dir
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +92,7 @@ def test_image_capture(executor: AstroPiExecutor):
     cam.take_photo(filename)
     assert Path(filename).exists()
     test_utils.assert_images_equal(
-        filename, get_replay_sequence_dir() / "photos" / "image0.jpg", TOLERANCE
+        filename, executor.configuration.get_replay_sequence_dir() / "photos" / "image0.jpg", TOLERANCE
     )
 
 
@@ -136,7 +135,7 @@ def test_capture_sequence(executor: AstroPiExecutor):
         actual = Path(format_string.format(i + 1))
         assert actual.exists()
         test_utils.assert_images_equal(
-            actual, get_replay_sequence_dir() / "photos" / f"image{i}.jpg", TOLERANCE
+            actual, executor.configuration.get_replay_sequence_dir() / "photos" / f"image{i}.jpg", TOLERANCE
         )
 
 
@@ -145,7 +144,7 @@ def test_capture_array(executor: AstroPiExecutor):
     arr = cam.capture_array()
     assert arr.shape == (720, 1280, 3)
     expected = np.array(
-        Image.open(get_replay_sequence_dir() / "photos" / "image0.jpg")
+        Image.open(executor.configuration.get_replay_sequence_dir() / "photos" / "image0.jpg")
     )
 
     test_utils.assert_arrays_equal(arr, expected, TOLERANCE)
