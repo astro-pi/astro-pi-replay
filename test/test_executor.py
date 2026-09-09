@@ -156,6 +156,9 @@ def test_executor_loads_config_when_instantiated(mock_config_filepath: Path):
                     f"{PROGRAM_NAME}_version": __version__,
                     "is_transparent_to_user": True,
                     "streaming_mode": True,
+                    "resolution": (4056, 3040),
+                    "photography_type": "VIS"
+
                 }
             )
         )
