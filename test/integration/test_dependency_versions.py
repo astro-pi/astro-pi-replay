@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from collections import namedtuple
 import re
-import tomllib
+import tomli
 
 import pytest
 from packaging import version
@@ -57,7 +57,7 @@ class Platform:
 
 def get_dependencies(platform: Platform):
     with (PROJECT_ROOT / "pyproject.toml").open('rb') as f:
-        pyproject = tomllib.load(f)
+        pyproject = tomli.load(f)
     raw_deps = pyproject.get("project", {}).get("dependencies", [])
 
 
