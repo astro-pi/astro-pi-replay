@@ -291,6 +291,8 @@ def TestConfiguration(
         __version__,
         True,
         False,
+        (4056,3040),
+        "VIS"
     )
 
 
