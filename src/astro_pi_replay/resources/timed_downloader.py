@@ -1,8 +1,11 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Optional, TypeVar, TYPE_CHECKING
 
 from astro_pi_replay.resources.downloader import Downloader
+
+if TYPE_CHECKING:
+    from astro_pi_replay.configuration import Configuration
 
 T = TypeVar("T")
 
@@ -34,6 +37,10 @@ class TimedDownloader(Downloader):
         fetch = super().fetch_metadata
         return self._monitor(lambda: fetch(sequence_id, destination))
 
-    def fetch_sequence_file(self, file_path: Path) -> Path:
+    def fetch_sequence_file(
+        self,
+        file_path: Path,
+        config: "Configuration"
+    ) -> Path:
         fetch = super().fetch_sequence_file
-        return self._monitor(lambda: fetch(file_path))
+        return self._monitor(lambda: fetch(file_path, config))
