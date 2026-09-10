@@ -4,11 +4,12 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, is_dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Annotated, Any, Callable, Optional, Union, get_type_hints, get_origin, get_args
 
 from astro_pi_replay import PROGRAM_NAME, __version__
+from astro_pi_replay.args import field_metadata, FieldCLIMetadata
 from astro_pi_replay.resources import get_replay_dir
 from astro_pi_replay.resources.downloader import Downloader, get_sequence_metadata, search_for_sequence
 from astro_pi_replay.version_utils import decrement_semver
@@ -91,17 +92,17 @@ class Configuration:
     Persistent configuration stored in the home directory.
     """
 
-    no_wait_images: bool
-    interpolate_sense_hat: bool
+    no_wait_images: Annotated[bool, field_metadata["no_wait_images"]]
+    interpolate_sense_hat: Annotated[bool, field_metadata["interpolate_sense_hat"]]
     debug: bool
-    sequence: str
-    snapshot_sense_hat_display: bool
-    sense_hat_snapshot_dir: Path
+    sequence: Annotated[str, field_metadata["sequence"]]
+    snapshot_sense_hat_display: Annotated[bool, field_metadata["snapshot_sense_hat_display"]]
+    sense_hat_snapshot_dir: Annotated[Path, field_metadata["sense_hat_snapshot_dir"]]
     astro_pi_replay_version: str
-    is_transparent_to_user: bool
-    streaming_mode: bool
-    resolution: tuple[int,int]
-    photography_type: str
+    is_transparent_to_user: Annotated[bool, field_metadata["is_transparent_to_user"]]
+    streaming_mode: Annotated[bool, field_metadata["streaming_mode"]]
+    resolution: Annotated[tuple[int,int], field_metadata["resolution"]]
+    photography_type: Annotated[str, field_metadata["photography_type"]]
 
     @staticmethod
     def _from_json(jstr: str) -> "Configuration":
@@ -320,4 +321,80 @@ class Configuration:
         """
         tle_dict: dict[str, str] = self.get_metadata("tle", download_metadata)
         return self.get_replay_sequence_dir() / str(tle_dict["file"])
+
+def to_argparse_add_argument_input(
+    metadata: FieldCLIMetadata,
+    default_config: Configuration
+):
+    """
+    Returns the FieldCLIMetadata as packed arguments to
+    the ArgumentParser.add_argument function.
+
+    Usage:
+        parser = ArgumentParser()
+        name, kwargs = fieldCLIMetadata.to_argparse_add_argument_input()
+        parser.add_argument(name,**kwargs)
+    """
+    kwargs = {}
+    parser = argparse.ArgumentParser()
+    key_mapping = {
+        "match_original_photo_intervals": "no_wait_images"
+    }
+    for f in fields(metadata):
+        origin = get_origin(f.type)
+
+        # use Annotated to signal skip
+        if origin is not Annotated:
+            v = getattr(metadata, f.name)
+            if v is not None:
+                kwargs[f.name] = v
+
+    if metadata._append_default_to_help:
+        dest: str
+        if metadata.dest is None:
+            dest = parser._get_optional_kwargs(
+                metadata.name
+            )["dest"]
+        else:
+            dest = metadata.dest
+        if dest in key_mapping:
+            dest = key_mapping[dest]
+
+        default_value = getattr(default_config, dest)
+        if metadata._map_help_default is not None:
+            default_value = metadata._map_help_default(
+                    default_value)
+        if isinstance(default_value, str):
+            default_value=f"'{default_value}'"
+        kwargs["help"] += f" Defaults to {default_value}."
+
+    return (
+        metadata.name,
+        kwargs
+    )
+
+async def populate_argparser_from_dataclass(
+    parser: argparse.ArgumentParser,
+    clazz: Any
+) -> argparse.ArgumentParser:
+    if not is_dataclass(clazz):
+        raise TypeError(f"Class {clazz} is not a dataclass")
+
+    hints = get_type_hints(clazz, include_extras=True)
+    default_config = await Configuration.default()
+
+    for hint in hints.values():
+        origin = get_origin(hint)
+        if origin is Annotated:
+            _, metadata = get_args(hint)
+
+            name, kwargs = to_argparse_add_argument_input(
+                metadata,
+                default_config
+            )
+            kwargs["default"] = None
+            parser.add_argument(
+                name, **kwargs
+            )
+    return parser
 
