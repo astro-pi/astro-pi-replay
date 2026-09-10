@@ -88,7 +88,7 @@ async def search_for_sequence(
     ]
 
     if len(filtered) > 0:
-        sequence = filtered["sequence_id"][0]
+        sequence = filtered["sequence_id"].iloc[0]
     else:
         raise AstroPiReplayException(
             f"No photos with resolution {resolution} "

@@ -378,3 +378,22 @@ class TestResolveConfiguration:
 
         assert resolved_config.sequence == new_sequence
         assert resolved_config.photography_type == "IR"
+
+    async def test_photography_type_VIS_finds_theninja(
+        self, none_args
+    ) -> None:
+        args = argparse.Namespace(**none_args | {
+            "photography_type": "VIS"
+        })
+        resolved_config = await Configuration.resolve_configuration(args)
+        assert resolved_config.sequence == "theninja"
+
+
+    async def test_photography_type_IR_finds_Vulpes(
+        self, none_args
+    ) -> None:
+        args = argparse.Namespace(**none_args | {
+            "photography_type": "IR"
+        })
+        resolved_config = await Configuration.resolve_configuration(args)
+        assert resolved_config.sequence == "Vulpes"

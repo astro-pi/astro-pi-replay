@@ -159,7 +159,21 @@ class Configuration:
         default_config = await Configuration.default()
         from_args = PartialConfiguration.from_args(args)
 
-        if from_args.sequence is not None and \
+
+        if from_args.sequence is None and (
+                from_args.photography_type is not None or
+                from_args.resolution is not None):
+            # Users may specify only photography-type or
+            # resolution and the appropriate sequence should
+            # be identified.
+            from_args.sequence = await search_for_sequence(
+                from_args.resolution if from_args.resolution \
+                        else default_config.resolution,
+                from_args.photography_type if \
+                        from_args.photography_type else \
+                        default_config.photography_type
+            )
+        elif from_args.sequence is not None and \
             from_args.photography_type is None and \
             from_args.resolution is None:
             # when users do not specify all the metadata,
