@@ -35,9 +35,12 @@ def normalise(string: str) -> str:
     Normalise the given help string to make it comparable
     across Python versions.
     """
-    return strip_whitespace(
-            string.replace("optional arguments", "options")
-    )
+    string = string.replace("optional arguments", "options")
+    # the HelpFormatter is not consistent in how it displays
+    # choices across Python versions
+    string = string.replace("{(", "{")
+    string = string.replace(")}", "}")
+    return strip_whitespace(string)
 
 @pytest.mark.asyncio
 class TestArgBuilding:
