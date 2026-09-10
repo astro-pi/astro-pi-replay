@@ -4,13 +4,12 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 import copy
-from typing import Any
+from typing import Any, get_type_hints
 from dataclasses import fields
 import itertools
 import json
 
 from astro_pi_replay.main import main
-import pytest
 
 import pytest
 

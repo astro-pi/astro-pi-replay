@@ -11,7 +11,7 @@ from pathlib import Path
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from astro_pi_replay import LOGGING_FORMAT, PROGRAM_CMD_NAME, PROGRAM_NAME, __version__
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.configuration import Configuration, populate_argparser_from_dataclass
 from astro_pi_replay.runtime_state import state
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayRuntimeError
@@ -36,11 +36,12 @@ DOWNLOAD_CMD: str = "download"
 UPDATE_CMD: str = "update"
 VERSION_CMD: str = "version"
 INSTALL_CMD: str = "install"
+CONFIGURE_CMD: str = "configure"
 
 DEFAULT_PHOTOGRAPHY_TYPE: str = "VIS"
 DEFAULT_RESOLUTION: tuple[int,int] = (4056, 3040)
 
-def get_argument_parser() -> ArgumentParser:
+async def get_argument_parser() -> ArgumentParser:
     arg_parser = ArgumentParser(prog=PROGRAM_CMD_NAME, description="")
     arg_parser.add_argument(
         "--debug",
@@ -95,20 +96,6 @@ def get_argument_parser() -> ArgumentParser:
     run_parser = subparsers.add_parser(RUN_CMD, help="Run a main.py program")
     run_parser.add_argument("main", type=Path, help="Path to the main.py file to run")
     run_parser.add_argument(
-        "--interpolate-sense-hat-values",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        dest="interpolate_sense_hat",
-        help="Whether to interpolate measurements from the " + "sense hat.",
-    )
-    run_parser.add_argument(
-        "--match-original-photo-intervals",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Whether to sleep in between successive captures to "
-        + "try and match the timestamps of the original photos.",
-    )
-    run_parser.add_argument(
         "--mode",
         type=ExecutionMode,
         required=False,
@@ -120,52 +107,12 @@ def get_argument_parser() -> ArgumentParser:
         required=False,
         help=f"Path to venv (if not using ~/.{PROGRAM_NAME})",
     )
-    run_parser.add_argument(
-        "--resolution",
-        default=None,
-        choices=((4056, 3040), (1280, 720)),
-        help="The resolution of images to playback. Default is (4056, 3040)",
+
+    await populate_argparser_from_dataclass(
+        run_parser,
+        Configuration
     )
-    run_parser.add_argument(
-        "--photography-type",
-        default=None,
-        choices=(("VIS", "IR")),
-        help="Whether to playback visible light photos "
-        + "(VIS) or infrared light (IR). Default is VIS.",
-    )
-    run_parser.add_argument(
-        "--sequence", default=None, help="The sequence id to use in replays."
-    )
-    run_parser.add_argument(
-        "--snapshot-sense-hat-display",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Whether to save snapshots of the SenseHat display to "
-        + "--sense-hat-snapshot-dir. Defaults to False.",
-    )
-    run_parser.add_argument(
-        "--sense-hat-snapshot-dir",
-        type=Path,
-        default=None,
-        help="The directory in which to save snapshots of the SenseHat display. "
-        + "Defaults to the current directory.",
-    )
-    run_parser.add_argument(
-        "--is-transparent-to-user",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Whether to warn the user when a called method or accessed "
-        + "attribute that would work using the real hardware is not fully "
-        + "implemented by the replay tool. By default, the replay tool continues "
-        + "silently (as if it were in transparent).",
-    )
-    run_parser.add_argument(
-        "--streaming-mode",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Whether to stream the image assets from storage instead "
-        + "of bulk downloading prior to running",
-    )
+
     run_parser.set_defaults(cmd="run")
     update_parser = subparsers.add_parser(
         UPDATE_CMD, help="Check for updates to the Astro-Pi-Replay tool and update."
@@ -186,6 +133,12 @@ def get_argument_parser() -> ArgumentParser:
         INSTALL_CMD, help="Installs the internal libraries globally"
     )
     install_parser.set_defaults(cmd=INSTALL_CMD)
+
+    configure_parser = subparsers.add_parser(
+        CONFIGURE_CMD, help="Resolve and save the requested configuration"
+    )
+    configure_parser.set_defaults(cmd=CONFIGURE_CMD)
+    # TODO add Configuration fields.
 
     return arg_parser
 
@@ -254,12 +207,13 @@ async def _main(args: Namespace) -> None:
         elif args.cmd == INSTALL_CMD:
             AstroPiExecutor.install_global()
         else:
-            get_argument_parser().print_usage()
+            (await get_argument_parser()).print_usage()
             sys.exit(1)
 
 
 def main() -> None:
-    arg_parser = get_argument_parser()
+    arg_parser = asyncio.run(get_argument_parser())
+
     args: Namespace = arg_parser.parse_args(sys.argv[1:])
     if args.profile:
         logger.debug("Profiling enabled")
@@ -279,4 +233,4 @@ def main() -> None:
         else:
             cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
     else:
-        asyncio.get_event_loop().run_until_complete(_main(args))
+        asyncio.run(_main(args))
