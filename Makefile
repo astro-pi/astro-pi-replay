@@ -49,7 +49,6 @@ else
 PYTEST_FLAGS:=-s
 endif
 REQUIREMENTS_DEV_TXT:=requirements-dev.txt
-REQUIREMENTS_TXT:=requirements.txt
 SITE_DIR:=site
 SRC_DIR:=src
 ifdef SMOKE_TEST_LOCAL
@@ -73,12 +72,21 @@ PYTHON_VERSION_EXPR:= $(shell $(CAT) $(PYPROJECT) | \
 	$(GREP) "requires-python" | \
 	$(CUT) -d" " -f 3)
 # the below is a bit brittle, but unlikely to need anything else.
-PYTHON_VERSION:=$(shell echo $(PYTHON_VERSION_EXPR) | $(SED) 's/[>="]//g')
+ifndef PYTHON_VERSION
+  PYTHON_VERSION:=$(shell echo $(PYTHON_VERSION_EXPR) | $(SED) 's/[>="]//g')
+endif
+
 GIT_HASH:=$(shell $(GIT) rev-parse --verify HEAD)
 DOCKER_IMAGE_NAME:=$(NAME)
 DOCKER_IMAGE_TAG:=$(VERSION)_$(GIT_HASH)
 PY_SOURCES:=$(shell $(FIND) $(SRC_DIR) -name "*.py")
 DOC_SOURCES:=$(shell $(FIND) $(DOC_DIR) -type f)
+
+ifdef SEQUENCE_ID
+  ifndef DOWNLOAD_CMD_FLAGS
+    DOWNLOAD_CMD_FLAGS=--sequence-id $(SEQUENCE_ID)
+  endif
+endif
 
 ifdef SKIP_DOWNLOAD
 DOWNLOAD_CMD:=
@@ -86,6 +94,14 @@ DOCKER_IMAGE_NAME:=$(DOCKER_IMAGE_NAME)-slim
 else
 DOWNLOAD_CMD:=$(VENV_NAME)/bin/$(BIN_NAME) download $(DOWNLOAD_CMD_FLAGS) --with-video;
 endif
+
+ifdef PROD_DEPS_ONLY
+  VENV_PREREQS:=
+else
+  VENV_PREREQS:=$(REQUIREMENTS_DEV_TXT)
+endif
+BASE_DOCKERFILE := infrastructure/docker/Dockerfile.base
+DOCKERFILE := infrastructure/docker/Dockerfile.test-assets
 
 
 ###################
@@ -146,16 +162,25 @@ assert_on_git_branch_head_or_%:
 
 build: build_python build_docs build_docker
 
-build_docker: assert_env_var_set_PYTHON_VERSION
+_build_docker: assert_env_var_set_PYTHON_VERSION
 	$(DOCKER) build \
 	  --build-arg NAME="$(NAME)" \
 	  --build-arg BIN_NAME="$(BIN_NAME)" \
 	  --build-arg PYTHON_VERSION="$(PYTHON_VERSION)" \
 	  --build-arg VENV_NAME="$(VENV_NAME)" \
 	  --build-arg SKIP_DOWNLOAD="$(SKIP_DOWNLOAD)" \
+	  --build-arg SEQUENCE_ID="$(SEQUENCE_ID)" \
+	  $(EXTRA_BUILD_ARGS) \
+	  -f $(DOCKERFILE) \
 	  -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 	$(DOCKER) tag $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) \
-		$(DOCKER_IMAGE_NAME):latest
+		$(DOCKER_IMAGE_NAME):"latest-$(shell basename $(DOCKERFILE) | cut -d. -f2 )"
+
+$(BASE_DOCKERFILE):
+	$(MAKE) _build_docker DOCKERFILE=$(BASE_DOCKERFILE)
+
+build_docker: $(BASE_DOCKERFILE)
+	$(MAKE) _build_docker DOCKERFILE=$(DOCKERFILE)
 
 build_docs: $(VENV) $(DOC_SOURCES)
 	. $(VENV_NAME)/bin/activate; $(MKDOCS) build
@@ -179,6 +204,7 @@ diagnostics:
 	@echo "Detected project name: $(NAME)"
 	@echo "Detected bin name: $(BIN_NAME)"
 	@echo "Detected version is: $(VERSION)"
+	@echo "Detected Python version: $(PYTHON_VERSION)"
 	@echo "Detected major version is: $(VERSION_MAJOR)"
 	@echo "Detected minor version is: $(VERSION_MINOR)"
 	@echo "Detected patch version is: $(VERSION_PATCH)"
@@ -261,11 +287,14 @@ test_smoke:
 uninstall:
 	$(PIP) uninstall --user $(NAME)
 
-$(VENV_NAME)/touchfile: $(REQUIREMENTS_TXT)
+$(VENV_NAME)/touchfile: $(VENV_PREREQS)
 	$(TEST) -d $(VENV_NAME) || $(PYTHON3) $(PYFLAGS) -m $(VENV) $(VENV_NAME) && \
 	. $(VENV_NAME)/bin/activate ; \
-	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_DEV_TXT) ; \
-	$(VENV_PIP) install --upgrade -r $(REQUIREMENTS_TXT) ; \
+	if [ -n "$(VENV_PREREQS)" ]; then \
+	  $(VENV_PIP) install --upgrade -r $(VENV_PREREQS) ; \
+        else \
+	  $(VENV_PIP) install build ; \
+        fi ; \
 	$(VENV_PIP) install --editable . ; \
 	$(DOWNLOAD_CMD) \
 	$(TOUCH) $(VENV_NAME)/touchfile
@@ -276,4 +305,4 @@ version:
 	@echo $(VERSION)
 	@echo $(SMOKE_TEST_FLAGS)
 
-.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version
+.PHONY: all analyse assert_env_var_set_% assert_installed_% assert_min_python_version_detected assert_on_git_branch_head_or_% build _build_docker build_docker build_docs build_python clean diagnostics install pre_commit_install pre_commit_run python_version publish_docs publish_git_tags publish_test_pypi publish_prod_pypi setup_developer test uninstall version

@@ -53,12 +53,24 @@ def asset_keys(s3_client) -> list[str]:
 
 @pytest.fixture(scope="module")
 def download_all_assets(
-        tmp_path_factory, s3_client, asset_keys) -> list[Path]:
+        tmp_path_factory, 
+        pytestconfig,
+        s3_client, 
+        asset_keys) -> list[Path]:
     """
     Downloads all the zip assets from S3 into the
-    current test directory."
+    current test directory, or a persistent local cache when
+    the ASTRO_PI_REPLAY_INTEGRATION_TEST_CACHE environment
+    variable is set."
     """
-    tmpdir: Path = tmp_path_factory.mktemp("asset_dir")
+    use_cache = os.environ.get(
+        "ASTRO_PI_REPLAY_INTEGRATION_TEST_CACHE", None
+    )
+    parent_path: Path
+    if use_cache is not None:
+        parent_path = Path(pytestconfig.cache.mkdir("asset_dir"))
+    else:
+        parent_path = tmp_path_factory.mktemp("asset_dir")
 
     photo_zip_keys = [key for key in asset_keys \
             if key.endswith(".zip") and not key.endswith("_videos.zip")]
@@ -67,8 +79,10 @@ def download_all_assets(
     for key in photo_zip_keys:
         filepath: Path = Path(key)
         logger.info(f"Fetching {key}...")
-        destination: Path = tmpdir / filepath.name
-        s3_client.download_file(BUCKET_NAME, key, str(destination))
+        destination: Path = parent_path / filepath.name
+
+        if not destination.exists():
+            s3_client.download_file(BUCKET_NAME, key, str(destination))
         filepaths.append(destination)
     return filepaths
 

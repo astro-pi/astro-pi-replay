@@ -1,0 +1,4 @@
+FROM astro_pi_replay:latest
+
+RUN /opt/${NAME}/${VENV_NAME}/bin/Astro-Pi-Replay download --test-assets-only
+

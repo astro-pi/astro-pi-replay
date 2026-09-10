@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v1.2.0.json",
+  "$id": "https://astro-pi.org/astro-pi-replay/schemas/v2.0.0.json",
   "title": "Asset metadata schema",
-  "description": "A product in the catalog",
+  "description": "An historic sequence captured using an Astro Pi ",
   "type": "object",
   "properties": {
     "altitude_average_km": {
@@ -103,6 +103,14 @@
       "description": "The type of photography used - VIS or IR",
       "type": "string"
     },
+    "iss_deployment_location": {
+      "description": "The deployment location on the ISS e.g. Node or WORF",
+      "type": "string"
+    },
+    "sequence_description": {
+      "description": "A description of the sequence",
+      "type": "string"
+    },
     "photos": {
       "type": "object",
       "properties": {
@@ -128,6 +136,21 @@
     "notes": {
       "description": "Miscellaneous notes relating to the asset",
       "type": "string"
+    },
+    "coordinates": {
+      "description": "A list of WGS84 coordinates of the ISS position",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WGS84Coordinates"
+      }
+    },
+    "rev": {
+      "type": "string",
+      "description": "The astro-mono commit revision"
+    },
+    "version": {
+      "type": "string",
+      "description": "The version identifier of this sequence, in case of updates"
     }
   },
   "oneOf": [
@@ -145,5 +168,46 @@
     "photography_type",
     "photos",
     "video"
-  ]
+  ],
+  "$defs": {
+    "SignedDMSCoordinate": {
+       "type": "object",
+       "description": "",
+       "properties": {
+         "sign": {
+	   "type": "string",
+	   "enum": ["+", "-"]
+	 },
+	 "degrees": {
+	   "type": "number",
+	   "minimum": 0,
+	   "exclusiveMaximum": 360
+	 },
+	 "minutes": {
+	   "type": "number",
+	   "minimum": 0,
+	   "exclusiveMaximum": 60
+	 },
+	 "seconds": {
+	   "type": "number",
+	   "minimum": 0,
+	   "exclusiveMaximum": 60
+	 }
+       }
+    },
+    "WGS84Coordinates": {
+      "type": "object",
+      "properties": {
+	"latitude": {
+	  "$ref": "#/$defs/SignedDMSCoordinate"
+	},
+	"longitude": {
+	  "$ref": "#/$defs/SignedDMSCoordinate"
+	},
+	"altitude": {
+	  "type": "number"
+	}
+      }
+    }
+  }
 }
