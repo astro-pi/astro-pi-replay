@@ -90,6 +90,7 @@ call :findActivationScript
 call %ACTIVATION_SCRIPT%
 
 rem Install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (

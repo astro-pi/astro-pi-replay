@@ -45,6 +45,7 @@ trap 'cleanup' EXIT
 
 python3 -m venv "$VENV"
 source "$VENV/bin/activate"
+pip install --upgrade pip
 if [ -n "$USE_LOCAL_WHEEL" ]; then
   echo "Installing local wheel"
   tempdir=$(mktemp -d)

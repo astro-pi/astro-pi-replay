@@ -17,6 +17,7 @@ fi
 VENV="${CURRENT_DIR}/venv"
 python3 -m venv "$VENV"
 source "$VENV/bin/activate"
+pip install --upgrade pip
 pip install "${PROJECT_DIR}"
 pip install -r "${CURRENT_DIR}/requirements.txt"
 PYTEST_PROFILE="$1" pytest -s -o log_cli=true --log-cli-level=INFO --noconftest
