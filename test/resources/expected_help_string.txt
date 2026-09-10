@@ -1,0 +1,37 @@
+usage: pytest [-h] [--match-original-photo-intervals | --no-match-original-photo-intervals]
+              [--interpolate-sense-hat-values | --no-interpolate-sense-hat-values]
+              [--sequence SEQUENCE]
+              [--snapshot-sense-hat-display | --no-snapshot-sense-hat-display]
+              [--sense-hat-snapshot-dir SENSE_HAT_SNAPSHOT_DIR]
+              [--is-transparent-to-user | --no-is-transparent-to-user]
+              [--streaming-mode | --no-streaming-mode] [--resolution {(4056, 3040),(1280, 720)}]
+              [--photography-type {VIS,IR}]
+
+options:
+  -h, --help            show this help message and exit
+  --match-original-photo-intervals, --no-match-original-photo-intervals
+                        Whether to sleep in between successive captures to try and match the
+                        timestamps of the original photos. Defaults to True.
+  --interpolate-sense-hat-values, --no-interpolate-sense-hat-values
+                        Whether to interpolate measurements from the sense hat. Defaults to True.
+  --sequence SEQUENCE   The sequence id to use in replays. Defaults to 'theninja'.
+  --snapshot-sense-hat-display, --no-snapshot-sense-hat-display
+                        Whether to save snapshots of the SenseHat display to --sense-hat-snapshot-
+                        dir. Defaults to False.
+  --sense-hat-snapshot-dir SENSE_HAT_SNAPSHOT_DIR
+                        The directory in which to save snapshots of the SenseHat display. Defaults
+                        to the current directory.
+  --is-transparent-to-user, --no-is-transparent-to-user
+                        Whether to warn the user when a called method or accessed attribute that
+                        would work using the real hardware is not fully implemented by the replay
+                        tool. By default, the replay tool continues silently (as if it were
+                        transparent). Defaults to True.
+  --streaming-mode, --no-streaming-mode
+                        Whether to stream the image assets from storage instead of bulk
+                        downloading prior to running Defaults to False.
+  --resolution {(4056, 3040),(1280, 720)}
+                        The resolution of images to playback. Default is (4056, 3040). Defaults to
+                        (4056, 3040).
+  --photography-type {VIS,IR}
+                        Whether to playback visible light photos (VIS) or infrared light (IR).
+                        Default is VIS. Defaults to 'VIS'.

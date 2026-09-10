@@ -4,6 +4,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from astro_pi_replay.configuration import Configuration
 from test.test_utils import (
     TestConfiguration,
     get_original_replay_dir,
@@ -17,12 +18,9 @@ import pytest
 from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.orbit import ISS
 from astro_pi_replay.picamzero import Camera
-from astro_pi_replay.resources.downloader import (
-    REPLAY_DIR_ENV_VAR,
-    get_replay_dir,
-    get_replay_sequence_dir,
-)
+from astro_pi_replay.resources.downloader import get_replay_dir
 from astro_pi_replay.sense_hat import SenseHat
+import astro_pi_replay.resources.config as cfg
 
 logger = logging.getLogger(__name__)
 DOWNLOADER_URL: str = "astro_pi_replay.resources.timed_downloader.Downloader"
@@ -47,10 +45,10 @@ def set_replay_dir(tmp_path_factory):
     """
     replay_dir: Path = tmp_path_factory.mktemp("replay")
     value: str = str(replay_dir)
-    logger.debug(f"Setting {REPLAY_DIR_ENV_VAR} to {value}")
-    os.environ[REPLAY_DIR_ENV_VAR] = value
+    logger.debug(f"Setting {cfg.REPLAY_DIR_ENV_VAR} to {value}")
+    os.environ[cfg.REPLAY_DIR_ENV_VAR] = value
     yield
-    os.environ.pop(REPLAY_DIR_ENV_VAR, None)
+    os.environ.pop(cfg.REPLAY_DIR_ENV_VAR, None)
 
 
 #########
@@ -83,7 +81,7 @@ def test_get_replay_sequence_dir_downloads_metadata_file(
         mock_fetch_metadata.return_value = metadata
 
         # when
-        get_replay_sequence_dir(download_metadata=True)
+        test_configuration.get_replay_sequence_dir(download_metadata=True)
 
     # then
     assert sequence_dir.exists()
@@ -231,7 +229,7 @@ def test_should_ignore_download_time_in_elapsed_time(test_configuration):
 
 
 def get_mock_downloader(current_sequence_dir: Path):
-    def mock_download(path: Path) -> Path:
+    def mock_download(path: Path, _: Configuration) -> Path:
         """
         Copies the given asset (that is inside the test asset dir)
         to the current replay dir (which will be overriden in these

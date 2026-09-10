@@ -17,6 +17,13 @@ IMAGE_FILE = "image1.jpg"
 if os.environ.get("PYTEST_PROFILE", None) != "SMOKE_TESTS":
     pytest.skip("Skipping smoke tests", allow_module_level=True)
 
+@pytest.fixture(autouse=True)
+def isolate_home(tmp_path: Path, monkeypatch):
+    """
+    Use an isolated home directory.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
 def get_program_name_and_version() -> tuple[str, str, str]:
     src: str = str(Path(__file__).parent.parent / "src")

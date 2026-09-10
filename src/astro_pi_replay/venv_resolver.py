@@ -325,10 +325,15 @@ class VenvResolver:
             logger.debug(f"{VENV_CONFIG_FILE_NAME} in {venv_dir} " + "in bad format")
             return True
 
+
         current_version: str = (
             f"{sys.version_info.major}."
             + f"{sys.version_info.minor}.{sys.version_info.micro}"
         )
+        logger.debug(",".join([
+            f"current_version: {current_version}",
+            f"venv_python_version: {venv_python_version}"
+        ]))
         comparison_result: int = compare_semver(
             current_version, venv_python_version, ignore_patch=True
         )

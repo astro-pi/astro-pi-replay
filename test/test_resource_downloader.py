@@ -1,75 +1,22 @@
 import os
 from pathlib import Path
-from astro_pi_replay.main import get_argument_parser
+
 from test.test_utils import get_test_resource
-from typing import Any, Callable, Iterator, Optional
+from typing import Callable, Iterator, Optional
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from requests.models import Response
 
-from astro_pi_replay.resources import (
-    get_metadata,
-    get_replay_dir,
-    get_replay_sequence_dir,
-    get_tle,
-)
-from astro_pi_replay.resources.downloader import (
-    SEQUENCES_FILE,
-    SEQUENCES_FILENAME,
-    Downloader,
-    asset_url,
-    search_for_sequence,
-    version_url_prefix,
-)
+from astro_pi_replay.configuration import Configuration
+from astro_pi_replay.resources import get_replay_dir
+from astro_pi_replay.resources.downloader import Downloader, search_for_sequence
+import astro_pi_replay.resources.config as cfg
 
 
 def test_get_replay_dir():
     replay_dir: Path = get_replay_dir()
     assert replay_dir.name == "replay"
-
-
-def test_get_replay_sequence_dir():
-    sequence_dir: Path = get_replay_sequence_dir()
-    assert sequence_dir.is_relative_to(get_replay_dir())
-    assert get_replay_sequence_dir().name == "test_data"
-
-
-def test_get_metadata():
-    metadata: dict[str, Any] = get_metadata()
-    expected_metadata: dict[str, Any] = {
-        "altitude_average_km": 408,
-        "camera": {
-            "name": "Sony IMX477",
-            "sensor_size_x": "6.287mm",
-            "sensor_size_y": "4.712mm",
-            "sensor_resolution_x": 4056,
-            "sensor_resolution_y": 3040,
-        },
-        "lens": {"name": "Kowa 5mm C-mount Lens", "focal_length": "5mm"},
-        "ground_sampling_distance_cm": 39588,
-        "resolution_x": 1280,
-        "resolution_y": 720,
-        "tle": {
-            "file": "data/iss-23097_09993082.tle",
-            "sha256sum": "545c9581ca3d2bcd7d772a770ed7b70bfaa4613f1bd4d43530ff86a152afbe63",  # noqa: E501
-        },
-        "start": "2023-04-27 06:41:09.939574",
-        "end": "2023-04-27 09:40:47.108350",
-        "team_credits": "OrbitAz",
-        "photography_type": "VIS",
-        "photos": {"prefix": "img", "suffix": "jpg", "isZeroIndexed": True},
-        "video": "OrbitAz.mp4",
-    }
-    assert metadata == expected_metadata
-
-
-def test_get_tle():
-    tle_file: Path = get_tle()
-    sequence_dir: Path = get_replay_sequence_dir()
-    tle_metadata: dict[str, str] = get_metadata("tle")
-    assert tle_file.is_relative_to(sequence_dir)
-    assert str(tle_file.relative_to(sequence_dir)) == tle_metadata["file"]
 
 
 # Helper methods for mocking requests library
@@ -93,7 +40,7 @@ def response_200_for(resource_path: str):
 
 def fake_get(substituter: Optional[Callable[[str], str]]):
     def _fake_get(url: str, stream: bool, timeout: int) -> Response:
-        url = url.replace(asset_url, "")
+        url = url.replace(cfg.asset_url, "")
         if url.startswith("/") and len(url) > 1:
             # remove leading slash
             url = url[1:]
@@ -144,16 +91,16 @@ async def test_when_sequence_update_available_should_update(tmp_path: Path):
 
     assert downloaded_sequences_file.exists() is False
     with patch(
-        "astro_pi_replay.resources.downloader.SEQUENCES_FILE", downloaded_sequences_file
+        "astro_pi_replay.resources.downloader.cfg.SEQUENCES_FILE", downloaded_sequences_file
     ):
         # Mock the sequences.csv check response
         with patch("astro_pi_replay.resources.downloader.requests") as mock_requests:
-            mocked_response: MagicMock = response_200_for(SEQUENCES_FILENAME)
+            mocked_response: MagicMock = response_200_for(cfg.SEQUENCES_FILENAME)
             mock_requests.get.return_value = mocked_response
             await downloader.check_for_sequences_override()
             assert (
                 mock_requests.method_calls[0].args[0]
-                == f"{version_url_prefix}/{SEQUENCES_FILENAME}"
+                == f"{cfg.version_url_prefix}/{cfg.SEQUENCES_FILENAME}"
             )
     assert downloader.checked_for_sequences_override is True
     assert downloaded_sequences_file.exists() is True
@@ -161,7 +108,7 @@ async def test_when_sequence_update_available_should_update(tmp_path: Path):
     filtered: str = os.linesep.join(
         [
             line
-            for line in SEQUENCES_FILE.read_text().splitlines()
+            for line in cfg.SEQUENCES_FILE.read_text().splitlines()
             if not line.startswith("kkkm")
         ]
     )
@@ -175,7 +122,7 @@ async def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
     assert sequences_file.exists() is False
 
     with patch(
-        "astro_pi_replay.resources.downloader.SEQUENCES_FILE",
+        "astro_pi_replay.resources.downloader.cfg.SEQUENCES_FILE",
         return_value=sequences_file,
     ):
         # Mock the sequences.csv check response
@@ -184,7 +131,7 @@ async def test_when_sequence_update_unavailable_should_ignore(tmp_path: Path):
             await downloader.check_for_sequences_override()
             assert (
                 mock_requests.method_calls[0].args[0]
-                == f"{version_url_prefix}/{SEQUENCES_FILENAME}"
+                == f"{cfg.version_url_prefix}/{cfg.SEQUENCES_FILENAME}"
             )
     assert downloader.checked_for_sequences_override is True
     assert sequences_file.exists() is False
@@ -202,9 +149,9 @@ async def test_downloader_should_download():
         await downloader.bulk_download(name)
         assert (downloader.tempdir / f"{name}.zip").exists()
         urls = set((call.args[0] for call in mock_requests.method_calls))
-        assert f"{asset_url}/replay.zip.sha256" in urls
-        assert f"{asset_url}/replay.zip.sig" in urls
-        assert f"{asset_url}/replay.zip" in urls
+        assert f"{cfg.asset_url}/replay.zip.sha256" in urls
+        assert f"{cfg.asset_url}/replay.zip.sig" in urls
+        assert f"{cfg.asset_url}/replay.zip" in urls
 
 
 @pytest.mark.asyncio
@@ -229,12 +176,12 @@ async def test_downloader_should_download_and_install_data(_, tmp_path: Path):
     assert (vis_dir / "AstroPi_2021_colour.png").exists()
 
 
-def test_default_sequence_is_theninja() -> None:
-    parser = get_argument_parser()
-    args = parser.parse_args(["run", "main.py"])
-    resolution = args.resolution
-    photography_type = args.photography_type
-    assert resolution == (4056, 3040)
-    assert photography_type == "VIS"
-    seq = search_for_sequence(resolution, photography_type)
+@pytest.mark.asyncio
+async def test_default_sequence_is_theninja() -> None:
+    config = await Configuration.default()
+
+    assert config.resolution == (4056, 3040)
+    assert config.photography_type == "VIS"
+    seq = await search_for_sequence(
+            config.resolution, config.photography_type)
     assert seq == "theninja"

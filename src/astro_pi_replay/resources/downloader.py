@@ -9,42 +9,24 @@ import sys
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union, TYPE_CHECKING, cast
 
 import pandas as pd
 import requests
+from requests import Timeout, RequestException
 from tqdm import tqdm
 
-from astro_pi_replay import PROGRAM_NAME, __version__
-from astro_pi_replay.configuration import Configuration
+from astro_pi_replay import __version__
+from astro_pi_replay.custom_types import SequenceCSVRow
 from astro_pi_replay.exception import AstroPiReplayException
+from astro_pi_replay.runtime_state import state
+import astro_pi_replay.resources.config as cfg
+
+if TYPE_CHECKING:
+    from astro_pi_replay.configuration import Configuration
 
 logger = logging.getLogger(__name__)
-
-RESOURCE_DIR: Path = Path(__file__).parent
-EXPECTED_DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
-REPLAY_DIR_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_DIR"
-REPLAY_SEQUENCE_ENV_VAR: str = f"{PROGRAM_NAME.upper()}_REPLAY_SEQUENCE"
-SENSE_HAT_CSV_FILE: Path = Path("data") / "data.csv"
-METADATA_FILE_NAME: str = "metadata.json"
-SEQUENCES_FILENAME: str = "sequences.csv"
-SEQUENCES_FILE: Path = RESOURCE_DIR / SEQUENCES_FILENAME
-
-GPG_EMAIL = "enquiries@astro-pi.org"
-BUCKET_NAME: str = "static.raspberrypi.org"
-BUCKET_URL: str = os.environ.get(
-    f"__{PROGRAM_NAME.upper()}_BUCKET_URL", f"https://{BUCKET_NAME}"
-)
-URL_BASE: str = f"{BUCKET_URL}/files/astro-pi"
-GPG_KEY_URL = f"{URL_BASE}/astro-pi.gpg"  # TODO add key-rotation
-url_prefix: str = f"{URL_BASE}/{PROGRAM_NAME}"
-asset_url: str = f"{url_prefix}/assets"
-asset_prefix: str = str(Path(asset_url).relative_to(Path(BUCKET_URL)))
-version_url_prefix: str = f"{url_prefix}/{__version__}"
-
-ONE_HOUR: int = 60 * 60
 
 
 def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
@@ -52,74 +34,19 @@ def get_resource(path_relative_to_resources_dir: Union[str, Path]) -> Path:
     Finds the given resource in the resource dir.
     """
 
-    path = RESOURCE_DIR / path_relative_to_resources_dir
+    path = cfg.RESOURCE_DIR / path_relative_to_resources_dir
     if not path.exists():
         raise FileNotFoundError(
-            f"Could not find {path_relative_to_resources_dir}" + f" in '{RESOURCE_DIR}'"
+            f"Could not find {path_relative_to_resources_dir}" + f" in '{cfg.RESOURCE_DIR}'"
         )
     return path
 
 
 def get_replay_dir() -> Path:
-    replay_dir: Optional[str] = os.environ.get(REPLAY_DIR_ENV_VAR)
+    replay_dir: Optional[str] = os.environ.get(cfg.REPLAY_DIR_ENV_VAR)
     if replay_dir is not None:
         return Path(replay_dir)
     return get_resource("replay")
-
-
-def get_replay_sequence_dir(download_metadata: bool = True) -> Path:
-    replay_dir: Path = get_replay_dir()
-
-    try:
-        config = Configuration.load()
-        if config.sequence is not None:
-            for photography_type in (
-                f for f in os.listdir(replay_dir) if not f.startswith(".")
-            ):
-                if config.sequence in (
-                    f
-                    for f in os.listdir(replay_dir / photography_type)
-                    if not f.startswith(".")
-                ):
-                    return replay_dir / photography_type / config.sequence
-
-            # if here, the sequence wasn't found
-            if config.streaming_mode and download_metadata:
-                downloader = Downloader()
-                metadata_path: Path = downloader.fetch_metadata(config.sequence)
-
-                with metadata_path.open() as f:
-                    metadata: dict[str, Any] = json.load(f)
-
-                photography_type = str(metadata["photography_type"])
-
-                sequence_dir: Path = replay_dir / photography_type / config.sequence
-                sequence_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(metadata_path, sequence_dir)
-                return sequence_dir
-    except FileNotFoundError:
-        pass
-
-    replay_sequence: Optional[str] = os.environ.get(REPLAY_SEQUENCE_ENV_VAR)
-    if replay_sequence is not None:
-        return replay_dir / Path(replay_sequence)
-    raise FileNotFoundError(f"Could not find the sequence {replay_sequence} to replay.")
-
-
-def get_video() -> Path:
-    name: str = get_metadata("video")
-    return get_replay_sequence_dir() / "videos" / name
-
-
-def get_metadata(key: Optional[str] = None, download_metadata: bool = False) -> Any:
-    """
-    Loads the photo album metadata
-    """
-    # TODO load the file once
-    with (get_replay_sequence_dir(download_metadata) / METADATA_FILE_NAME).open() as f:
-        metadata: dict[str, Any] = json.loads(f.read())
-
-    return metadata[key] if key else metadata
 
 
 def get_metadata_schema() -> dict:
@@ -127,27 +54,33 @@ def get_metadata_schema() -> dict:
         return json.load(f)
 
 
-def get_start_time() -> datetime:
-    return datetime.strptime(get_metadata("start"), EXPECTED_DATETIME_FORMAT)
-
-
-def get_tle(download_metadata: bool = False) -> Path:
-    """
-    Returns the path to the TLE specified in metadata.json
-    """
-    tle_dict: dict[str, str] = get_metadata("tle", download_metadata)
-    return get_replay_sequence_dir() / str(tle_dict["file"])
-
-
-def search_for_sequence(resolution: tuple[int, int], photography_type: str) -> str:
+async def search_for_sequence(
+    resolution: tuple[int, int],
+    photography_type: str,
+    check_for_sequences_override: bool = False
+) -> str:
     """
     Returns the id of the most appropriate photo sequence given the requested
     resolution and photography type.
+
     """
+    if check_for_sequences_override:
+        downloader = Downloader()
+
+        try:
+            await downloader.check_for_sequences_override()
+        except (Timeout, ConnectionError) as e:
+            state.is_offline = True
+            logger.debug(
+                "Could not check for sequence " + f"override file: {e}"
+            )
+        except RequestException as e:
+            logger.debug(f"Could not check for sequence " f"override file: {e}")
+            logger.exception(e)
     sequence: str
 
     # save it if not already open
-    df = pd.read_csv(SEQUENCES_FILE)
+    df = pd.read_csv(cfg.SEQUENCES_FILE)
 
     filtered = df[
         (df["photography_type"] == photography_type)
@@ -155,7 +88,7 @@ def search_for_sequence(resolution: tuple[int, int], photography_type: str) -> s
     ]
 
     if len(filtered) > 0:
-        sequence = filtered["sequence_id"][0]
+        sequence = filtered["sequence_id"].iloc[0]
     else:
         raise AstroPiReplayException(
             f"No photos with resolution {resolution} "
@@ -163,8 +96,24 @@ def search_for_sequence(resolution: tuple[int, int], photography_type: str) -> s
         )
     return sequence
 
+def get_sequence_metadata(sequence_id: str) -> SequenceCSVRow:
+    df = pd.read_csv(cfg.SEQUENCES_FILE)
+    filtered = df[df['sequence_id'] == sequence_id]
+    if len(filtered) != 1:
+        raise ValueError(
+            f"Could not find sequence_id {sequence_id}"
+        )
+    if not isinstance(filtered, pd.DataFrame):
+        raise RuntimeError(
+            f"filtered {filtered} is not of the expected DataFrame type"
+        )
+    filtered['resolution' ] = filtered['resolution'].apply(
+            lambda res_str: tuple(res_str.split("x")))
 
-def has_installed(
+    row = list(filtered.T.to_dict().values())[0]
+    return cast(SequenceCSVRow, row)
+
+async def has_installed(
     resolution: tuple[int, int],
     photography_type: str,
     sequence_name: Optional[str] = None,
@@ -172,8 +121,8 @@ def has_installed(
     sequence: str
     if sequence_name is None:
         sequence = os.environ.get(
-            REPLAY_SEQUENCE_ENV_VAR,
-            search_for_sequence(resolution, photography_type),
+            cfg.REPLAY_SEQUENCE_ENV_VAR,
+            await search_for_sequence(resolution, photography_type),
         )
     else:
         sequence = sequence_name
@@ -214,7 +163,7 @@ class Downloader:
 
         if gpg_path is not None and Path(gpg_path).exists():
             logger.debug("Checking if the astro pi GPG key has been imported...")
-            command_args = ["gpg", "--list-public-keys", f"<{GPG_EMAIL}>"]
+            command_args = ["gpg", "--list-public-keys", f"<{cfg.GPG_EMAIL}>"]
             logger.debug(" ".join(command_args))
             proc = subprocess.run(  # nosec B603
                 command_args,
@@ -224,13 +173,13 @@ class Downloader:
             )
             if proc.returncode != 0:
                 logger.info(
-                    f"GPG public key for {GPG_EMAIL} not found. "
+                    f"GPG public key for {cfg.GPG_EMAIL} not found. "
                     + "Skipping integrity check"
                 )
                 commands: str = os.linesep.join(
                     [
-                        f"wget {GPG_KEY_URL}",
-                        f"gpg --import {GPG_KEY_URL.split('/')[-1]}",
+                        f"wget {cfg.GPG_KEY_URL}",
+                        f"gpg --import {cfg.GPG_KEY_URL.split('/')[-1]}",
                     ]
                 )
                 "\n"
@@ -267,7 +216,7 @@ class Downloader:
         return self.tempdir
 
     def download_file(
-        self, url: str, destination_dir: Path, timeout: float = ONE_HOUR
+        self, url: str, destination_dir: Path, timeout: float = cfg.ONE_HOUR
     ) -> Path:
         local_filename: str = url.split("/")[-1]
         destination_dir.mkdir(parents=True, exist_ok=True)
@@ -290,7 +239,7 @@ class Downloader:
             with (destination_dir / local_filename).open("wb") as f:
                 f.write(view)
         else:
-            with requests.get(url, stream=stream, timeout=ONE_HOUR) as r:
+            with requests.get(url, stream=stream, timeout=cfg.ONE_HOUR) as r:
                 r.raise_for_status()
                 total_length = int(r.headers.get("content-length", 0))
                 chunk_size = 5 * 1024
@@ -310,7 +259,7 @@ class Downloader:
         asset_name += ".zip"
         for file in [f"{asset_name}.sha256", f"{asset_name}.sig", f"{asset_name}"]:
             logger.info(f"Downloading {file}...")
-            url = f"{asset_url}/{file}"
+            url = f"{cfg.asset_url}/{file}"
             downloaded.append(await self.download_file_chunked(url, self.tempdir))
 
         logger.debug(f"Tempdir {self.tempdir} contains: {os.listdir(self.tempdir)}")
@@ -373,11 +322,11 @@ class Downloader:
 
         try:
             res = await self.get_(
-                f"{version_url_prefix}/{SEQUENCES_FILENAME}", timeout=5
+                f"{cfg.version_url_prefix}/{cfg.SEQUENCES_FILENAME}", timeout=5
             )
             if res.status_code == 200:
                 # override the file in resources
-                with open(SEQUENCES_FILE, "w") as f:
+                with open(cfg.SEQUENCES_FILE, "w") as f:
                     f.write(res.content.decode("utf-8"))
         finally:
             self.checked_for_sequences_override = True
@@ -399,7 +348,7 @@ class Downloader:
         elif sequence is not None:
             sequence_id = sequence
         else:
-            sequence_id = search_for_sequence(resolution, photography_type)
+            sequence_id = await search_for_sequence(resolution, photography_type)
 
         sequences_to_install: list[str] = [sequence_id]
         if with_video:
@@ -408,7 +357,7 @@ class Downloader:
         for seq in sequences_to_install:
             logger.debug(f"Request to install {seq}")
 
-            if has_installed(resolution, photography_type, seq):
+            if await has_installed(resolution, photography_type, seq):
                 logger.debug(f"{seq} already installed")
                 continue
             if not self.has_downloaded(seq):
@@ -431,20 +380,24 @@ class Downloader:
 
         Returns the destination Path.
         """
-        url: str = f"{asset_url}/{sequence_id}/metadata.json"
+        url: str = f"{cfg.asset_url}/{sequence_id}/metadata.json"
         if destination is None:
             destination = self.tempdir
         return self.download_file(url, destination)
 
-    def fetch_sequence_file(self, file_path: Path) -> Path:
+    def fetch_sequence_file(
+        self,
+        file_path: Path,
+        config: "Configuration"
+    ) -> Path:
         """
         file_path: Absolute Path to an asset that is in the
             get_replay_sequence_dir()
         """
 
         logger.debug(f"Fetching {file_path}")
-        sequence_dir: Path = get_replay_sequence_dir()
-        sequence_id: str = get_replay_sequence_dir().name
-        seq_dir_url: str = f"{asset_url}/{sequence_id}"
+        sequence_dir: Path = config.get_replay_sequence_dir()
+        sequence_id: str = config.get_replay_sequence_dir().name
+        seq_dir_url: str = f"{cfg.asset_url}/{sequence_id}"
         url: str = f"{seq_dir_url}/{file_path.relative_to(sequence_dir)}"
         return self.download_file(url, file_path.parent)

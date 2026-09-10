@@ -25,14 +25,10 @@ from astro_pi_replay import LOGGING_FORMAT, PACKAGE_ROOT, PROGRAM_CMD_NAME, PROG
 from astro_pi_replay.configuration import Configuration, get_default_venv_dir
 from astro_pi_replay.custom_types import ExecutionMode
 from astro_pi_replay.exception import AstroPiReplayException
-from astro_pi_replay.resources import (
-    SENSE_HAT_CSV_FILE,
-    get_replay_sequence_dir,
-    get_start_time,
-)
 from astro_pi_replay.resources.downloader import Downloader
 from astro_pi_replay.resources.timed_downloader import TimedDownloader
 from astro_pi_replay.venv_resolver import VenvResolver
+import astro_pi_replay.resources.config as cfg
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +128,7 @@ class AstroPiExecutor:
         """
         Decorator used to conditionally replay data from file for the SenseHat.
         """
-        filename: str = str(get_replay_sequence_dir() / SENSE_HAT_CSV_FILE)
+        filename: str = str(self.configuration.get_replay_sequence_dir() / cfg.SENSE_HAT_CSV_FILE)
 
         if "filename" not in kwargs:
             kwargs["filename"] = filename
@@ -330,7 +326,9 @@ class AstroPiExecutor:
         file_path: Path = Path(filename)
         if not file_path.exists() and self.configuration.streaming_mode:
             # download the file
-            self._get_downloader().fetch_sequence_file(file_path)
+            self._get_downloader().fetch_sequence_file(
+                    file_path, self.configuration
+            )
 
         df = self._df_from_replay_file(filename, datetime_col)
 
@@ -382,7 +380,7 @@ class AstroPiExecutor:
         now: datetime = datetime.now()
         delta: timedelta = now - execution_start_time
 
-        original_start_time: datetime = get_start_time()
+        original_start_time: datetime = self.configuration.get_start_time()
         return original_start_time + delta
 
     @property

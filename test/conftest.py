@@ -22,7 +22,7 @@ from astro_pi_replay.configuration import (
     Configuration,
 )
 from astro_pi_replay.executor import AstroPiExecutor
-from astro_pi_replay.resources import REPLAY_SEQUENCE_ENV_VAR
+from astro_pi_replay.resources.config import REPLAY_SEQUENCE_ENV_VAR
 from astro_pi_replay.venv_resolver import VenvResolver
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ def set_replay_sequence() -> Iterable:
     Sets the REPLAY_SEQUENCE_ENV_VAR environment variable to point
     to the test data dir.
     """
-    value: str = get_test_asset_path()
+    value: str = str(get_test_asset_path())
     logger.debug(f"Setting {REPLAY_SEQUENCE_ENV_VAR} to {value}")
     os.environ[REPLAY_SEQUENCE_ENV_VAR] = value
 
@@ -220,3 +220,13 @@ def set_config_dir(mock_config_filepath) -> Iterable:
     yield
     logger.debug(f"Unsetting {CONFIG_FILE_ENV_VAR}")
     os.environ.pop(str(CONFIG_FILE_ENV_VAR), None)
+
+
+@pytest.fixture
+def none_args() -> dict[str,None]:
+    keys = [ "debug", "main", "match_original_photo_intervals",
+        "cmd", "mode", "venv_dir", "resolution",
+        "photography_type", "sequence", "interpolate_sense_hat",
+        "snapshot_sense_hat_display", "sense_hat_snapshot_dir",
+        "is_transparent_to_user", "streaming_mode"]
+    return { k:None for k in keys }

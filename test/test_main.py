@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from astro_pi_replay import PROGRAM_NAME
-from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR
+from astro_pi_replay.configuration import CONFIG_FILE_ENV_VAR, Configuration
 from astro_pi_replay.main import _main, main
 
 
@@ -28,7 +28,7 @@ def test_main_cli_when_run_given_but_no_main_should_error(capsys):
 
 
 @patch("astro_pi_replay.main._main")
-def test_main_cli_when_run_given_supplies_default_args(
+def test_main_cli_when_run_given_supplies_args_as_None(
     mock_main, sense_hat_program: ProgramFixture
 ):
     args = [PROGRAM_NAME, "run", str(sense_hat_program.main)]
@@ -41,17 +41,17 @@ def test_main_cli_when_run_given_supplies_default_args(
         namespace = mock_main.call_args.args[0]
         assert namespace.main == sense_hat_program.main
         assert namespace.cmd == args[1]
-        assert namespace.debug is (
-            os.environ.get(f"{PROGRAM_NAME.upper()}_DEBUG", None) is not None
-        )
+        assert namespace.debug is None
         assert namespace.mode is None
-        assert namespace.no_match_original_photo_intervals is False
+        assert namespace.match_original_photo_intervals is None
         assert namespace.venv_dir is None
-        assert namespace.interpolate_sense_hat is True
-        assert namespace.resolution == (4056, 3040)
-        assert namespace.photography_type == "VIS"
-        assert namespace.snapshot_sense_hat_display is False
-        assert namespace.sense_hat_snapshot_dir == Path(os.getcwd())
+        assert namespace.interpolate_sense_hat is None
+        assert namespace.resolution is None
+        assert namespace.photography_type is None
+        assert namespace.snapshot_sense_hat_display is None
+        assert namespace.sense_hat_snapshot_dir is None
+
+
 
 
 @pytest.mark.asyncio
@@ -65,7 +65,7 @@ async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Pa
     args: dict = {
         "debug": True,
         "main": main,
-        "no_match_original_photo_intervals": True,
+        "match_original_photo_intervals": False,
         "cmd": "run",
         "mode": None,
         "venv_dir": None,
@@ -83,8 +83,59 @@ async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Pa
     # When
     with patch("astro_pi_replay.configuration.CONFIG_FILE", mock_config_filepath):
         await _main(namespace)
-    assert mock_config_filepath.exists()
 
+        # then
+        assert mock_config_filepath.exists()
+        config1 = Configuration.load()
+        stat1 = mock_config_filepath.stat()
+
+        # now pass None except for main and cmd
+        new_args = {
+            k:None for k in args.keys()
+        } | { "main": main, "cmd": "run" }
+        await _main(argparse.Namespace(**new_args))
+        config2 = Configuration.load()
+        stat2 = mock_config_filepath.stat()
+
+        # then the saved config should be used
+        assert config1 == config2
+        # and the underlying config file touched
+        assert stat2.st_mtime > stat1.st_mtime
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("args,use_main", [
+    ({ "cmd": "run" }, True),
+    ({ "cmd": "configure" }, False),
+], ids=["run", "configure"])
+async def test_main_overrides_configuration(
+    tmp_path: Path,
+    none_args: dict[str,None],
+    args: dict,
+    use_main: bool
+) -> None:
+
+    config_before = Configuration.load()
+    assert config_before.sequence == "test_data"
+
+    # when
+    sequence = "Vulpes"
+    merged_args = none_args | args | {
+        "sequence": sequence,
+    }
+    if use_main:
+        main: Path = tmp_path / "main.py"
+        os.close(os.open(str(main), flags=os.O_CREAT))
+        merged_args |= {
+            "main": main,
+        }
+
+    namespace = argparse.Namespace(**merged_args)
+    await _main(namespace)
+
+    # then
+    config_after = Configuration.load()
+    assert config_after.sequence == sequence
+    assert config_after.photography_type == "IR"
 
 @pytest.mark.skip(reason="TODO")
 def test_calls_executor_run_with_correct_args():

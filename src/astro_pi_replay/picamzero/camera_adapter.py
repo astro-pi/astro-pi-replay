@@ -23,7 +23,6 @@ from astro_pi_replay.executor import AstroPiExecutor
 from astro_pi_replay.libcamera import controls
 from astro_pi_replay.picamzero.ImageWrapper import ImageWrapper
 from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
-from astro_pi_replay.resources.downloader import get_replay_sequence_dir, get_video
 
 from . import utilities as utils
 
@@ -197,9 +196,12 @@ def CameraAdapter(
         ) -> None:
             # calculate the time since the replay started
             delta: timedelta = start - executor._state.get_start_time()
-            video: Path = get_video()
+            video: Path = executor.configuration.get_video()
             if not video.exists():
-                executor._get_downloader().fetch_sequence_file(video)
+                executor._get_downloader().fetch_sequence_file(
+                        video,
+                        executor.configuration
+                )
 
             if not executor._has_ffmpeg:
                 raise FfmpegNotInstalledException(
@@ -596,16 +598,19 @@ def CameraAdapter(
         def _get_next_photo(self) -> ImageWrapper:
             name: str = str(
                 executor._replay_next(
-                    str(get_replay_sequence_dir() / "photos" / "photo_index.csv"),
+                    str(executor.configuration.get_replay_sequence_dir() / "photos" / "photo_index.csv"),
                     "datetime",
                     ["name"],
                     allow_interpolation=False,
                 )
             )
 
-            image_path: Path = get_replay_sequence_dir() / "photos" / name
+            image_path: Path = executor.configuration.get_replay_sequence_dir() / "photos" / name
             if not image_path.exists():
-                executor._get_downloader().fetch_sequence_file(image_path)
+                executor._get_downloader().fetch_sequence_file(
+                        image_path,
+                        executor.configuration
+                )
             im: ImageWrapper = ImageWrapper(image_path)
 
             if self._overlay:
@@ -782,9 +787,12 @@ def CameraAdapter(
                     action="Recording a video", desired_result="record a video"
                 )
 
-            video: Path = get_video()
+            video: Path = executor.configuration.get_video()
             if not video.exists():
-                executor._get_downloader().fetch_sequence_file(video)
+                executor._get_downloader().fetch_sequence_file(
+                        video,
+                        executor.configuration
+                )
 
             # calculate the time since the replay started
             delta: timedelta = datetime.now() - executor._state.get_start_time()
