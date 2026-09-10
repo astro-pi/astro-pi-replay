@@ -138,7 +138,10 @@ async def get_argument_parser() -> ArgumentParser:
         CONFIGURE_CMD, help="Resolve and save the requested configuration"
     )
     configure_parser.set_defaults(cmd=CONFIGURE_CMD)
-    # TODO add Configuration fields.
+    await populate_argparser_from_dataclass(
+        configure_parser,
+        Configuration
+    )
 
     return arg_parser
 
@@ -206,6 +209,9 @@ async def _main(args: Namespace) -> None:
             sys.exit(0)
         elif args.cmd == INSTALL_CMD:
             AstroPiExecutor.install_global()
+        elif args.cmd == CONFIGURE_CMD:
+            logger.debug("Saving config")
+            config.save()
         else:
             (await get_argument_parser()).print_usage()
             sys.exit(1)
