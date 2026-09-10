@@ -103,25 +103,33 @@ async def test_main_saves_configuration(tmp_path: Path, mock_config_filepath: Pa
         assert stat2.st_mtime > stat1.st_mtime
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("args,use_main", [
+    ({ "cmd": "run" }, True),
+    ({ "cmd": "configure" }, False),
+], ids=["run", "configure"])
 async def test_main_overrides_configuration(
     tmp_path: Path,
-    none_args: dict[str,None]
+    none_args: dict[str,None],
+    args: dict,
+    use_main: bool
 ) -> None:
-    main: Path = tmp_path / "main.py"
-    os.close(os.open(str(main), flags=os.O_CREAT))
 
     config_before = Configuration.load()
     assert config_before.sequence == "test_data"
 
     # when
     sequence = "Vulpes"
-    args = none_args | {
-        "cmd": "run",
-        "main": main,
+    merged_args = none_args | args | {
         "sequence": sequence,
     }
+    if use_main:
+        main: Path = tmp_path / "main.py"
+        os.close(os.open(str(main), flags=os.O_CREAT))
+        merged_args |= {
+            "main": main,
+        }
 
-    namespace = argparse.Namespace(**args)
+    namespace = argparse.Namespace(**merged_args)
     await _main(namespace)
 
     # then
