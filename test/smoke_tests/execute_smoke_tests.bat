@@ -83,14 +83,13 @@ if not %errorlevel% equ 0 (
 )
 
 rem Create the virtual environment
-python -m venv %VENV_NAME%
+python -m venv --upgrade-deps %VENV_NAME%
 
 rem Activate the virtual environment
 call :findActivationScript
 call %ACTIVATION_SCRIPT%
 
 rem Install dependencies
-pip install --upgrade pip
 pip install -r requirements.txt
 
 if "%USE_LOCAL_WHEEL%"=="%TRUE%" (
