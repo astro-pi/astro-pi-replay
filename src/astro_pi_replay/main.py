@@ -240,3 +240,6 @@ def main() -> None:
             cProfile.runctx("_main(args)", globals(), locals(), sort="cumulative")
     else:
         asyncio.run(_main(args))
+
+if __name__ == "__main__":
+    sys.exit(main())
