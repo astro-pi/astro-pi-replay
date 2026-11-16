@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.4] - 2026-09-11
 ### Changes
 * Dependency versions to make suitable for pyodide version `v314.0.8`
+* Remove support for Python 3.9. The minimum Python version now is 3.11.
 
 ## [1.4.3] - 2026-09-11
 ### Fixes
