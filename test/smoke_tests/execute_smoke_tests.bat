@@ -83,7 +83,7 @@ if not %errorlevel% equ 0 (
 )
 
 rem Create the virtual environment
-python -m venv %VENV_NAME%
+python -m venv --upgrade-deps %VENV_NAME%
 
 rem Activate the virtual environment
 call :findActivationScript
