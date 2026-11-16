@@ -43,7 +43,7 @@ cleanup() {
 
 trap 'cleanup' EXIT
 
-python3 -m venv "$VENV"
+python3 -m venv --upgrade-deps "$VENV"
 source "$VENV/bin/activate"
 if [ -n "$USE_LOCAL_WHEEL" ]; then
   echo "Installing local wheel"
