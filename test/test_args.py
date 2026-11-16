@@ -29,9 +29,25 @@ def filter_option_strings(opts):
 def strip_whitespace(string: str) -> str:
     return re.sub(r'\s+', '', string)
 
+def normalise(string: str) -> str:
+    """
+    Normalise the given help string to make it comparable
+    across Python versions.
+    """
+    string = string.replace("optional arguments", "options")
+    # the HelpFormatter is not consistent in how it displays
+    # choices across Python versions
+    string = string.replace("{(", "{")
+    string = string.replace(")}", "}")
+    return strip_whitespace(string)
+
 @pytest.mark.asyncio
 class TestArgBuilding:
 
+    @pytest.fixture(autouse=True)
+    def set_terminal_width(self, monkeypatch):
+        monkeypatch.setenv("COLUMNS", "100")
+    
     async def test_populate_argparser_from_dataclass(
         self,
         parser: argparse.ArgumentParser
@@ -100,7 +116,7 @@ class TestArgBuilding:
         actual = buffer.getvalue()
 
         try:
-            assert strip_whitespace(actual) == strip_whitespace(expected)
+            assert normalise(actual) == normalise(expected)
         except AssertionError as e:
             fd, name = tempfile.mkstemp()
             os.write(fd, actual.encode())
