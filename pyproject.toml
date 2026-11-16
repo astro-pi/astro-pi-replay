@@ -53,36 +53,46 @@ classifiers = [
 dependencies = [
   # astro-pi-replay-online
   "pandas ~= 2.3.2; sys_platform=='emscripten'",
+  # Python 3.14 (Thonny v5)
+  "pandas ~= 2.3.3; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
-  "pandas ~= 2.2.3; sys_platform!='emscripten' and python_version >= '3.12'",
+  "pandas ~= 2.2.3; sys_platform!='emscripten' and python_version >= '3.12' and python_version < '3.14'",
   # Other
   "pandas; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
   "Pillow ~= 11.3.0; sys_platform=='emscripten'",
+  # Thonny v5
+  "Pillow ~= 11.3.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
-  "Pillow ~= 11.1.0; sys_platform!='emscripten' and python_version >= '3.12'",
+  "Pillow ~= 11.1.0; sys_platform!='emscripten' and python_version >= '3.12' and python_version < '3.14'",
   # Other
   "Pillow; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
   "scipy ~= 1.14.1; sys_platform=='emscripten'",
+  # Thonny v5
+  "scipy ~= 1.17.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
-  "scipy ~= 1.15.3; sys_platform!='emscripten' and python_version >= '3.12'",
+  "scipy ~= 1.15.3; sys_platform!='emscripten' and python_version >= '3.12' and python_version < '3.14'",
   # Other
   "scipy; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
   "numpy ~= 2.2.5; sys_platform=='emscripten'",
+  # Thonny v5
+  "numpy ~= 2.3.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
-  "numpy ~= 2.2.4; sys_platform!='emscripten' and python_version >= '3.12'",
+  "numpy ~= 2.2.4; sys_platform!='emscripten' and python_version >= '3.12' and python_version < '3.14'",
   # Other
   "numpy; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
   "opencv-python ~= 4.11.0.0; sys_platform=='emscripten'",
+  # Thonny v5
+  "opencv-python ~= 4.13.0.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
-  "opencv-python ~= 4.10.0.0; sys_platform!='emscripten' and python_version >= '3.12'",
+  "opencv-python ~= 4.10.0.0; sys_platform!='emscripten' and python_version >= '3.12' and python_version < '3.14'",
   # Other
   "opencv-python; sys_platform!='emscripten' and python_version < '3.12'",
 

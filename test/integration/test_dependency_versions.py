@@ -88,6 +88,9 @@ def get_dependencies(platform: Platform):
 # e.g. bookworm glibc version is 2.36
 MANYLINUX_X86_64 = "manylinux2014_x86_64"
 MANYLINUX_ARCH64 = "manylinux2014_aarch64"
+MANYLINUX_2_28_ARCH64 = "manylinux_2_28_aarch64"
+MANYLINUX_2_28_X86_64 = "MANYLINUX_2_28_x86_64"
+
 LINUX_ARMV7L = "linux_armv7l"
 LINUX_ARMV6L = "linux_armv6l"
 TRIXIE_PYTHON_VERSION = "3.13.5"
@@ -95,6 +98,8 @@ BOOKWORM_PYTHON_VERSION = "3.11.2"
 BULLSEYE_PYTHON_VERSION = "3.9.2"
 
 # Special test cases for Raspberry Pi OS / Debian
+thonny5_arch64: Platform = Platform(MANYLINUX_2_28_ARCH64, "3.14.0")
+thonny5_x86_64: Platform = Platform(MANYLINUX_2_28_X86_64, "3.14.0")
 trixie_arch64: Platform = Platform(MANYLINUX_ARCH64, TRIXIE_PYTHON_VERSION)
 trixie_armv7l: Platform = Platform(LINUX_ARMV7L, TRIXIE_PYTHON_VERSION, PIWHEELS_URL)
 trixie_armv6l: Platform = Platform(LINUX_ARMV6L, TRIXIE_PYTHON_VERSION, PIWHEELS_URL)
@@ -172,6 +177,8 @@ skip_opencv_on_mavericks_x86= SkippedDependency(
 @pytest.mark.parametrize(
     "platform,skipped_dependencies",
     [
+        pytest.param(thonny5_arch64, [], id="thonny5_linux_arch64"),
+        pytest.param(thonny5_x86_64, [], id="thonny5_linux_x86_64"),
         pytest.param(trixie_arch64, [], id="trixie_arch64"),
         pytest.param(trixie_armv7l, [], id="trixie_armv7l"),
         pytest.param(trixie_armv6l, [], id="trixie_armv6l"),
