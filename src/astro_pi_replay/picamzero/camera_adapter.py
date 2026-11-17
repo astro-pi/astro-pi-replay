@@ -698,7 +698,6 @@ def CameraAdapter(
             coordinates were calculated using GPS.
             """
             final_filename: str = utils.format_filename(filename, ".jpg")
-            print(gps_coordinates, latlon_coordinates, gps_coordinates != latlon_coordinates)
             if (
                 gps_coordinates
                 and latlon_coordinates
