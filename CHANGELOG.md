@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dependency versions to make suitable for pyodide version `v314.0.8`
 * Remove support for Python 3.9. The minimum Python version now is 3.11.
 * License field in `pyproject.toml` modernised.
+* Remove 32-bit Windows support.
+* Remove support for OS X Mavericks. The minimum OS X version is now Yosemite
 
 ## [1.4.3] - 2026-09-11
 ### Fixes
