@@ -27,8 +27,7 @@ def filter_option_strings(opts):
 
 
 def strip_whitespace(string: str) -> str:
-    # return re.sub(r'\s+', '', string)
-    return string
+    return re.sub(r'\s+', '', string)
 
 def normalise(string: str) -> str:
     """

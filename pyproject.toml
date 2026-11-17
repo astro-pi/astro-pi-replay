@@ -9,9 +9,10 @@ dynamic = ["version"]
 authors = [
   { name="Geraint Ballinger", email="geraint.ballinger@raspberrypi.org" }
 ]
-license = { file = "LICENCE.txt" }
+license = "BSD-3-Clause"
+license-files = [ "LICENCE.txt" ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent"
@@ -52,7 +53,7 @@ classifiers = [
 #
 dependencies = [
   # astro-pi-replay-online
-  "pandas ~= 2.3.2; sys_platform=='emscripten'",
+  "pandas ~= 3.0.2; sys_platform=='emscripten'",
   # Python 3.14 (Thonny v5)
   "pandas ~= 2.3.3; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
@@ -61,7 +62,7 @@ dependencies = [
   "pandas; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
-  "Pillow ~= 11.3.0; sys_platform=='emscripten'",
+  "Pillow ~= 12.2.0; sys_platform=='emscripten'",
   # Thonny v5
   "Pillow ~= 11.3.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
@@ -70,7 +71,7 @@ dependencies = [
   "Pillow; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
-  "scipy ~= 1.14.1; sys_platform=='emscripten'",
+  "scipy ~= 1.18.0; sys_platform=='emscripten'",
   # Thonny v5
   "scipy ~= 1.17.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
@@ -79,7 +80,7 @@ dependencies = [
   "scipy; sys_platform!='emscripten' and python_version < '3.12'",
 
   # astro-pi-replay-online
-  "numpy ~= 2.2.5; sys_platform=='emscripten'",
+  "numpy ~= 2.4.6; sys_platform=='emscripten'",
   # Thonny v5
   "numpy ~= 2.3.0; sys_platform!='emscripten' and python_version >= '3.14'",
   # RP OS Trixie
@@ -127,7 +128,7 @@ skip_glob = ["test/resources", "venv"]
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
 (
