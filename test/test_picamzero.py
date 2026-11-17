@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from astro_pi_replay.picamzero.PicameraZeroException import PicameraZeroException
 from test import test_utils
 from time import sleep
 from typing import Optional
@@ -96,13 +97,17 @@ def test_image_capture(executor: AstroPiExecutor):
     )
 
 
-def test_image_capture_sets_exif_metadata(executor: AstroPiExecutor):
+@pytest.mark.parametrize("arg_name", 
+                         ["gps_coordinates", "latlon_coordinates"])
+def test_image_capture_sets_exif_metadata(
+        executor: AstroPiExecutor, arg_name: str):
     latitude = (1.0, 29.1, 29.0, 48.78250810956524)
     longitude = (-1.0, 79.0, 17.0, 53.33060722541995)
 
     image_name = "picture_with_gps.jpg"
     cam = CameraAdapter(executor)
-    cam.take_photo(image_name, gps_coordinates=(latitude, longitude))
+    kwargs = { arg_name: (latitude, longitude) }
+    cam.take_photo(image_name, **kwargs)
 
     with open(image_name, "rb") as f:
         img = exif.Image(f)
@@ -112,6 +117,18 @@ def test_image_capture_sets_exif_metadata(executor: AstroPiExecutor):
     assert img.gps_longitude == (79.0, 17.0, 53.3)
     assert img.gps_longitude_ref == "W"
 
+def test_image_capture_error_when_inconsitent_gps_latlon_given(executor: AstroPiExecutor):
+    latitude = (1.0, 29.1, 29.0, 48.78250810956524)
+    longitude1 = (-1.0, 79.0, 17.0, 53.33060722541995)
+    longitude2 = (-1.0, 79.0, 17.0, 53.33060722541996)
+
+    image_name = "picture_with_gps.jpg"
+    cam = CameraAdapter(executor)
+
+    coordinates1 = (latitude, longitude1)
+    coordinates2 = (latitude, longitude2)
+    with pytest.raises(PicameraZeroException):
+        cam.take_photo(image_name, gps_coordinates=coordinates1, latlon_coordinates=coordinates2)
 
 def test_image_capture_with_overlay(executor: AstroPiExecutor):
     cam = CameraAdapter(executor)
