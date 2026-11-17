@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-17
+### Adds
+* Stub for `latlon_coordinates` in `picamzero.take_photo` function.
+
 ## [2.0.0] - 2026-10-17
 ### Changes
 * Dependency versions to make suitable for pyodide version `v314.0.8`
