@@ -676,7 +676,7 @@ def CameraAdapter(
             im = self._get_next_photo()
             return im.toarray()
 
-        def take_photo(self, filename=None, gps_coordinates=None) -> str:
+        def take_photo(self, filename=None, gps_coordinates=None, latlon_coordinates=None) -> str:
             """
             Takes a jpeg image using the camera
             :param str filename: The name of the file to save the photo.
@@ -689,11 +689,42 @@ def CameraAdapter(
             form (sign, degrees, minutes, seconds). This format
             can be generated from the skyfield library's signed_dms
             function.
+            :param tuple[tuple[float, float, float, float],
+                         tuple[float, float, float, float]] latlon_coordinates:
+            Another name for :obj:`gps_coordinates` for situations
+            where the latitude and longitude coordinates are not
+            calculated using GPS. This parameter can be used instead
+            of `gps_coordinates` to avoid implying that the
+            coordinates were calculated using GPS.
             """
             final_filename: str = utils.format_filename(filename, ".jpg")
+            print(gps_coordinates, latlon_coordinates, gps_coordinates != latlon_coordinates)
+            if (
+                gps_coordinates
+                and latlon_coordinates
+                and gps_coordinates != latlon_coordinates
+            ):
+                raise PicameraZeroException(
+                    os.linesep.join(
+                        [
+                            "Received both latlon_coordinates "
+                            + "and gps_coordinates, but they are "
+                            + "not the same.",
+                            "Please provide only one of "
+                            + "latlon_coordinates or "
+                            + "gps_coordinates, but not both.",
+                        ]
+                    )
+                )
 
             im: ImageWrapper = self._get_next_photo()
             exif: Image.Exif = im.getexif()
+
+            # fall back to latlon_coordinates when gps_coordinates
+            # not provided
+            if not gps_coordinates:
+                gps_coordinates = latlon_coordinates
+
             if gps_coordinates:
                 gps = utils.signed_dms_coordinates_to_exif_dict(gps_coordinates)
                 # Convert to Fractional, like Pillow needs
