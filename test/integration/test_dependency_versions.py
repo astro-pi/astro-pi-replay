@@ -125,10 +125,8 @@ linux_x86_64: Platform = Platform(MANYLINUX_X86_64, get_min_python_version())
 linux_arm64: Platform = Platform(MANYLINUX_ARCH64, get_min_python_version())
 
 # Windows - just use min python version
-# Win32 is being phased out, so might not want to put
-# much effort into supporting.
+# Win32 is no longer supported.
 windows_x86_64: Platform = Platform("win_amd64", get_min_python_version())
-windows_x86_32: Platform = Platform("win32", get_min_python_version())
 
 # Mac OS - in general, if current MacOS version is above
 # it is backwards compatable
@@ -137,11 +135,11 @@ windows_x86_32: Platform = Platform("win32", get_min_python_version())
 mac_catalina_arm64: Platform = Platform("macosx_12_0_arm64", get_min_python_version())
 mac_bigsur_arm64: Platform = Platform("macosx_11_0_arm64", get_min_python_version())
 mac_bigsur_x86_64: Platform = Platform("macosx_11_0_x86_64", get_min_python_version())
-mac_mavericks_x86_64: Platform = Platform(
-    "macosx_10_9_x86_64", get_min_python_version()
+mac_yosemite_x86_64: Platform = Platform(
+    "macosx_10_10_x86_64", get_min_python_version()
 )
-mac_mavericks_universal: Platform = Platform(
-    "macosx_10_9_universal2", get_min_python_version()
+mac_yosemite_universal: Platform = Platform(
+    "macosx_10_10_universal2", get_min_python_version()
 )
 
 #########
@@ -189,9 +187,8 @@ skip_opencv_on_mavericks_x86= SkippedDependency(
         pytest.param(bullseye_arch64, [], id="bullseye_arch64"),
         pytest.param(bullseye_armv7l, [], id="bullseye_armv7l"),
         pytest.param(bullseye_armv6l, [], id="bullseye_armv6l"),
-        pytest.param(windows_x86_32, [], id="windows_x86_32"),
         pytest.param(windows_x86_64, [], id="windows_x86_64"),
-        pytest.param(mac_mavericks_x86_64, [skip_opencv_on_mavericks_x86], id="mac_mavericks_x86_64"),
+        pytest.param(mac_yosemite_x86_64, [skip_opencv_on_mavericks_x86], id="mac_mavericks_x86_64"),
         pytest.param(mac_bigsur_x86_64, [], id="mac_bigsur_x86_64"),
         pytest.param(mac_catalina_arm64, [], id="mac_catalina_arm64"),
     ],
